@@ -1,0 +1,1256 @@
+@import './styles/theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══ رأس الفاتورة (إنشاء/تعديل): Grid مرن — استقرار عند الزووم وتغيير العرض ═══ */
+.invoice-header-grid-autofit {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: clamp(0.45rem, 1.25vw, 0.65rem);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+@media (min-width: 640px) {
+  .invoice-header-grid-autofit {
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  }
+}
+
+/* صف الحقول الثاني (عميل، مندوب، مرجع…) */
+.invoice-header-secondary-autofit {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: clamp(0.45rem, 1.25vw, 0.65rem);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr));
+}
+
+@media (min-width: 768px) {
+  .invoice-header-secondary-autofit {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .invoice-header-secondary-autofit {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  }
+}
+
+/* خلية المورد/العميل: أعرض قليلاً من بقية خانات الصف الثاني */
+@media (min-width: 640px) {
+  .invoice-header-secondary-autofit > .invoice-header-partner-cell {
+    grid-column: span 2;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   لغة التصميم الموحدة: 4 ألوان فقط (Primary, Success, Danger, Neutral)
+   خط Cairo بوزن 400 للنصوص والعناوين (بدون عريض) — زوايا 8px — مسافات بمضاعفات 8px
+═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* Primary — يُحدَّث عند اختيار السمة؛ قيم افتراضية (نيلي) لتفادي undefined قبل التحميل */
+    --color-primary-50: #eef2ff;
+    --color-primary-100: #e0e7ff;
+    --color-primary-200: #c7d2fe;
+    --color-primary-300: #a5b4fc;
+    --color-primary-400: #818cf8;
+    --color-primary-500: #6366f1;
+    --color-primary-600: #4f46e5;
+    --color-primary-700: #4338ca;
+    --color-primary-800: #3730a3;
+    --color-primary-900: #312e81;
+    --color-primary-950: #1e1b4b;
+    /* Success — الأرصدة الدائنة */
+    --color-success-500: #10b981;
+    --color-success-600: #059669;
+    /* Danger — المبالغ المدينة */
+    --color-danger-50: #fef2f2;
+    --color-danger-500: #ef4444;
+    --color-danger-600: #dc2626;
+    /* Neutral — الخلفيات والنصوص الثانوية */
+    --color-neutral-50: #fafafa;
+    --color-neutral-100: #f4f4f5;
+    --color-neutral-200: #e4e4e7;
+    --color-neutral-300: #d4d4d8;
+    --color-neutral-500: #71717a;
+    --color-neutral-700: #3f3f46;
+    --color-neutral-900: #18181b;
+    /* خلفية صفحة الدخول: أزرق–رمادي فاتح (واضح عن neutral-100 #f4f4f5) متناسق مع الشعار */
+    --color-login-canvas: #d5e6f0;
+    /* زوايا موحدة 8px */
+    --radius: 8px;
+    /* مسافات بمضاعفات 8px (الحد الأدنى الداخلي 16px) */
+    --space-1: 8px;
+    --space-2: 16px;
+    --space-3: 24px;
+    --space-4: 32px;
+  }
+
+  html,
+  body {
+    font-family: 'Cairo', system-ui, sans-serif;
+    font-weight: 400;
+    background-color: var(--color-neutral-100);
+    color: var(--color-neutral-900);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* إخفاء جميع أشرطة التمرير في الصفحة مع بقاء التمرير يعمل */
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 400;
+  }
+
+  /* شاشات لمس: رفع الحد الأدنى لارتفاع أهداف الضغط (دون فرض عرض لكل زر) */
+  @media (pointer: coarse) {
+    button,
+    [role='button'],
+    input[type='button'],
+    input[type='submit'],
+    input[type='reset'],
+    a.fc-tap-target {
+      min-height: 44px;
+    }
+
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea {
+      min-height: 44px;
+    }
+  }
+
+  th {
+    font-weight: 400;
+  }
+
+  b,
+  strong {
+    font-weight: 400;
+  }
+}
+
+/* ═══ استثناء لإظهار شريط التمرير عند الحاجة (مثل الجداول عند التكبير) ═══ */
+.show-scrollbar {
+  -ms-overflow-style: auto !important; /* IE/Edge legacy */
+  scrollbar-width: thin !important; /* Firefox */
+}
+.show-scrollbar::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+}
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.45) !important;
+  border-radius: 8px !important;
+}
+.show-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+/* إخفاء شريط التمرير مع الإبقاء على التمرير (للشريط الجانبي) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@layer components {
+  /* ─── أزرار بأحجام موحدة (Small, Medium, Large) ─── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    font-family: inherit;
+    font-weight: 400;
+    border-radius: var(--radius);
+    transition: background-color 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary-500);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    min-width: 5rem;
+  }
+  .btn-md {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    min-width: 6rem;
+  }
+  .btn-lg {
+    padding: 12px 24px;
+    font-size: 0.9375rem;
+    min-width: 8rem;
+  }
+
+  .btn-primary {
+    background-image: linear-gradient(to left, var(--fc-accent), var(--fc-accent-dark));
+    background-color: var(--fc-accent-dark);
+    color: white;
+    border: none;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--fc-accent) 35%, transparent);
+    transition: box-shadow 0.2s, filter 0.2s;
+  }
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.05);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--fc-accent) 45%, transparent);
+  }
+
+  .btn-secondary {
+    background-color: white;
+    color: var(--color-neutral-700);
+    border: 1px solid #e5e7eb;
+    transition: background-color 0.15s, border-color 0.15s;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+  }
+
+  .btn-success {
+    background-color: var(--color-success-600);
+    color: white;
+    border: none;
+  }
+  .btn-success:hover:not(:disabled) {
+    background-color: var(--color-success-500);
+  }
+
+  .btn-danger {
+    background-color: var(--color-danger-600);
+    color: white;
+    border: none;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: var(--color-danger-500);
+  }
+
+  /* زر أيقونة (بدون حد أدنى للعرض) — مناسب لعمود الإجراءات داخل الجداول */
+  .btn.btn-icon {
+    min-width: unset;
+    padding-inline: 10px;
+    gap: 0;
+  }
+  .btn-sm.btn-icon {
+    min-width: unset;
+    padding: 6px 10px;
+  }
+
+  /* ─── بطاقات: خلفية بيضاء + خلفية رمادية خفيفة للفصل ─── */
+  .card-app {
+    background-color: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-neutral-200);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .card-app .card-padding {
+    padding: var(--space-2);
+  }
+
+  /* منطقة الصفحة الرئيسية: خلفية محايدة خفيفة */
+  .page-bg {
+    background-color: var(--color-neutral-100);
+    min-height: 100%;
+    padding: var(--space-2);
+  }
+
+  /* ─── حقول الإدخال ─── */
+  .input-app {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    font-family: inherit;
+    font-weight: 400;
+    color: var(--color-neutral-900);
+    background-color: white;
+    border: 1px solid var(--color-neutral-300);
+    border-radius: var(--radius);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input-app::placeholder {
+    color: var(--color-neutral-500);
+  }
+  .input-app:focus {
+    outline: none;
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+  }
+
+  /* ─── جداول: حدود شفافة + تظليل سطر وترك سطر (Zebra) ─── */
+  .table-zebra {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  .table-zebra th,
+  .table-zebra td {
+    padding: var(--space-2);
+    text-align: inherit;
+    border-bottom: 1px solid transparent;
+  }
+  .table-zebra thead th {
+    background-color: var(--color-neutral-100);
+    font-weight: 400;
+    color: var(--color-neutral-700);
+  }
+  .table-zebra tbody tr:nth-child(even) {
+    background-color: var(--color-neutral-50);
+  }
+  .table-zebra tbody tr:nth-child(odd) {
+    background-color: white;
+  }
+  .table-zebra tbody tr:hover {
+    background-color: var(--color-neutral-100);
+  }
+
+  .dark .table-zebra thead th {
+    background-color: var(--color-neutral-100);
+    color: var(--color-neutral-700);
+  }
+  .dark .table-zebra tbody tr:nth-child(even) {
+    background-color: var(--color-neutral-50);
+  }
+  .dark .table-zebra tbody tr:nth-child(odd) {
+    background-color: var(--fc-card-bg);
+  }
+  .dark .table-zebra tbody tr:hover {
+    background-color: var(--fc-table-row-hover, var(--color-neutral-100));
+  }
+
+  .dark .card-app {
+    background-color: var(--fc-card-bg);
+    border-color: var(--fc-border);
+  }
+
+  /**
+   * رأس جدول قائمة الفواتير: صف واحد — عنوان أو فلتر في نفس السطر ومحاذاة عمودية موحّدة.
+   * العرض يُحدَّد بـ <colgroup> + table-layout: fixed.
+   */
+  .invoice-list-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: visible;
+  }
+
+  @media (max-width: 899px) {
+    .invoice-list-table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  .invoice-list-table-fixed {
+    table-layout: fixed;
+  }
+
+  .invoice-list-thead th {
+    vertical-align: middle;
+    box-sizing: border-box;
+    border-bottom: 1px solid rgb(226 232 240);
+  }
+
+  .invoice-list-th-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .invoice-list-th-row--center {
+    justify-content: center;
+  }
+
+  .invoice-list-th-heading {
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 500 !important;
+    color: var(--color-neutral-700);
+  }
+
+  .invoice-list-th-filter {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+  }
+
+  /** كبسولات الحالة في صفوف البيانات */
+  .invoice-cell-pill {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(148, 163, 184, 0.42);
+    padding: 0.2rem 0.55rem;
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    font-weight: 500 !important;
+    text-align: center;
+    white-space: normal;
+    box-sizing: border-box;
+  }
+
+  .modal-content-padding {
+    padding: var(--space-2);
+  }
+}
+
+/* طبقة المودالات: fixed بملء الشاشة + z-index عالٍ — فوق الشريط (transform/z-50) */
+#modal-root {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999999 !important;
+  pointer-events: none !important;
+  isolation: isolate;
+}
+
+/* المودالات المنقولة عبر createPortal — تفعيل النقر على المحتوى والأزرار */
+#modal-root > * {
+  pointer-events: auto !important;
+}
+
+/* فئات الألوان للأرقام والعناوين (للتوافق مع المكونات الحالية) */
+.bg-primary-600, button.bg-primary-600, a.bg-primary-600 {
+  background-color: var(--color-primary-600) !important;
+}
+.text-primary-600 { color: var(--color-primary-600) !important; }
+.bg-success-600 { background-color: var(--color-success-600) !important; }
+.text-success-600 { color: var(--color-success-600) !important; }
+.bg-danger-600 { background-color: var(--color-danger-600) !important; }
+.text-danger-600 { color: var(--color-danger-600) !important; }
+.bg-danger-50 { background-color: #fef2f2 !important; }
+.border-danger-200 { border-color: #fecaca !important; }
+.rounded-app { border-radius: var(--radius) !important; }
+
+.amount-display {
+  direction: ltr !important;
+  unicode-bidi: plaintext;
+  font-family: 'Cairo', system-ui, sans-serif;
+}
+.amount-wrapper {
+  display: inline-flex;
+  flex-direction: row-reverse;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+.currency-tag {
+  font-size: 0.8rem;
+  color: var(--color-neutral-500);
+}
+
+/* ═══ تنسيق الطباعة (Print-Friendly CSS) ═══ */
+/* إعداد الصفحة: A4، هوامش 10mm، تذييل رقم الصفحة (يدعمه Chrome/Edge في معاينة الطباعة) */
+@page {
+  size: A4;
+  margin: 10mm;
+  @bottom-center {
+    content: 'صفحة ' counter(page) ' من ' counter(pages);
+    font-size: 9pt;
+    color: #000;
+    font-family: 'Cairo', system-ui, sans-serif;
+  }
+}
+
+@media print {
+  /* 1. إخفاء العناصر غير الضرورية */
+  .no-print,
+  .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  .sidebar,
+  .navbar,
+  .filters-bar,
+  .action-buttons,
+  .footer-web {
+    display: none !important;
+  }
+
+  /* هيكل التطبيق: عرض كامل للورقة بدون قص */
+  html,
+  body {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .app-shell-print-layout {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .app-shell-print-main-column {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  main {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* 2. تمدد المحتوى ليشغل الورقة بالكامل */
+  .main-content,
+  .app-main-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  body {
+    background: #fff !important;
+  }
+
+  /* تكرار رأس الجدول والتذييل في الصفحات الطويلة */
+  thead {
+    display: table-header-group !important;
+  }
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  /* 3. تنسيق الجداول للطباعة الورقية */
+  table {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  th,
+  td {
+    border: 1px solid #000 !important;
+    padding: 6px !important;
+    font-size: 10pt !important;
+    color: #000 !important;
+  }
+
+  /* معاينة التسوية الجردية — جدول أوضح بعرض كامل */
+  .inventory-adjustment-print-document {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+  }
+
+  .inventory-adjustment-print-header {
+    margin-bottom: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+    border-bottom: 2px solid #000 !important;
+    background: #fff !important;
+  }
+
+  .inventory-adjustment-print-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+    border: 2px solid #000 !important;
+  }
+
+  .inventory-adjustment-print-table th,
+  .inventory-adjustment-print-table td {
+    border: 1px solid #000 !important;
+    padding: 0.4rem 0.5rem !important;
+    font-size: 14pt !important;
+    line-height: 1.35 !important;
+    color: #000 !important;
+    background: #fff !important;
+    vertical-align: middle !important;
+  }
+
+  .inventory-adjustment-print-table thead th {
+    font-weight: 700 !important;
+    border-bottom: 2px solid #000 !important;
+  }
+
+  .inventory-adjustment-print-table tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .inventory-adjustment-print-table tfoot td {
+    font-weight: 700 !important;
+    border-top: 2px solid #000 !important;
+  }
+
+  /* جداول التقارير (توافق مع الأصناف الحالية) */
+  .report-print-table,
+  .report-print-area table {
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: 10pt !important;
+    table-layout: auto;
+  }
+  .report-print-area {
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* 4. إظهار الترويسة الرسمية فقط عند الطباعة */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  /* إزالة المظهر التفاعلي للروابط في الطباعة: نص أسود عادي */
+  a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+  a[href]::after {
+    content: none !important;
+  }
+}
+
+/* تنسيق طباعة التقارير (نفس تنسيق قيود اليومية): ترويسة + جدول + تذييل */
+@media print {
+  .report-print-only,
+  .report-print-only * {
+    visibility: visible !important;
+  }
+  .report-print-only {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    box-shadow: none;
+    border: none;
+  }
+  .report-print-header {
+    padding: 12px 0 16px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .report-print-table-wrap {
+    padding: 16px 0;
+    overflow: visible;
+    width: 100%;
+  }
+  .report-print-table {
+    width: 100%;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    /* السماح بتوزيع الأعمدة ديناميكياً حسب الأعمدة المتبقية */
+    table-layout: auto;
+  }
+  .report-print-table th,
+  .report-print-table td {
+    padding: 8px 6px;
+    border: 1px solid #e2e8f0;
+  }
+  .report-print-table th { text-align: center !important; }
+  .report-print-table td { text-align: center !important; }
+  /* محاذاة أرقام التذييل لأسفل مع الأعمدة عند إخفاء أعمدة */
+  .report-print-table tfoot td.tabular-nums,
+  .report-print-table td.tabular-nums {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+  }
+  .report-print-table .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .report-print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 0;
+    font-size: 10px;
+    color: #64748b;
+    border-top: 1px solid #e2e8f0;
+    background: white;
+    display: flex;
+    justify-content: space-between;
+  }
+  .report-page-num::after {
+    content: counter(page);
+  }
+  @page {
+    size: A4 portrait;
+    margin: 10mm 10mm 22mm;
+  }
+}
+@media screen {
+  .report-print-only {
+    display: none !important;
+  }
+}
+
+/* عرض الفاتورة — portal الطباعة (نسخة مباشرة تحت body) */
+@media print {
+  body.invoice-printing > *:not(#invoice-print-portal) {
+    display: none !important;
+  }
+  body.invoice-printing #invoice-print-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+}
+@media screen {
+  #invoice-print-portal {
+    display: none !important;
+  }
+}
+
+/* تقرير تنبيهات النواقص: تكبير خط الرصيد وحد الطلب، تمييز النقص */
+.low-stock-table .low-stock-cell-qty {
+  font-size: 1rem;
+}
+.low-stock-table .low-stock-cell-shortage {
+  font-size: 1rem;
+  color: #b91c1c;
+  background-color: #fef2f2;
+}
+
+/* إخفاء شريط التمرير مع بقاء التمرير يعمل (صفحة نقطة البيع) */
+.scrollbar-hide {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+.scrollbar-hide::-webkit-scrollbar-thumb,
+.scrollbar-hide::-webkit-scrollbar-track {
+  display: none !important;
+}
+
+/* ═══ تنسيق احترافي لمنطقة الإجماليات — Flexbox يمنع تداخل النصوص ═══ */
+.totals-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 15px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  width: 350px;
+  max-width: 100%;
+}
+
+.totals-row,
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: #444;
+  min-height: 24px;
+}
+
+.total-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 400;
+  text-align: right;
+}
+
+.total-value {
+  flex: 0 0 auto;
+  min-width: fit-content;
+  font-family: 'Courier New', monospace;
+  text-align: left;
+  direction: ltr;
+}
+
+.grand-total-row,
+.grand-total {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 2px solid #ddd;
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: #1a5d1a;
+}
+
+.grand-total-label {
+  font-size: 1.125rem;
+  font-weight: 400;
+  flex: 1 1 auto;
+  text-align: right;
+}
+
+.grand-total-value {
+  font-size: 1.75rem;
+  font-weight: 400;
+  flex: 0 0 auto;
+  font-family: 'Courier New', monospace;
+  text-align: left;
+  direction: ltr;
+  letter-spacing: 0.02em;
+}
+
+/* تنسيق قسم الإجماليات لضمان الوضوح التام — العناوين أقصى اليمين، الأرقام أقصى اليسار */
+.summary-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  gap: 12px;
+  min-height: 24px;
+}
+.summary-label {
+  text-align: right;
+  font-weight: 400;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.summary-value {
+  text-align: left;
+  flex: 0 0 auto;
+  min-width: fit-content;
+  direction: ltr;
+}
+
+/* أخضر داكن للصافي النهائي */
+.grand-total-label {
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #1a5d1a;
+}
+
+/* الحل النهائي لتنسيق الإجماليات — النص يمين والرقم يسار تماماً */
+.totals-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+.totals-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.totals-label {
+  font-weight: 400;
+  color: #475569;
+}
+
+.totals-value {
+  font-family: monospace;
+  font-weight: 400;
+}
+
+.totals-wrapper .grand-total-row {
+  border-top: 2px solid #e2e8f0;
+  padding-top: 12px;
+  margin-top: 8px;
+  font-size: 1.25rem;
+  color: #15803d;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   استقرار الواجهة عند تغيير الدقة والزووم
+   - حاوية رئيسية بعرض نسبي
+   - جداول متجاوبة مع تمرير أفقي داخلي
+   - قص النص الطويل في الخلايا
+   - أزرار بحد أدنى للعرض (تمت إضافتها أعلاه في .btn-sm/md/lg)
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* حاوية المحتوى الرئيسي: عرض الساحة المتاحة بالكامل (دون تقييد 96rem) + هامش جانبي بحد أقصى 10px */
+.app-main-container {
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  padding-inline: clamp(6px, 1.5vw, 10px);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/*
+  تخطيط الشريط + المحتوى:
+  - أقل من lg: flex + شريط fixed (لا يشغل مسار flex) → عمود المحتوى بعرض السطر.
+  - من lg: grid بعمودين (عرض الشريط | minmax(0,1fr)) حتى لا يمتد الجدول تحت الشريط في RTL/LTR.
+  --app-sidebar-width يُعرَّف من Layout (0 عند الطي، 16rem عند الفتح).
+*/
+.app-shell-layout-with-sidebar {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .app-shell-layout-with-sidebar {
+    display: grid;
+    grid-template-columns: var(--app-sidebar-width, 16rem) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .app-shell-layout-with-sidebar > .app-shell-print-main-column {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+}
+
+/*
+  توحيد مقياس الخط مع سندات القبض (نص العمل text-sm = 0.875rem):
+  داخل المحتوى الرئيسي فقط — الشريط الجانبي والعلوي خارج .app-main-container.
+  يرفع text-xs ليطابق text-sm حتى لا تبقى جداول/ملاحظات أصغر من الحقول.
+*/
+.app-main-container .text-xs {
+  font-size: 0.875rem;
+}
+
+/* صفحة إنشاء/تعديل السند: امتداد أفقي حتى حواف منطقة المحتوى (إلغاء المسافة الجانبية للحاوية) */
+.app-main-container > .voucher-full-bleed {
+  margin-inline: calc(-1 * clamp(6px, 1.5vw, 10px));
+  width: calc(100% + 2 * clamp(6px, 1.5vw, 10px));
+  max-width: none;
+  box-sizing: border-box;
+}
+
+/* تمرير أفقي للجداول — لا يخرج الجدول عن الصفحة (شريط رفيع داخل الحاوية) */
+.ui-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+.ui-table-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 6px;
+}
+.ui-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.45);
+  border-radius: 4px;
+}
+.ui-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.45) transparent;
+}
+
+/* ─── جداول التقارير: عرض كامل + تمرير أفقي عند الحاجة فقط ─── */
+.report-table-container {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.report-table-container .report-table {
+  width: 100%;
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+/* أعمدة ثابتة عند التمرير الأفقي (كود + اسم الصنف) */
+.report-table-sticky-col {
+  position: sticky;
+  z-index: 1;
+  background: inherit;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.06);
+}
+.inventory-report-table-wrap thead .report-table-sticky-col {
+  background: rgb(248 250 252);
+}
+.inventory-report-table-wrap tbody .report-table-sticky-col {
+  background: inherit;
+}
+.inventory-report-table-wrap tbody tr:hover .report-table-sticky-col {
+  background: inherit;
+}
+.inventory-report-table-wrap tfoot .report-table-sticky-col {
+  background: rgb(241 245 249);
+}
+/* إزاحة العمود الثاني الثابت = عرض عمود الكود (يتبع --inv-report-code-col) */
+[dir="ltr"] .inventory-report-table-wrap .report-table-sticky-1 { left: 0; }
+[dir="ltr"] .inventory-report-table-wrap .report-table-sticky-2 { left: var(--inv-report-code-col, 11ch); }
+[dir="rtl"] .inventory-report-table-wrap .report-table-sticky-1 { right: 0; }
+[dir="rtl"] .inventory-report-table-wrap .report-table-sticky-2 { right: var(--inv-report-code-col, 11ch); }
+
+/* تقرير الجرد: إجبار امتداد الجدول لعرض المنطقة بالكامل */
+.inventory-report-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* تقرير الجرد: بدون هامش سالب حتى لا يخرج المحتوى عن حدود عمود المحتوى/الشبكة */
+.inventory-report-full-bleed {
+  margin-inline: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.inventory-report-table-card {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.inventory-report-table-scroll,
+.inventory-report-table-wrap {
+  width: 100%;
+  min-width: 0;
+  /* عرض ثابت لعمود الكود (محاذاة sticky) + حد أدنى لعرض الأرقام */
+  --inv-report-code-col: 11ch;
+  --inv-report-unit-col: 9ch;
+  --inv-report-num-min: 11ch;
+}
+
+/* تمرير أفقي + عمودي: overflow-x: scroll يُبقي مسار التمرير الأفقي ظاهراً (ويندows) */
+.inventory-report-table-scroll.inventory-report-table-wrap {
+  overflow-x: scroll;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+}
+
+.inventory-report-table-scroll.inventory-report-table-wrap::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+.inventory-report-table-scroll.inventory-report-table-wrap::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.inventory-report-table-scroll.inventory-report-table-wrap::-webkit-scrollbar-track {
+  background: rgb(241 245 249);
+}
+
+.inventory-report-table-wrap .inventory-report-table {
+  display: table;
+  /* max-content: عرض الجدول من مجموع الأعمدة؛ مع min-width:100% يملأ الحاوية إن كان المحتوى أضيق */
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  /* auto: عمود الاسم يمتص المساحة؛ الأعمدة الضيقة تُضغط عبر <col> + nowrap */
+  table-layout: auto;
+}
+
+/* أعمدة الجدول: كود/وحدة ضيقة، أرقام بعرض ~10 خانات، اسم الصنف مرن */
+.inventory-report-table-wrap .inventory-report-table col.inventory-report-col--tight-code {
+  width: var(--inv-report-code-col);
+}
+.inventory-report-table-wrap .inventory-report-table col.inventory-report-col--tight-unit {
+  width: var(--inv-report-unit-col);
+}
+.inventory-report-table-wrap .inventory-report-table col.inventory-report-col--numeric {
+  width: 1%;
+}
+.inventory-report-table-wrap .inventory-report-table col.inventory-report-col--grow {
+  min-width: 12rem;
+}
+
+.inventory-report-table-wrap .inventory-report-table thead th {
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.inventory-report-table-wrap .inventory-report-table .inv-report-cell--numeric {
+  white-space: nowrap;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+  min-width: var(--inv-report-num-min);
+}
+
+.inventory-report-table-wrap .inventory-report-table .inv-report-cell--text {
+  text-align: start;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.inventory-report-table-wrap .inventory-report-table .inv-report-cell--code,
+.inventory-report-table-wrap .inventory-report-table .inv-report-cell--unit {
+  white-space: nowrap;
+  text-align: center;
+  box-sizing: border-box;
+  font-variant-numeric: normal;
+}
+
+.inventory-report-table-wrap .inventory-report-table .inv-report-cell--code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.35rem;
+}
+
+.inventory-report-table-wrap .inventory-report-table .inv-report-th--numeric {
+  text-align: end;
+  min-width: var(--inv-report-num-min);
+}
+.inventory-report-table-wrap .inventory-report-table .inv-report-th--text {
+  text-align: start;
+}
+.inventory-report-table-wrap .inventory-report-table .inv-report-th--center {
+  text-align: center;
+}
+
+/* جدول متجاوب: شريط تمرير أفقي داخل الحاوية فقط، الشريط العلوي يبقى ثابتاً */
+.table-responsive-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+}
+
+/* منع تمدد النص الطويل في خلايا الجدول (أسماء الأصناف وغيرها) */
+.cell-ellipsis {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* أزرار الصفحات: حد أدنى للعرض لسهولة النقر عند الزووم */
+.btn-action {
+  min-width: 5rem;
+}
+.btn-action-lg {
+  min-width: 8rem;
+}
+
+/* نافذة اختيار الطاولة: انتقال ناعم عند تغيير التبويب */
+@keyframes table-modal-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.table-modal-content {
+  animation: table-modal-fade 0.2s ease-out forwards;
+}
+
+/* صفحة الدخول: خلفية مضمونة (لا تعتمد على arbitrary في Tailwind) */
+.login-page-bg {
+  background-color: var(--color-login-canvas);
+}
+
+/* تجاوز صريح: فئات وزن Tailwind لا تُظهر عريضاً (مع بقاء نوع الخط Cairo) */
+@layer utilities {
+  .font-thin,
+  .font-extralight,
+  .font-light,
+  .font-medium,
+  .font-semibold,
+  .font-bold,
+  .font-extrabold,
+  .font-black {
+    font-weight: 400 !important;
+  }
+
+  /* إخفاء أسهم الزيادة/النقصان في حقول type=number (كميات، أسعار، …) */
+  .input-no-spinner::-webkit-outer-spin-button,
+  .input-no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .input-no-spinner[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /** أهداف لمس ≥44px — استخدم على أزرار نقطة البيع والشاشات اللمسية */
+  .fc-tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* تمرير أفقي آمن للجداول داخل المحتوى الضيق */
+.fc-table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+@media (min-width: 640px) {
+  .fc-table-responsive {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+.fc-table-responsive > table {
+  width: 100%;
+  min-width: 640px;
+}

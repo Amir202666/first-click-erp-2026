@@ -1,0 +1,29 @@
+/* First Click theme tokens — overridden at runtime by ThemeContext */
+:root {
+  --fc-accent: #10b981;
+  --fc-accent-dark: #059669;
+  --fc-accent-light: #ecfdf5;
+  --fc-sidebar-bg: #0d2137;
+  --fc-sidebar-text: #10b981;
+  --fc-sidebar-active-bg: rgba(16, 185, 129, 0.15);
+  --fc-sidebar-regular-text: rgba(255, 255, 255, 0.55);
+  --fc-sidebar-divider: rgba(255, 255, 255, 0.08);
+  --fc-page-bg: #f8fafc;
+  --fc-card-bg: #ffffff;
+  --fc-border: #e5e7eb;
+  --fc-text: #1f2937;
+  --fc-text-muted: #6b7280;
+  --fc-input-bg: #f9fafb;
+  --fc-table-row-hover: #f9fafb;
+  /* Legacy aliases used in older CSS */
+  --color-accent: #10b981;
+  --color-accent-dark: #059669;
+  --color-accent-light: #d1fae5;
+  --color-sidebar-bg: #0d2137;
+  --color-page-bg: #f8fafc;
+  --color-card-bg: #ffffff;
+  --color-border: #e5e7eb;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-input-bg: #f9fafb;
+}

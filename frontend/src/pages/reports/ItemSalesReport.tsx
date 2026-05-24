@@ -1,0 +1,1005 @@
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
+import { useLanguage } from '../../contexts/LanguageContext'
+import {
+  fetchItemSalesReport,
+  fetchSettings,
+  fetchBranches,
+  fetchCustomers,
+  fetchItemCategories,
+  fetchItemsForFilter,
+} from '../../api/tenant'
+import type { ItemSalesReportResponse, ItemSalesReportRow } from '../../api/tenant'
+import { getDefaultDateRange, getReportPeriodRange, type ReportPeriodKey } from '../../utils/date'
+import { formatAmount } from '../../utils/currency'
+import { FileText, FileSpreadsheet, Printer, ChevronLeft, ChevronRight, X, Columns3 } from 'lucide-react'
+import SearchableSelect, { type SearchableSelectOption } from '../../components/ui/SearchableSelect'
+import ReportFooter from '../../components/ui/ReportFooter'
+import { usePersistedColumnVisibility } from '../../hooks/usePersistedColumnVisibility'
+import { useClientSort } from '../../hooks/useClientSort'
+import SortableTh from '../../components/ui/SortableTh'
+
+function toList(res: unknown): { id: number; name: string; code?: string }[] {
+  if (Array.isArray(res)) return res as { id: number; name: string; code?: string }[]
+  if (res && typeof res === 'object' && 'data' in res) {
+    const d = (res as { data: unknown }).data
+    return Array.isArray(d) ? (d as { id: number; name: string; code?: string }[]) : []
+  }
+  return []
+}
+
+export default function ItemSalesReport() {
+  const { currentTenant, meData, can } = useAuth()
+  const { t, lang, isRtl } = useLanguage()
+  const tenantId = currentTenant?.id ?? 0
+  const locale = lang === 'ar' ? 'ar-u-nu-latn' : 'en-US'
+  const defaultRange = getDefaultDateRange()
+  const [dateFrom, setDateFrom] = useState(defaultRange.dateFrom ?? '')
+  const [dateTo, setDateTo] = useState(defaultRange.dateTo ?? '')
+  const [periodPreset, setPeriodPreset] = useState<ReportPeriodKey | 'custom'>('all')
+  const [categoryId, setCategoryId] = useState<string>('')
+  const [branchId, setBranchId] = useState<string>('')
+  const [customerId, setCustomerId] = useState<string>('')
+  const appliedUserBranchRef = useRef(false)
+  const isRestrictedBranch = !!(meData?.restrict_to_branch_warehouse && meData?.default_branch_id != null)
+  const canChangeBranch = can('*') || meData?.role_slug === 'admin'
+
+  useEffect(() => {
+    if (appliedUserBranchRef.current || !meData?.restrict_to_branch_warehouse || meData?.default_branch_id == null) return
+    setBranchId(String(meData.default_branch_id))
+    appliedUserBranchRef.current = true
+  }, [meData?.restrict_to_branch_warehouse, meData?.default_branch_id])
+  const [itemId, setItemId] = useState<string>('')
+  const [page, setPage] = useState(1)
+  const perPage = 25
+  const [showColumnsMenu, setShowColumnsMenu] = useState(false)
+  const columnsMenuRef = useRef<HTMLDivElement | null>(null)
+
+  type ColumnKey =
+    | 'code'
+    | 'name'
+    | 'category'
+    | 'unit'
+    | 'qtySold'
+    | 'qtyReturned'
+    | 'qtyNet'
+    | 'amountSold'
+    | 'amountReturned'
+    | 'discount'
+    | 'amountNet'
+
+  const labelColumns: ColumnKey[] = ['code', 'name', 'category', 'unit']
+
+  const allColumnKeys: ColumnKey[] = [
+    'code',
+    'name',
+    'category',
+    'unit',
+    'qtySold',
+    'qtyReturned',
+    'qtyNet',
+    'amountSold',
+    'amountReturned',
+    'discount',
+    'amountNet',
+  ]
+
+  const COLUMN_STORAGE_KEY = 'itemSalesReportVisibleColumns'
+
+  const [visibleColumns, setVisibleColumns] = usePersistedColumnVisibility(COLUMN_STORAGE_KEY, allColumnKeys)
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings', tenantId],
+    queryFn: () => fetchSettings(tenantId),
+    enabled: !!tenantId,
+  })
+  const decimals = Number((settings as Record<string, unknown>)?.doc_amount_decimals ?? 2)
+  const qtyDecimals = Number((settings as Record<string, unknown>)?.doc_quantity_decimals ?? 2)
+  const fmt = (n: number) => formatAmount(n, { decimal_places: decimals }, locale)
+  const fmtQty = (n: number) =>
+    Number(n).toLocaleString(locale, { minimumFractionDigits: qtyDecimals, maximumFractionDigits: qtyDecimals })
+
+  /** حجم الدفعة الأولى للقوائم المنسدلة (يُجلب فور تحميل الصفحة لظهور البيانات عند النقر مباشرة) */
+  const LIST_INITIAL_PAGE_SIZE = 50
+
+  const { data: branchesData } = useQuery({
+    queryKey: ['branches', tenantId],
+    queryFn: () => fetchBranches(tenantId),
+    enabled: !!tenantId,
+    retry: false,
+    staleTime: 60_000,
+  })
+  const branches = toList(branchesData)
+
+  const { data: categoriesData } = useQuery({
+    queryKey: ['item-categories', tenantId],
+    queryFn: () => fetchItemCategories(tenantId),
+    enabled: !!tenantId,
+    retry: false,
+    staleTime: 60_000,
+  })
+  const categories = toList(categoriesData)
+
+  const { data: itemsData } = useQuery({
+    queryKey: ['items', tenantId, 'filter', LIST_INITIAL_PAGE_SIZE],
+    queryFn: () => fetchItemsForFilter(tenantId, { per_page: String(LIST_INITIAL_PAGE_SIZE) }),
+    enabled: !!tenantId,
+    retry: false,
+    staleTime: 60_000,
+  })
+  const itemsList = toList(itemsData)
+
+  const { data: customersData } = useQuery({
+    queryKey: ['customers', tenantId, 'filter', 200],
+    queryFn: () => fetchCustomers(tenantId, { per_page: '200' }),
+    enabled: !!tenantId,
+    retry: false,
+    staleTime: 60_000,
+  })
+  const customersList: { id: number; name: string }[] = Array.isArray((customersData as { data?: unknown })?.data)
+    ? (customersData as { data: { id: number; name: string }[] }).data
+    : []
+
+  const params = useMemo(() => {
+    const p: Record<string, string> = {
+      from_date: dateFrom,
+      to_date: dateTo,
+      per_page: String(perPage),
+      page: String(page),
+    }
+    if (categoryId) p.category_id = categoryId
+    if (branchId) p.branch_id = branchId
+    if (customerId) p.customer_id = customerId
+    if (itemId) p.item_id = itemId
+    return p
+  }, [dateFrom, dateTo, categoryId, branchId, customerId, itemId, page])
+
+  const { data, isLoading } = useQuery<ItemSalesReportResponse>({
+    queryKey: ['item-sales-report', tenantId, params],
+    queryFn: () => fetchItemSalesReport(tenantId, params),
+    enabled: !!tenantId && !!dateFrom && !!dateTo,
+  })
+
+  const reportTitle = lang === 'ar' ? 'تقرير مبيعات الأصناف' : 'Item Sales Report'
+  const companyLogo = (data?.company?.logo ?? (settings as Record<string, unknown>)?.company_logo) as string | undefined
+
+  const rows = data?.data ?? []
+  const total = data?.total ?? 0
+  const currentPage = data?.current_page ?? 1
+  const lastPage = data?.last_page ?? 1
+  const from = total === 0 ? 0 : (currentPage - 1) * perPage + 1
+  const to = Math.min(currentPage * perPage, total)
+
+  const labels = {
+    itemCode: lang === 'ar' ? 'كود الصنف' : 'Item Code',
+    itemName: lang === 'ar' ? 'اسم الصنف' : 'Item Name',
+    category: lang === 'ar' ? 'الفئة' : 'Category',
+    baseUnit: lang === 'ar' ? 'الوحدة الأساسية' : 'Base Unit',
+    qtySold: lang === 'ar' ? 'كمية مبيعة' : 'Qty Sold',
+    qtyReturned: lang === 'ar' ? 'كمية مرتجع' : 'Qty Returned',
+    qtyNet: lang === 'ar' ? 'الكمية الصافية' : 'Net Qty',
+    amountSold: lang === 'ar' ? 'مبلغ المبيعات' : 'Amount Sold',
+    amountReturned: lang === 'ar' ? 'مبلغ المرتجع' : 'Amount Returned',
+    discount: lang === 'ar' ? 'الخصم' : 'Discount',
+    amountNet: lang === 'ar' ? 'صافي المبلغ (بعد الخصم)' : 'Net Amount (after discount)',
+    from: lang === 'ar' ? 'من' : 'From',
+    to: lang === 'ar' ? 'إلى' : 'To',
+    period: lang === 'ar' ? 'الفترة' : 'Period',
+    noData: lang === 'ar' ? 'لا توجد بيانات في الفترة المحددة' : 'No data for the selected period',
+    prev: lang === 'ar' ? 'السابق' : 'Previous',
+    next: lang === 'ar' ? 'التالي' : 'Next',
+    pageOf: (a: number, b: number) => (lang === 'ar' ? `صفحة ${a} من ${b}` : `Page ${a} of ${b}`),
+  }
+
+  const discountNet = (r: ItemSalesReportRow) => Number(r.discount_sold ?? 0) - Number(r.discount_returned ?? 0)
+  /** صافي المبلغ = مبلغ المبيعات - مبلغ المرتجع - الخصم (للعرض والطباعة) */
+  const amountNetDisplay = (r: ItemSalesReportRow) =>
+    Number(r.amount_sold ?? 0) - Number(r.amount_returned ?? 0) - discountNet(r)
+
+  const itemSalesSortColumns = useMemo(
+    () => [
+      { key: 'code' as ColumnKey, type: 'string' as const, getValue: (r: ItemSalesReportRow) => r.item_code ?? '' },
+      { key: 'name' as ColumnKey, type: 'string' as const, getValue: (r: ItemSalesReportRow) => r.item_name ?? '' },
+      { key: 'category' as ColumnKey, type: 'string' as const, getValue: (r: ItemSalesReportRow) => r.category_name ?? '' },
+      { key: 'unit' as ColumnKey, type: 'string' as const, getValue: (r: ItemSalesReportRow) => r.base_unit_name ?? '' },
+      { key: 'qtySold' as ColumnKey, type: 'number' as const, getValue: (r: ItemSalesReportRow) => Number(r.quantity_sold_base ?? 0) },
+      { key: 'qtyReturned' as ColumnKey, type: 'number' as const, getValue: (r: ItemSalesReportRow) => Number(r.quantity_returned_base ?? 0) },
+      { key: 'qtyNet' as ColumnKey, type: 'number' as const, getValue: (r: ItemSalesReportRow) => Number(r.quantity_net_base ?? 0) },
+      { key: 'amountSold' as ColumnKey, type: 'number' as const, getValue: (r: ItemSalesReportRow) => Number(r.amount_sold ?? 0) },
+      { key: 'amountReturned' as ColumnKey, type: 'number' as const, getValue: (r: ItemSalesReportRow) => Number(r.amount_returned ?? 0) },
+      {
+        key: 'discount' as ColumnKey,
+        type: 'number' as const,
+        getValue: (r: ItemSalesReportRow) => Number(r.discount_sold ?? 0) - Number(r.discount_returned ?? 0),
+      },
+      {
+        key: 'amountNet' as ColumnKey,
+        type: 'number' as const,
+        getValue: (r: ItemSalesReportRow) => {
+          const disc = Number(r.discount_sold ?? 0) - Number(r.discount_returned ?? 0)
+          return Number(r.amount_sold ?? 0) - Number(r.amount_returned ?? 0) - disc
+        },
+      },
+    ],
+    [],
+  )
+  const { sort, toggleSort, sortedRows } = useClientSort<ItemSalesReportRow, ColumnKey>(rows, itemSalesSortColumns, { locale })
+
+  const totals = useMemo(() => {
+    if (rows.length === 0) return null
+    return {
+      quantitySold: rows.reduce((s, r) => s + Number(r.quantity_sold_base ?? 0), 0),
+      quantityReturned: rows.reduce((s, r) => s + Number(r.quantity_returned_base ?? 0), 0),
+      amountSold: rows.reduce((s, r) => s + Number(r.amount_sold ?? 0), 0),
+      amountReturned: rows.reduce((s, r) => s + Number(r.amount_returned ?? 0), 0),
+      discount: rows.reduce((s, r) => s + discountNet(r), 0),
+      amountNet: rows.reduce((s, r) => s + amountNetDisplay(r), 0),
+    }
+  }, [rows])
+
+  function buildPrintContent() {
+    const visibleKeys = allColumnKeys.filter((k) => visibleColumns[k])
+    const theadCells = visibleKeys
+      .map((key) => {
+        const isNumeric =
+          key === 'qtySold' ||
+          key === 'qtyReturned' ||
+          key === 'qtyNet' ||
+          key === 'amountSold' ||
+          key === 'amountReturned' ||
+          key === 'discount' ||
+          key === 'amountNet'
+        const label =
+          key === 'code'
+            ? labels.itemCode
+            : key === 'name'
+              ? labels.itemName
+              : key === 'category'
+                ? labels.category
+                : key === 'unit'
+                  ? labels.baseUnit
+                  : key === 'qtySold'
+                    ? labels.qtySold
+                    : key === 'qtyReturned'
+                      ? labels.qtyReturned
+                      : key === 'qtyNet'
+                        ? labels.qtyNet
+                        : key === 'amountSold'
+                          ? labels.amountSold
+                          : key === 'amountReturned'
+                            ? labels.amountReturned
+                            : key === 'discount'
+                              ? labels.discount
+                              : key === 'amountNet'
+                                ? labels.amountNet
+                                : labels.amountNet
+        return `<th${isNumeric ? ' class="num"' : ''}>${label}</th>`
+      })
+      .join('')
+    const thead = `<thead><tr>${theadCells}</tr></thead>`
+
+    const tbody = sortedRows
+      .map((r: ItemSalesReportRow) => {
+        const cells = visibleKeys
+          .map((key) => {
+            if (key === 'code') return `<td>${r.item_code ?? ''}</td>`
+            if (key === 'name') return `<td>${r.item_name ?? ''}</td>`
+            if (key === 'category') return `<td>${r.category_name ?? '—'}</td>`
+            if (key === 'unit') return `<td>${r.base_unit_name ?? '—'}</td>`
+            if (key === 'qtySold') return `<td class="num">${fmtQty(Number(r.quantity_sold_base))}</td>`
+            if (key === 'qtyReturned') return `<td class="num">${fmtQty(Number(r.quantity_returned_base))}</td>`
+            if (key === 'qtyNet') return `<td class="num">${fmtQty(Number(r.quantity_net_base))}</td>`
+            if (key === 'amountSold') return `<td class="num">${fmt(Number(r.amount_sold))}</td>`
+            if (key === 'amountReturned') return `<td class="num">${fmt(Number(r.amount_returned))}</td>`
+            if (key === 'discount') return `<td class="num">${fmt(discountNet(r))}</td>`
+            if (key === 'amountNet') return `<td class="num">${fmt(amountNetDisplay(r))}</td>`
+            return `<td></td>`
+          })
+          .join('')
+        return `<tr>${cells}</tr>`
+      })
+      .join('')
+    const printTotals = rows.length
+      ? {
+          quantitySold: rows.reduce((s, r) => s + Number(r.quantity_sold_base ?? 0), 0),
+          amountSold: rows.reduce((s, r) => s + Number(r.amount_sold ?? 0), 0),
+          amountReturned: rows.reduce((s, r) => s + Number(r.amount_returned ?? 0), 0),
+          discount: rows.reduce((s, r) => s + discountNet(r), 0),
+          amountNet: rows.reduce((s, r) => s + amountNetDisplay(r), 0),
+        }
+      : null
+    const hasLabelColumns = labelColumns.some((k) => visibleColumns[k])
+    const tfoot = printTotals && hasLabelColumns
+      ? (() => {
+          const visibleLabelCount = labelColumns.filter((k) => visibleColumns[k]).length
+          const restKeys = visibleKeys.filter((k) => !labelColumns.includes(k))
+          const cells: string[] = []
+          cells.push(
+            `<td colspan="${visibleLabelCount}" style="text-align:${isRtl ? 'right' : 'left'};padding:10px 8px;">${
+              lang === 'ar' ? 'الإجمالي' : 'Total'
+            }</td>`,
+          )
+          restKeys.forEach((key) => {
+            if (key === 'qtySold') {
+              cells.push(`<td class="num">${fmtQty(printTotals.quantitySold)}</td>`)
+            } else if (key === 'amountSold') {
+              cells.push(`<td class="num">${fmt(printTotals.amountSold)}</td>`)
+            } else if (key === 'amountReturned') {
+              cells.push(`<td class="num">${fmt(printTotals.amountReturned)}</td>`)
+            } else if (key === 'discount') {
+              cells.push(`<td class="num">${fmt(printTotals.discount)}</td>`)
+            } else if (key === 'amountNet') {
+              cells.push(`<td class="num">${fmt(printTotals.amountNet)}</td>`)
+            } else {
+              cells.push('<td></td>')
+            }
+          })
+          return `<tfoot><tr style="background:#e2e8f0;font-weight:400;border-top:2px solid #94a3b8;">${cells.join(
+            '',
+          )}</tr></tfoot>`
+        })()
+      : ''
+    return `
+      <table class="report-table">
+        ${thead}
+        <tbody>${tbody}</tbody>
+        ${tfoot}
+      </table>`
+  }
+
+  function handlePrint() {
+    if (!data) return
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(`
+      <!DOCTYPE html><html dir="${isRtl ? 'rtl' : 'ltr'}"><head>
+        <meta charset="utf-8"><title>${reportTitle}</title>
+        <style>
+          body{font-family:Arial,sans-serif;padding:24px;max-width:100%;}
+          table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px;}
+          th,td{border:1px solid #ddd;padding:8px;}
+          th{background:#f1f5f9;}
+          .num{text-align:right;font-variant-numeric:tabular-nums;}
+          .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+          .logo{max-height:56px;}
+        </style>
+      </head><body>
+        <div class="header">
+          ${companyLogo ? `<img src="${companyLogo}" alt="Logo" class="logo" />` : ''}
+          <div>
+            <h2 style="margin:0;">${reportTitle}</h2>
+            <p style="margin:8px 0 0;color:#64748b;">${labels.period}: ${dateFrom} — ${dateTo}</p>
+            <p style="margin:4px 0 0;font-size:12px;">${data.company?.name ?? ''}</p>
+          </div>
+        </div>
+        ${buildPrintContent()}
+        <p style="margin-top:16px;font-size:11px;color:#64748b;">${labels.pageOf(currentPage, lastPage)} • ${labels.from} ${from} ${labels.to} ${to} (${total} ${lang === 'ar' ? 'صنف' : 'items'})</p>
+      </body></html>`)
+    win.document.close()
+    win.focus()
+    setTimeout(() => {
+      win.print()
+      win.close()
+    }, 300)
+  }
+
+  function handleExportExcel() {
+    if (!data) return
+    const visibleKeys = allColumnKeys.filter((k) => visibleColumns[k])
+
+    const headers = visibleKeys.map((key) =>
+      key === 'code'
+        ? labels.itemCode
+        : key === 'name'
+          ? labels.itemName
+          : key === 'category'
+            ? labels.category
+            : key === 'unit'
+              ? labels.baseUnit
+              : key === 'qtySold'
+                ? labels.qtySold
+                : key === 'qtyReturned'
+                  ? labels.qtyReturned
+                  : key === 'qtyNet'
+                    ? labels.qtyNet
+                    : key === 'amountSold'
+                      ? labels.amountSold
+                      : key === 'amountReturned'
+                        ? labels.amountReturned
+                        : key === 'discount'
+                          ? labels.discount
+                          : key === 'amountNet'
+                            ? labels.amountNet
+                            : labels.amountNet,
+    )
+
+    const lines = [headers.join(',')]
+    sortedRows.forEach((r: ItemSalesReportRow) => {
+      const values = visibleKeys.map((key) => {
+        if (key === 'code') return `"${(r.item_code ?? '').replace(/"/g, '""')}"`
+        if (key === 'name') return `"${(r.item_name ?? '').replace(/"/g, '""')}"`
+        if (key === 'category') return `"${(r.category_name ?? '').replace(/"/g, '""')}"`
+        if (key === 'unit') return `"${(r.base_unit_name ?? '').replace(/"/g, '""')}"`
+        if (key === 'qtySold') return String(r.quantity_sold_base)
+        if (key === 'qtyReturned') return String(r.quantity_returned_base)
+        if (key === 'qtyNet') return String(r.quantity_net_base)
+        if (key === 'amountSold') return String(r.amount_sold)
+        if (key === 'amountReturned') return String(r.amount_returned)
+        if (key === 'discount') return String(discountNet(r))
+        if (key === 'amountNet') return String(amountNetDisplay(r))
+        return ''
+      })
+      lines.push(values.join(','))
+    })
+    if (totals) {
+      const totalValues = visibleKeys.map((key) => {
+        if (key === 'code') return ''
+        if (key === 'name') return lang === 'ar' ? 'الإجمالي' : 'Total'
+        if (key === 'category') return ''
+        if (key === 'unit') return ''
+        if (key === 'qtySold') return String(totals.quantitySold)
+        if (key === 'qtyReturned') return String(totals.quantityReturned)
+        if (key === 'qtyNet') return ''
+        if (key === 'amountSold') return String(totals.amountSold)
+        if (key === 'amountReturned') return String(totals.amountReturned)
+        if (key === 'discount') return String(totals.discount)
+        if (key === 'amountNet') return String(totals.amountNet)
+        return ''
+      })
+      lines.push(totalValues.join(','))
+    }
+    const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `item-sales-report-${dateFrom}-${dateTo}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const textAlign = isRtl ? 'text-right' : 'text-left'
+  const visibleColumnKeys = allColumnKeys.filter((k) => visibleColumns[k])
+  const noDataColSpan = visibleColumnKeys.length || 1
+  const hasLabelColumns = labelColumns.some((k) => visibleColumns[k])
+  const totalsLabelColSpan = labelColumns.filter((k) => visibleColumns[k]).length || 1
+
+  const categoryOptions: SearchableSelectOption[] = useMemo(() => {
+    const list = Array.isArray(categories) ? categories : []
+    return [
+      { value: 0, label: lang === 'ar' ? 'اختر الفئة' : 'Select category' },
+      ...list.map((c) => ({
+        value: c.id,
+        label: lang === 'ar' ? c.name : (c as { name_en?: string }).name_en || c.name,
+      })),
+    ]
+  }, [categories, lang])
+  const branchOptions: SearchableSelectOption[] = useMemo(() => {
+    const list = Array.isArray(branches) ? branches : []
+    return [
+      { value: 0, label: lang === 'ar' ? 'اختر الفرع' : 'Select branch' },
+      ...list.map((b) => ({ value: b.id, label: b.name })),
+    ]
+  }, [branches, lang])
+  const customerOptions: SearchableSelectOption[] = useMemo(() => {
+    return [
+      { value: 0, label: lang === 'ar' ? 'اختر العميل' : 'Select customer' },
+      ...customersList.map((c) => ({ value: c.id, label: c.name })),
+    ]
+  }, [customersList, lang])
+  const itemOptions: SearchableSelectOption[] = useMemo(() => {
+    const list = Array.isArray(itemsList) ? itemsList : []
+    return [
+      { value: 0, label: lang === 'ar' ? 'اختر الصنف' : 'Select item' },
+      ...list.map((i) => ({
+        value: i.id,
+        label: i.code ? `${i.code} - ${i.name}` : i.name,
+      })),
+    ]
+  }, [itemsList, lang])
+
+  const periodOptions: { value: ReportPeriodKey | 'custom'; labelAr: string; labelEn: string }[] = [
+    { value: 'all', labelAr: 'الكل', labelEn: 'All' },
+    { value: 'custom', labelAr: 'تاريخ مخصص', labelEn: 'Custom Date' },
+    { value: 'today', labelAr: 'اليوم', labelEn: 'Today' },
+    { value: 'yesterday', labelAr: 'الأمس', labelEn: 'Yesterday' },
+    { value: 'this_week', labelAr: 'هذا الأسبوع', labelEn: 'This Week' },
+    { value: 'last_week', labelAr: 'الأسبوع السابق', labelEn: 'Last Week' },
+    { value: 'this_month', labelAr: 'هذا الشهر', labelEn: 'This Month' },
+    { value: 'last_month', labelAr: 'الشهر السابق', labelEn: 'Last Month' },
+    { value: 'this_year', labelAr: 'هذه السنة', labelEn: 'This Year' },
+  ]
+
+  function applyPeriodPreset(preset: ReportPeriodKey | 'custom') {
+    setPeriodPreset(preset)
+    if (preset !== 'custom') {
+      const range = getReportPeriodRange(preset)
+      setDateFrom(range.from_date)
+      setDateTo(range.to_date)
+    }
+    setPage(1)
+  }
+
+  function onDateFromChange(value: string) {
+    setDateFrom(value)
+    setPage(1)
+  }
+
+  function onDateToChange(value: string) {
+    setDateTo(value)
+    setPage(1)
+  }
+
+  const showCustomDateFields = periodPreset === 'custom'
+  const labelFrom = lang === 'ar' ? 'من تاريخ' : 'From date'
+  const labelTo = lang === 'ar' ? 'إلى تاريخ' : 'To date'
+  const labelPeriod = lang === 'ar' ? 'الفترة' : 'Period'
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!columnsMenuRef.current) return
+      if (!columnsMenuRef.current.contains(e.target as Node)) {
+        setShowColumnsMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [])
+
+  return (
+    <div className="px-0 py-3 space-y-3 w-full min-w-0 max-w-full">
+      {/* شريط علوي واحد: العنوان يسار، فلتر التاريخ في المنتصف، أزرار التصدير يمين */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-1.5">
+        <h1 className="text-base font-semibold text-slate-900 truncate shrink-0 leading-tight">{reportTitle}</h1>
+
+        {/* فلتر الفترة في منتصف الشريط */}
+        <div className="flex-1 flex justify-center min-w-0">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-slate-600 shrink-0">{labelPeriod}</span>
+              <select
+                value={periodPreset}
+                onChange={(e) => applyPeriodPreset((e.target.value as ReportPeriodKey | 'custom') || 'all')}
+                className="border border-slate-300 rounded-lg px-2.5 h-8 text-sm min-w-[140px] max-w-[200px] box-border bg-white shrink-0 leading-normal"
+                title={labelPeriod}
+              >
+                {periodOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {lang === 'ar' ? opt.labelAr : opt.labelEn}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {showCustomDateFields && (
+              <div className="flex flex-wrap items-center gap-2 justify-center">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-sm text-slate-600 whitespace-nowrap">{labelFrom}</span>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => onDateFromChange(e.target.value)}
+                    className="border border-slate-300 rounded-lg px-2 h-8 text-sm w-[140px] min-w-[140px] box-border bg-white leading-normal"
+                    title={labelFrom}
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-sm text-slate-600 whitespace-nowrap">{labelTo}</span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => onDateToChange(e.target.value)}
+                    className="border border-slate-300 rounded-lg px-2 h-8 text-sm w-[140px] min-w-[140px] box-border bg-white leading-normal"
+                    title={labelTo}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* أزرار التصدير يمين الشريط مع زر تخصيص الأعمدة */}
+        <div className="relative flex items-center gap-1.5 no-print shrink-0" ref={columnsMenuRef}>
+          <button
+            type="button"
+            onClick={() => setShowColumnsMenu((v) => !v)}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[#D9DCE0] bg-[#F0F2F5] text-[#344054] shadow-sm transition-colors hover:bg-[#E4E7EB]"
+            title={lang === 'ar' ? 'تخصيص الأعمدة' : 'Customize columns'}
+          >
+            <Columns3 size={16} strokeWidth={2} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={!data}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#F0F2F5] border border-[#D9DCE0] text-[#344054] hover:bg-[#E4E7EB] disabled:opacity-50"
+            title={t.payments.printReport}
+          >
+            <Printer size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={!data}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#344054] text-white hover:bg-[#2d3846] disabled:opacity-50"
+            title={t.payments.exportPdf}
+          >
+            <FileText size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={!data || rows.length === 0}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
+            title={t.payments.exportExcel}
+          >
+            <FileSpreadsheet size={15} />
+          </button>
+            {showColumnsMenu && (
+              <div className="absolute top-full right-0 mt-2 z-20 w-64 rounded-lg border border-slate-200 bg-white shadow-lg py-2 text-sm">
+                <div className="px-3 pb-2 text-xs font-semibold text-slate-500">
+                  {lang === 'ar' ? 'إظهار/إخفاء الأعمدة' : 'Show / hide columns'}
+                </div>
+                {allColumnKeys.map((key) => {
+                  const label =
+                    key === 'code'
+                      ? labels.itemCode
+                      : key === 'name'
+                        ? labels.itemName
+                        : key === 'category'
+                          ? labels.category
+                          : key === 'unit'
+                            ? labels.baseUnit
+                            : key === 'qtySold'
+                              ? labels.qtySold
+                              : key === 'qtyReturned'
+                                ? labels.qtyReturned
+                                : key === 'qtyNet'
+                                  ? labels.qtyNet
+                                  : key === 'amountSold'
+                                    ? labels.amountSold
+                                    : key === 'amountReturned'
+                                      ? labels.amountReturned
+                                      : key === 'discount'
+                                        ? labels.discount
+                                        : key === 'amountNet'
+                                          ? labels.amountNet
+                                          : labels.amountNet
+                  return (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-50 cursor-pointer select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[key]}
+                        onChange={() =>
+                          setVisibleColumns((prev) => ({
+                            ...prev,
+                            [key]: !prev[key],
+                          }))
+                        }
+                        className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-slate-700 text-xs">{label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+      </div>
+
+      {/* فلاتر: الفئة، الصنف، الفرع، العميل — الترتيب: الفئة ثم الصنف ثم الفرع ثم العميل */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center gap-3">
+        <div className="min-w-[200px] flex-1 basis-[200px] max-w-[340px]">
+          <SearchableSelect
+            options={categoryOptions}
+            value={categoryId === '' ? 0 : (Number(categoryId) || 0)}
+            onChange={(v) => { setCategoryId(v === 0 || v === null ? '' : String(v)); setPage(1) }}
+            placeholder={lang === 'ar' ? 'اختر الفئة' : 'Select category'}
+            textAlign={isRtl ? 'right' : 'left'}
+            wrapOptions
+            className="w-full"
+          />
+        </div>
+        <div className="min-w-[220px] flex-1 basis-[220px] max-w-[380px]">
+          <SearchableSelect
+            options={itemOptions}
+            value={itemId === '' ? 0 : (Number(itemId) || 0)}
+            onChange={(v) => { setItemId(v === 0 || v === null ? '' : String(v)); setPage(1) }}
+            placeholder={lang === 'ar' ? 'اختر الصنف' : 'Select item'}
+            textAlign={isRtl ? 'right' : 'left'}
+            wrapOptions
+            className="w-full"
+          />
+        </div>
+        <div className="min-w-[200px] flex-1 basis-[200px] max-w-[340px]">
+          <SearchableSelect
+            options={branchOptions}
+            value={branchId === '' ? 0 : (Number(branchId) || 0)}
+            onChange={(v) => { setBranchId(v === 0 || v === null ? '' : String(v)); setPage(1) }}
+            placeholder={lang === 'ar' ? 'اختر الفرع' : 'Select branch'}
+            textAlign={isRtl ? 'right' : 'left'}
+            className="w-full"
+            disabled={isRestrictedBranch && !canChangeBranch}
+          />
+        </div>
+        <div className="min-w-[200px] flex-1 basis-[200px] max-w-[340px]">
+          <SearchableSelect
+            options={customerOptions}
+            value={customerId === '' ? 0 : (Number(customerId) || 0)}
+            onChange={(v) => { setCustomerId(v === 0 || v === null ? '' : String(v)); setPage(1) }}
+            placeholder={lang === 'ar' ? 'اختر العميل' : 'Select customer'}
+            textAlign={isRtl ? 'right' : 'left'}
+            wrapOptions
+            className="w-full"
+          />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {isLoading ? (
+          <div className="flex justify-center items-center h-48">
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary-500 border-t-transparent" />
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm table-fixed">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                    {visibleColumns.code && (
+                      <SortableTh
+                        label={labels.itemCode}
+                        sortKey="code"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[90px]"
+                        className={`${textAlign} p-0 font-medium`}
+                      />
+                    )}
+                    {visibleColumns.name && (
+                      <SortableTh
+                        label={labels.itemName}
+                        sortKey="name"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[180px]"
+                        className={`${textAlign} p-0 font-medium`}
+                      />
+                    )}
+                    {visibleColumns.category && (
+                      <SortableTh
+                        label={labels.category}
+                        sortKey="category"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[140px]"
+                        className={`${textAlign} p-0 font-medium`}
+                      />
+                    )}
+                    {visibleColumns.unit && (
+                      <SortableTh
+                        label={labels.baseUnit}
+                        sortKey="unit"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[70px]"
+                        className={`${textAlign} p-0 font-medium`}
+                      />
+                    )}
+                    {visibleColumns.qtySold && (
+                      <SortableTh
+                        label={labels.qtySold}
+                        sortKey="qtySold"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[80px]"
+                        className="text-right p-0 font-medium tabular-nums"
+                      />
+                    )}
+                    {visibleColumns.qtyReturned && (
+                      <SortableTh
+                        label={labels.qtyReturned}
+                        sortKey="qtyReturned"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[80px]"
+                        className="text-right p-0 font-medium tabular-nums"
+                      />
+                    )}
+                    {visibleColumns.qtyNet && (
+                      <SortableTh
+                        label={labels.qtyNet}
+                        sortKey="qtyNet"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[80px]"
+                        className="text-right p-0 font-medium tabular-nums"
+                      />
+                    )}
+                    {visibleColumns.amountSold && (
+                      <SortableTh
+                        label={labels.amountSold}
+                        sortKey="amountSold"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[100px]"
+                        className="text-right p-0 font-medium tabular-nums"
+                      />
+                    )}
+                    {visibleColumns.amountReturned && (
+                      <SortableTh
+                        label={labels.amountReturned}
+                        sortKey="amountReturned"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[100px]"
+                        className="text-right p-0 font-medium tabular-nums"
+                      />
+                    )}
+                    {visibleColumns.discount && (
+                      <SortableTh
+                        label={labels.discount}
+                        sortKey="discount"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[90px]"
+                        className="text-right p-0 font-medium tabular-nums"
+                      />
+                    )}
+                    {visibleColumns.amountNet && (
+                      <SortableTh
+                        label={labels.amountNet}
+                        sortKey="amountNet"
+                        sortState={sort}
+                        onToggle={toggleSort}
+                        truncateLabel={false}
+                        widthClassName="min-w-[110px]"
+                        className="text-right p-0 font-medium tabular-nums"
+                      />
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {sortedRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={noDataColSpan} className="text-center py-12 text-slate-400">
+                        {labels.noData}
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedRows.map((r: ItemSalesReportRow) => (
+                      <tr key={r.item_id} className="hover:bg-slate-50/50">
+                        {visibleColumns.code && (
+                          <td className={`${textAlign} px-4 py-2 font-mono text-slate-700`}>
+                            <Link
+                              to={`/items/${r.item_id}/ledger`}
+                              className="text-primary-600 hover:underline"
+                            >
+                              {r.item_code ?? '—'}
+                            </Link>
+                          </td>
+                        )}
+                        {visibleColumns.name && (
+                          <td className={`${textAlign} px-4 py-2 text-slate-800`}>{r.item_name ?? '—'}</td>
+                        )}
+                        {visibleColumns.category && (
+                          <td className={`${textAlign} px-4 py-2 text-slate-600`}>{r.category_name ?? '—'}</td>
+                        )}
+                        {visibleColumns.unit && (
+                          <td className={`${textAlign} px-4 py-2 text-slate-600`}>{r.base_unit_name ?? '—'}</td>
+                        )}
+                        {visibleColumns.qtySold && (
+                          <td className="text-right px-4 py-2 tabular-nums">{fmtQty(Number(r.quantity_sold_base))}</td>
+                        )}
+                        {visibleColumns.qtyReturned && (
+                          <td className="text-right px-4 py-2 tabular-nums">
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-medium text-amber-800">
+                              {fmtQty(Number(r.quantity_returned_base))}
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.qtyNet && (
+                          <td className="text-right px-4 py-2 tabular-nums font-medium">
+                            {fmtQty(Number(r.quantity_net_base))}
+                          </td>
+                        )}
+                        {visibleColumns.amountSold && (
+                          <td className="text-right px-4 py-2 tabular-nums">{fmt(Number(r.amount_sold))}</td>
+                        )}
+                        {visibleColumns.amountReturned && (
+                          <td className="text-right px-4 py-2 tabular-nums text-amber-700">
+                            {fmt(Number(r.amount_returned))}
+                          </td>
+                        )}
+                        {visibleColumns.discount && (
+                          <td className="text-right px-4 py-2 tabular-nums text-slate-600">
+                            {fmt(discountNet(r))}
+                          </td>
+                        )}
+                        {visibleColumns.amountNet && (
+                          <td className="text-right px-4 py-2 tabular-nums">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
+                                amountNetDisplay(r) >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {fmt(amountNetDisplay(r))}
+                            </span>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                {totals && hasLabelColumns && (
+                  <tfoot>
+                    <tr className="bg-gradient-to-r from-slate-100 to-slate-50 border-t-2 border-slate-400 font-bold text-slate-900 shadow-[0_-2px_4px_rgba(0,0,0,0.04)]">
+                      <td colSpan={totalsLabelColSpan} className={`${textAlign} px-4 py-4 text-base`}>
+                        {lang === 'ar' ? 'الإجمالي' : 'Total'}
+                      </td>
+                      {visibleColumns.qtySold && (
+                        <td className="text-right px-4 py-4 tabular-nums">{fmtQty(totals.quantitySold)}</td>
+                      )}
+                      {visibleColumns.qtyReturned && (
+                        <td className="text-right px-4 py-4 tabular-nums">{fmtQty(totals.quantityReturned)}</td>
+                      )}
+                      {visibleColumns.qtyNet && <td className="text-right px-4 py-4 tabular-nums" />}
+                      {visibleColumns.amountSold && (
+                        <td className="text-right px-4 py-4 tabular-nums">{fmt(totals.amountSold)}</td>
+                      )}
+                      {visibleColumns.amountReturned && (
+                        <td className="text-right px-4 py-4 tabular-nums text-amber-700">
+                          {fmt(totals.amountReturned)}
+                        </td>
+                      )}
+                      {visibleColumns.discount && (
+                        <td className="text-right px-4 py-4 tabular-nums text-slate-700">{fmt(totals.discount)}</td>
+                      )}
+                      {visibleColumns.amountNet && (
+                        <td
+                          className={`text-right px-4 py-4 tabular-nums ${
+                            totals.amountNet >= 0 ? 'text-emerald-800' : 'text-red-700'
+                          }`}
+                        >
+                          {fmt(totals.amountNet)}
+                        </td>
+                      )}
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+
+            <ReportFooter
+              totalCount={total}
+              currentPage={currentPage}
+              lastPage={lastPage}
+              from={from}
+              to={to}
+              onPageChange={setPage}
+              lang={lang as 'ar' | 'en'}
+              isRtl={isRtl}
+              recordLabel={lang === 'ar' ? 'صنف' : 'item'}
+              alwaysShowPaginationBar
+              dense
+            />
+          </>
+        )}
+      </div>
+
+    </div>
+  )
+}

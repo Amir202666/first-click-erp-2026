@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">FIRST CLICK ERP</title>
+  <desc id="desc">شعار FIRST CLICK ERP — مؤشر فأرة احترافي</desc>
+  <defs>
+    <!-- خلفية دائرية فاتحة (تجربة) -->
+    <radialGradient id="fcInner" cx="38%" cy="32%" r="78%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="55%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </radialGradient>
+    <linearGradient id="fcMark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a5f3fc"/>
+      <stop offset="45%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#0e7490"/>
+    </linearGradient>
+    <linearGradient id="fcRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <!-- إطار دائري نحيف متدرّج -->
+  <circle cx="256" cy="256" r="238" fill="none" stroke="url(#fcRing)" stroke-width="3" opacity="0.9"/>
+  <circle cx="256" cy="256" r="232" fill="url(#fcInner)"/>
+
+  <!-- مؤشر — أقرب لنص FIRST CLICK لتقليل الفجوة -->
+  <g transform="translate(256 174)">
+    <svg x="-76" y="-76" width="152" height="152" viewBox="0 0 24 24" overflow="visible" aria-hidden="true">
+      <!-- حدّ داكن للمؤشر على خلفية فاتحة -->
+      <path
+        fill="none"
+        stroke="#1e293b"
+        stroke-width="1.85"
+        stroke-linejoin="round"
+        paint-order="stroke fill"
+        d="M4.037 4.688a.75.75 0 0 1 .611-.675l12.25 5.832a.75.75 0 0 1-.611 1.35l-4.605 2.184-2.184 4.605a.75.75 0 0 1-1.35-.611L12.08 11.87 4.037 4.688z"
+      />
+      <path
+        fill="url(#fcMark)"
+        stroke="#155e75"
+        stroke-width="0.45"
+        stroke-linejoin="round"
+        paint-order="stroke fill"
+        d="M4.037 4.688a.75.75 0 0 1 .611-.675l12.25 5.832a.75.75 0 0 1-.611 1.35l-4.605 2.184-2.184 4.605a.75.75 0 0 1-1.35-.611L12.08 11.87 4.037 4.688z"
+      />
+    </svg>
+  </g>
+
+  <!-- سطر واحد: FIRST CLICK + ERP -->
+  <text
+    x="256"
+    y="308"
+    text-anchor="middle"
+    font-family="Segoe UI, ui-sans-serif, system-ui, sans-serif"
+    font-size="29"
+    font-weight="700"
+  >
+    <tspan fill="#0f172a" letter-spacing="0.1em">FIRST CLICK </tspan>
+    <tspan fill="#0d9488" font-weight="800" letter-spacing="0.12em">ERP</tspan>
+  </text>
+</svg>

@@ -1,0 +1,3 @@
+﻿code,name,name_en,type,parent_code,level,is_postable,description,normal_balance
+1,الأصول,Assets,asset,,1,0,مثال: حساب رئيسي,
+11,النقدية,Cash,asset,1,2,1,مثال: حساب فرعي,

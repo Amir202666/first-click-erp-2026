@@ -1,0 +1,119 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "First Click ERP — Integration API",
+    "version": "1.0.0",
+    "description": "Public integration endpoints authenticated via `X-API-Key`."
+  },
+  "servers": [
+    { "url": "/api" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  },
+  "security": [{ "ApiKeyAuth": [] }],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "ok": { "type": "boolean" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/products": {
+      "get": {
+        "summary": "List products (items)",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "is_active", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Paginated items" } }
+      }
+    },
+    "/v1/products/{id}": {
+      "get": {
+        "summary": "Get product (item)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "200": { "description": "Item" } }
+      }
+    },
+    "/v1/orders": {
+      "post": {
+        "summary": "Create a draft sales invoice (order)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["lines"],
+                "properties": {
+                  "customer_id": { "type": "integer", "nullable": true },
+                  "branch_id": { "type": "integer", "nullable": true },
+                  "warehouse_id": { "type": "integer", "nullable": true },
+                  "date": { "type": "string", "format": "date", "nullable": true },
+                  "reference": { "type": "string", "nullable": true },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["item_id", "quantity"],
+                      "properties": {
+                        "item_id": { "type": "integer" },
+                        "quantity": { "type": "number" },
+                        "unit_price": { "type": "number", "nullable": true },
+                        "discount_percent": { "type": "number", "nullable": true },
+                        "tax_percent": { "type": "number", "nullable": true },
+                        "description": { "type": "string", "nullable": true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/v1/orders/{id}/fulfill": {
+      "post": {
+        "summary": "Fulfill order (reserved / not implemented yet)",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }],
+        "responses": { "501": { "description": "Not implemented" } }
+      }
+    },
+    "/v1/inventory": {
+      "get": {
+        "summary": "Inventory snapshot / listing (tenant scoped)",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/v1/inventory/adjust": {
+      "post": {
+        "summary": "Adjust inventory (integration)",
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}

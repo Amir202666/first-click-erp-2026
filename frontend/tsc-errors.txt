@@ -1,0 +1,341 @@
+﻿src/components/paymentMethodLogos.tsx(31,7): error TS2322: Type '{ children: Element[]; suppressHydrationWarning?: boolean | undefined; color?: string | undefined; height?: string | number | undefined; id?: string | undefined; lang?: string | undefined; ... 470 more ...; className: string | undefined; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+  Property 'dir' does not exist on type 'SVGProps<SVGSVGElement>'.
+src/pages/installments/InstallmentList.tsx(784,17): error TS2345: Argument of type '(n: number) => string' is not assignable to parameter of type '(n: string | number) => string'.
+  Types of parameters 'n' and 'n' are incompatible.
+    Type 'string | number' is not assignable to type 'number'.
+      Type 'string' is not assignable to type 'number'.
+src/pages/inventory/TransferPrint.tsx(96,17): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/pages/invoices/CreateInvoice.tsx(311,46): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(314,42): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(561,52): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(831,15): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(849,43): error TS2339: Property 'type' does not exist on type '{ id: number; name: string; name_en: string | null; }'.
+src/pages/invoices/CreateInvoice.tsx(1468,46): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(1470,106): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(1480,46): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(1499,22): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(3246,32): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/CreateInvoice.tsx(3255,54): error TS2551: Property 'installment_id' does not exist on type 'Invoice'. Did you mean 'installment'?
+src/pages/invoices/ReturnsListPage.tsx(140,34): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | number)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<unknown, Error>', gave the following error.
+    Argument of type '{ queryKey: (string | number)[]; queryFn: () => Promise<PaginatedResponse<Customer>> | Promise<PaginatedResponse<Vendor>>; enabled: boolean; }' is not assignable to parameter of type 'DefinedInitialDataOptions<unknown, Error, unknown, (string | number)[]>'.
+      Property 'initialData' is missing in type '{ queryKey: (string | number)[]; queryFn: () => Promise<PaginatedResponse<Customer>> | Promise<PaginatedResponse<Vendor>>; enabled: boolean; }' but required in type '{ initialData: unknown; queryFn?: QueryFunction<unknown, (string | number)[]> | undefined; }'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<PaginatedResponse<Customer>, Error, PaginatedResponse<Customer>, (string | number)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<PaginatedResponse<Customer>> | Promise<PaginatedResponse<Vendor>>' is not assignable to type 'unique symbol | QueryFunction<PaginatedResponse<Customer>, (string | number)[], never> | undefined'.
+      Type '() => Promise<PaginatedResponse<Customer>> | Promise<PaginatedResponse<Vendor>>' is not assignable to type 'QueryFunction<PaginatedResponse<Customer>, (string | number)[], never>'.
+        Type 'Promise<PaginatedResponse<Customer>> | Promise<PaginatedResponse<Vendor>>' is not assignable to type 'PaginatedResponse<Customer> | Promise<PaginatedResponse<Customer>>'.
+          Type 'Promise<PaginatedResponse<Vendor>>' is not assignable to type 'PaginatedResponse<Customer> | Promise<PaginatedResponse<Customer>>'.
+            Type 'Promise<PaginatedResponse<Vendor>>' is not assignable to type 'Promise<PaginatedResponse<Customer>>'.
+              Type 'PaginatedResponse<Vendor>' is not assignable to type 'PaginatedResponse<Customer>'.
+                Type 'Vendor' is missing the following properties from type 'Customer': customer_group_id, credit_limit, currency
+  Overload 3 of 3, '(options: UseQueryOptions<PaginatedResponse<Customer>, Error, PaginatedResponse<Customer>, (string | number)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<PaginatedResponse<Customer>> | Promise<PaginatedResponse<Vendor>>' is not assignable to type 'unique symbol | QueryFunction<PaginatedResponse<Customer>, (string | number)[], never> | undefined'.
+      Type '() => Promise<PaginatedResponse<Customer>> | Promise<PaginatedResponse<Vendor>>' is not assignable to type 'QueryFunction<PaginatedResponse<Customer>, (string | number)[], never>'.
+        Type 'Promise<PaginatedResponse<Customer>> | Promise<PaginatedResponse<Vendor>>' is not assignable to type 'PaginatedResponse<Customer> | Promise<PaginatedResponse<Customer>>'.
+          Type 'Promise<PaginatedResponse<Vendor>>' is not assignable to type 'PaginatedResponse<Customer> | Promise<PaginatedResponse<Customer>>'.
+            Type 'Promise<PaginatedResponse<Vendor>>' is not assignable to type 'Promise<PaginatedResponse<Customer>>'.
+              Type 'PaginatedResponse<Vendor>' is not assignable to type 'PaginatedResponse<Customer>'.
+                Type 'Vendor' is missing the following properties from type 'Customer': customer_group_id, credit_limit, currency
+src/pages/invoices/ReturnsListPage.tsx(146,34): error TS2339: Property 'data' does not exist on type '{}'.
+src/pages/items/ItemList.tsx(243,58): error TS2741: Property 'options' is missing in type '{}' but required in type '{ options: Record<string, string>; }'.
+src/pages/manufacturing/ManufacturingOrderModal.tsx(233,27): error TS2352: Conversion of type 'BillOfMaterialLine' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'BillOfMaterialLine'.
+src/pages/payments/PaymentVouchers.tsx(201,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'DefinedInitialDataOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'UndefinedInitialDataOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'UseQueryOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>'.
+src/pages/payments/PaymentVouchers.tsx(201,17): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/pages/payments/PaymentVouchers.tsx(303,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, (string | number | undefined)[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<Payment, Error, Payment, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'UndefinedInitialDataOptions<Payment, Error, Payment, (string | number | undefined)[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<Payment, Error, Payment, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'UseQueryOptions<Payment, Error, Payment, (string | number | undefined)[]>'.
+src/pages/payments/PaymentVouchers.tsx(303,17): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/pages/payments/PaymentVouchers.tsx(344,26): error TS2339: Property 'data' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(374,34): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/pages/payments/PaymentVouchers.tsx(374,37): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/pages/payments/PaymentVouchers.tsx(869,32): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(870,33): error TS2339: Property 'current_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(871,30): error TS2339: Property 'last_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(872,26): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(872,50): error TS2339: Property 'current_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(872,75): error TS2339: Property 'per_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(873,24): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(873,56): error TS2339: Property 'current_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(873,76): error TS2339: Property 'per_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(873,91): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(878,39): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/PaymentVouchers.tsx(888,33): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/pages/payments/PaymentVouchers.tsx(954,15): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/pages/payments/PaymentVouchers.tsx(962,37): error TS2339: Property 'status' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1013,15): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/pages/payments/PaymentVouchers.tsx(1026,58): error TS2339: Property 'date' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1037,44): error TS2339: Property 'amount' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1048,41): error TS2339: Property 'paymentMethodRelation' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1050,48): error TS2339: Property 'paymentMethodRelation' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1051,48): error TS2339: Property 'paymentMethodRelation' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1051,155): error TS2339: Property 'paymentMethodRelation' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1059,36): error TS2339: Property 'branch' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1066,57): error TS2339: Property 'branch' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1076,37): error TS2551: Property 'accounts' does not exist on type '{ title: string; addAccount: string; addAccountNew: string; exportChart: string; exportSuccess: string; importChart: string; importChartHint: string; importSuccess: string; importWizardTitle: string; ... 106 more ...; stamp: string; }'. Did you mean 'noAccounts'?
+src/pages/payments/PaymentVouchers.tsx(1089,46): error TS2339: Property 'counterpartAccount' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1090,52): error TS2339: Property 'counterpartAccount' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1090,110): error TS2339: Property 'counterpartAccount' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1109,46): error TS2339: Property 'cashBankAccount' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1110,52): error TS2339: Property 'cashBankAccount' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1110,107): error TS2339: Property 'cashBankAccount' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1124,35): error TS2339: Property 'reference' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1124,62): error TS2339: Property 'notes' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1124,85): error TS2339: Property 'costCenter' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1130,38): error TS2339: Property 'reference' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1135,86): error TS2339: Property 'reference' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1140,38): error TS2339: Property 'costCenter' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1145,101): error TS2339: Property 'costCenter' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1150,38): error TS2339: Property 'notes' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1155,74): error TS2339: Property 'notes' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1175,40): error TS2339: Property 'viewAttachment' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/payments/PaymentVouchers.tsx(1180,42): error TS2339: Property 'status' does not exist on type '{}'.
+src/pages/payments/PaymentVouchers.tsx(1189,86): error TS2339: Property 'id' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(200,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'DefinedInitialDataOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'UndefinedInitialDataOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'UseQueryOptions<PaginatedResponse<Payment>, Error, PaginatedResponse<Payment>, readonly unknown[]>'.
+src/pages/payments/ReceiptVouchers.tsx(200,17): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/pages/payments/ReceiptVouchers.tsx(286,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<unknown, Error, unknown, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'DefinedInitialDataOptions<unknown, Error, unknown, (string | number | undefined)[]>'.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<Payment, Error, Payment, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'UndefinedInitialDataOptions<Payment, Error, Payment, (string | number | undefined)[]>'.
+  Overload 3 of 3, '(options: UseQueryOptions<Payment, Error, Payment, (string | number | undefined)[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Object literal may only specify known properties, and 'onSuccess' does not exist in type 'UseQueryOptions<Payment, Error, Payment, (string | number | undefined)[]>'.
+src/pages/payments/ReceiptVouchers.tsx(286,17): error TS7006: Parameter 'data' implicitly has an 'any' type.
+src/pages/payments/ReceiptVouchers.tsx(317,26): error TS2339: Property 'data' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(323,34): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/pages/payments/ReceiptVouchers.tsx(323,37): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/pages/payments/ReceiptVouchers.tsx(814,32): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(815,33): error TS2339: Property 'current_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(816,30): error TS2339: Property 'last_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(817,26): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(817,50): error TS2339: Property 'current_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(817,75): error TS2339: Property 'per_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(818,24): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(818,56): error TS2339: Property 'current_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(818,76): error TS2339: Property 'per_page' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(818,91): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(823,39): error TS2339: Property 'total' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/payments/ReceiptVouchers.tsx(833,33): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/pages/payments/ReceiptVouchers.tsx(892,15): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/pages/payments/ReceiptVouchers.tsx(917,33): error TS2339: Property 'attachment_url' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(922,63): error TS2339: Property 'attachment_url' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(946,15): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+src/pages/payments/ReceiptVouchers.tsx(959,58): error TS2339: Property 'date' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(970,44): error TS2339: Property 'amount' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(981,41): error TS2339: Property 'paymentMethodRelation' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(983,48): error TS2339: Property 'paymentMethodRelation' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(984,48): error TS2339: Property 'paymentMethodRelation' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(984,155): error TS2339: Property 'paymentMethodRelation' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(992,36): error TS2339: Property 'branch' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(999,42): error TS2339: Property 'branch' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1009,37): error TS2551: Property 'accounts' does not exist on type '{ title: string; addAccount: string; addAccountNew: string; exportChart: string; exportSuccess: string; importChart: string; importChartHint: string; importSuccess: string; importWizardTitle: string; ... 106 more ...; stamp: string; }'. Did you mean 'noAccounts'?
+src/pages/payments/ReceiptVouchers.tsx(1022,46): error TS2339: Property 'cashBankAccount' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1023,52): error TS2339: Property 'cashBankAccount' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1023,92): error TS2339: Property 'cashBankAccount' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1042,46): error TS2339: Property 'counterpartAccount' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1043,52): error TS2339: Property 'counterpartAccount' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1043,95): error TS2339: Property 'counterpartAccount' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1057,35): error TS2339: Property 'reference' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1057,62): error TS2339: Property 'notes' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1057,85): error TS2339: Property 'costCenter' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1063,38): error TS2339: Property 'reference' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1068,86): error TS2339: Property 'reference' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1073,38): error TS2339: Property 'costCenter' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1078,86): error TS2339: Property 'costCenter' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1083,38): error TS2339: Property 'notes' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1088,74): error TS2339: Property 'notes' does not exist on type '{}'.
+src/pages/payments/ReceiptVouchers.tsx(1098,75): error TS2339: Property 'attachment' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/payments/ReceiptVouchers.tsx(1108,40): error TS2339: Property 'viewAttachment' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/payments/ReceiptVouchers.tsx(1133,28): error TS18046: 'paymentDetail' is of type 'unknown'.
+src/pages/payments/ReceiptVouchers.tsx(1136,39): error TS18046: 'paymentDetail' is of type 'unknown'.
+src/pages/payments/ReceiptVouchers.tsx(1136,71): error TS18046: 'paymentDetail' is of type 'unknown'.
+src/pages/payments/ReceiptVouchers.tsx(1137,45): error TS18046: 'paymentDetail' is of type 'unknown'.
+src/pages/payments/ReceiptVouchers.tsx(1138,36): error TS18046: 'paymentDetail' is of type 'unknown'.
+src/pages/payments/ReceiptVouchers.tsx(1139,40): error TS18046: 'paymentDetail' is of type 'unknown'.
+src/pages/pos/PosExpenseCategories.tsx(115,28): error TS2339: Property 'selectAccount' does not exist on type '{ title: string; addAccount: string; addAccountNew: string; exportChart: string; exportSuccess: string; importChart: string; importChartHint: string; importSuccess: string; importWizardTitle: string; ... 106 more ...; stamp: string; }'.
+src/pages/pos/PosExpenseCategories.tsx(210,26): error TS2339: Property 'empty' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/pos/PosExpenseCategories.tsx(309,43): error TS2339: Property 'selectAccount' does not exist on type '{ title: string; addAccount: string; addAccountNew: string; exportChart: string; exportSuccess: string; importChart: string; importChartHint: string; importSuccess: string; importWizardTitle: string; ... 106 more ...; stamp: string; }'.
+src/pages/pos/PosExpenseCategories.tsx(349,23): error TS2339: Property 'confirmDelete' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/pos/PosExpenseItems.tsx(120,19): error TS2339: Property 'pos' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/pos/PosExpenseItems.tsx(210,26): error TS2339: Property 'empty' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/pos/PosExpenseItems.tsx(311,39): error TS2339: Property 'pos' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/pos/PosExpenseItems.tsx(354,11): error TS2322: Type '{ open: boolean; title: any; description: any; confirmLabel: string; cancelLabel: string; onClose: () => void; onConfirm: () => void; type: string; }' is not assignable to type 'IntrinsicAttributes & ConfirmDialogProps'.
+  Property 'open' does not exist on type 'IntrinsicAttributes & ConfirmDialogProps'.
+src/pages/pos/PosExpenseItems.tsx(355,20): error TS2339: Property 'confirmDeleteTitle' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/pos/PosExpenseItems.tsx(356,26): error TS2339: Property 'confirmDeleteMessage' does not exist on type '{ dir: "rtl" | "ltr"; lang: string; langLabel: string; save: string; cancel: string; delete: string; edit: string; add: string; search: string; searchPlaceholder: string; filter: string; actions: string; ... 81 more ...; msg: { ...; }; }'.
+src/pages/quotations/CreateQuotation.tsx(108,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<PaginatedResponse<Item>, Error, PaginatedResponse<Item>, readonly unknown[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<...>', gave the following error.
+    Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'QueryFunction<PaginatedResponse<Item>, readonly unknown[]>'.
+      Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'PaginatedResponse<Item> | Promise<PaginatedResponse<Item>>'.
+        Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'Promise<PaginatedResponse<Item>>'.
+          Type 'PaginatedResponse<Item> | { data: never[]; total: number; }' is not assignable to type 'PaginatedResponse<Item>'.
+            Type '{ data: never[]; total: number; }' is missing the following properties from type 'PaginatedResponse<Item>': current_page, last_page, per_page
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<PaginatedResponse<Item>, Error, PaginatedResponse<Item>, readonly unknown[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'unique symbol | QueryFunction<PaginatedResponse<Item>, readonly unknown[], never> | undefined'.
+      Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'QueryFunction<PaginatedResponse<Item>, readonly unknown[], never>'.
+        Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'PaginatedResponse<Item> | Promise<PaginatedResponse<Item>>'.
+          Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'Promise<PaginatedResponse<Item>>'.
+            Type 'PaginatedResponse<Item> | { data: never[]; total: number; }' is not assignable to type 'PaginatedResponse<Item>'.
+              Type '{ data: never[]; total: number; }' is missing the following properties from type 'PaginatedResponse<Item>': current_page, last_page, per_page
+  Overload 3 of 3, '(options: UseQueryOptions<PaginatedResponse<Item>, Error, PaginatedResponse<Item>, readonly unknown[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'unique symbol | QueryFunction<PaginatedResponse<Item>, readonly unknown[], never> | undefined'.
+      Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'QueryFunction<PaginatedResponse<Item>, readonly unknown[], never>'.
+        Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'PaginatedResponse<Item> | Promise<PaginatedResponse<Item>>'.
+          Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'Promise<PaginatedResponse<Item>>'.
+            Type 'PaginatedResponse<Item> | { data: never[]; total: number; }' is not assignable to type 'PaginatedResponse<Item>'.
+              Type '{ data: never[]; total: number; }' is missing the following properties from type 'PaginatedResponse<Item>': current_page, last_page, per_page
+src/pages/quotations/CreateQuotation.tsx(111,28): error TS2339: Property 'data' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/quotations/CreateQuotation.tsx(139,30): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/pages/quotations/CreateQuotation.tsx(176,46): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/pages/quotations/CreateQuotation.tsx(254,29): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/pages/quotations/CreateQuotation.tsx(388,59): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/pages/quotations/QuotationViewPage.tsx(29,43): error TS2769: No overload matches this call.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type 'string | number | boolean | string[]' is not assignable to type 'number | undefined'.
+      Type 'string' is not assignable to type 'number'.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type 'string | number | boolean | string[]' is not assignable to type 'number | undefined'.
+      Type 'string' is not assignable to type 'number'.
+src/pages/reports/BestSellingReport.tsx(109,15): error TS2769: No overload matches this call.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type '{}' is not assignable to type 'number'.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type '{}' is not assignable to type 'number'.
+src/pages/reports/BestSellingReport.tsx(151,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<PaginatedResponse<Item>, Error, PaginatedResponse<Item>, readonly unknown[]>, queryClient?: QueryClient | undefined): DefinedUseQueryResult<...>', gave the following error.
+    Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'QueryFunction<PaginatedResponse<Item>, readonly unknown[]>'.
+      Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'PaginatedResponse<Item> | Promise<PaginatedResponse<Item>>'.
+        Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'Promise<PaginatedResponse<Item>>'.
+          Type 'PaginatedResponse<Item> | { data: never[]; total: number; }' is not assignable to type 'PaginatedResponse<Item>'.
+            Type '{ data: never[]; total: number; }' is missing the following properties from type 'PaginatedResponse<Item>': current_page, last_page, per_page
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<PaginatedResponse<Item>, Error, PaginatedResponse<Item>, readonly unknown[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'unique symbol | QueryFunction<PaginatedResponse<Item>, readonly unknown[], never> | undefined'.
+      Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'QueryFunction<PaginatedResponse<Item>, readonly unknown[], never>'.
+        Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'PaginatedResponse<Item> | Promise<PaginatedResponse<Item>>'.
+          Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'Promise<PaginatedResponse<Item>>'.
+            Type 'PaginatedResponse<Item> | { data: never[]; total: number; }' is not assignable to type 'PaginatedResponse<Item>'.
+              Type '{ data: never[]; total: number; }' is missing the following properties from type 'PaginatedResponse<Item>': current_page, last_page, per_page
+  Overload 3 of 3, '(options: UseQueryOptions<PaginatedResponse<Item>, Error, PaginatedResponse<Item>, readonly unknown[]>, queryClient?: QueryClient | undefined): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'unique symbol | QueryFunction<PaginatedResponse<Item>, readonly unknown[], never> | undefined'.
+      Type '() => Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'QueryFunction<PaginatedResponse<Item>, readonly unknown[], never>'.
+        Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'PaginatedResponse<Item> | Promise<PaginatedResponse<Item>>'.
+          Type 'Promise<PaginatedResponse<Item> | { data: never[]; total: number; }>' is not assignable to type 'Promise<PaginatedResponse<Item>>'.
+            Type 'PaginatedResponse<Item> | { data: never[]; total: number; }' is not assignable to type 'PaginatedResponse<Item>'.
+              Type '{ data: never[]; total: number; }' is missing the following properties from type 'PaginatedResponse<Item>': current_page, last_page, per_page
+src/pages/reports/BestSellingReport.tsx(154,28): error TS2339: Property 'data' does not exist on type 'NonNullable<NoInfer<TQueryFnData>>'.
+src/pages/reports/BestSellingReport.tsx(291,29): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/pages/reports/BestSellingReport.tsx(365,40): error TS2345: Argument of type '{}' is not assignable to parameter of type 'number'.
+src/pages/reports/BestSellingReport.tsx(367,40): error TS2345: Argument of type '{}' is not assignable to parameter of type 'number'.
+src/pages/reports/BestSellingReport.tsx(369,35): error TS2345: Argument of type '{}' is not assignable to parameter of type 'number'.
+src/pages/reports/BestSellingReport.tsx(371,35): error TS2345: Argument of type '{}' is not assignable to parameter of type 'number'.
+src/pages/reports/BestSellingReport.tsx(757,19): error TS2322: Type '(value: number) => string' is not assignable to type 'Formatter<number, NameType> & ((value: number, name: NameType, item: Payload<number, NameType>, index: number, payload: Payload<number, NameType>[]) => ReactNode | [...])'.
+  Type '(value: number) => string' is not assignable to type 'Formatter<number, NameType>'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'number | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/pages/reports/DeliveryPerformanceReport.tsx(466,21): error TS2322: Type '(value: number) => [string, "╪د┘╪╣╪»╪»"]' is not assignable to type 'Formatter<number, "╪د┘╪╣╪»╪»"> & ((value: number, name: "╪د┘╪╣╪»╪»", item: Payload<number, "╪د┘╪╣╪»╪»">, index: number, payload: Payload<number, "╪د┘╪╣╪»╪»">[]) => ReactNode | [...])'.
+  Type '(value: number) => [string, "╪د┘╪╣╪»╪»"]' is not assignable to type 'Formatter<number, "╪د┘╪╣╪»╪»">'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'number | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/pages/reports/DeliveryPerformanceReport.tsx(486,21): error TS2322: Type '(value: number) => [string, "╪د┘╪▒╪ص┘╪د╪ز"]' is not assignable to type 'Formatter<number, "╪د┘╪▒╪ص┘╪د╪ز"> & ((value: number, name: "╪د┘╪▒╪ص┘╪د╪ز", item: Payload<number, "╪د┘╪▒╪ص┘╪د╪ز">, index: number, payload: Payload<number, "╪د┘╪▒╪ص┘╪د╪ز">[]) => ReactNode | [...])'.
+  Type '(value: number) => [string, "╪د┘╪▒╪ص┘╪د╪ز"]' is not assignable to type 'Formatter<number, "╪د┘╪▒╪ص┘╪د╪ز">'.
+    Types of parameters 'value' and 'value' are incompatible.
+      Type 'number | undefined' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/pages/reports/ExpensesReport.tsx(150,81): error TS2352: Conversion of type 'undefined' to type '{ data?: Account[] | undefined; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/pages/reports/ExpensesReport.tsx(193,28): error TS2339: Property 'total' does not exist on type 'ExpensesReportResponse'.
+src/pages/reports/ExpensesReport.tsx(194,29): error TS2339: Property 'current_page' does not exist on type 'ExpensesReportResponse'.
+src/pages/reports/ExpensesReport.tsx(195,26): error TS2339: Property 'last_page' does not exist on type 'ExpensesReportResponse'.
+src/pages/reports/ItemPurchasesReport.tsx(59,15): error TS2769: No overload matches this call.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type '{}' is not assignable to type 'number'.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type '{}' is not assignable to type 'number'.
+src/pages/reports/ItemSalesReport.tsx(102,15): error TS2769: No overload matches this call.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type '{}' is not assignable to type 'number'.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type '{}' is not assignable to type 'number'.
+src/pages/reports/MonthlyPurchasesAnalysisReport.tsx(609,27): error TS2322: Type '{ key: string; label: string; sortKey: PurchasesMetricSortKey; sortState: SortState<PurchasesMetricSortKey>; onToggle: (key: PurchasesMetricSortKey) => void; className: string; title: string; }' is not assignable to type 'IntrinsicAttributes & Props<PurchasesMetricSortKey>'.
+  Property 'title' does not exist on type 'IntrinsicAttributes & Props<PurchasesMetricSortKey>'.
+src/pages/reports/TaxDeclarationReport.tsx(6,15): error TS2305: Module '"../../types"' has no exported member 'TaxDeclarationReport'.
+src/pages/restaurant/RestaurantPosPage.tsx(137,89): error TS2339: Property 'data' does not exist on type 'never'.
+src/pages/restaurant/RestaurantPosPage.tsx(258,100): error TS2352: Conversion of type 'undefined' to type '{ data?: ItemCategory[] | undefined; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/pages/restaurant/RestaurantPosPage.tsx(272,85): error TS2352: Conversion of type 'undefined' to type '{ data?: ItemBrand[] | undefined; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/pages/restaurant/RestaurantSalesPage.tsx(64,15): error TS2769: No overload matches this call.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type 'string | number | boolean | string[]' is not assignable to type 'number | undefined'.
+      Type 'string' is not assignable to type 'number'.
+  Overload 2 of 2, '(locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string', gave the following error.
+    Type 'string | number | boolean | string[]' is not assignable to type 'number | undefined'.
+      Type 'string' is not assignable to type 'number'.
+src/pages/restaurant/RestaurantSalesPage.tsx(173,66): error TS2352: Conversion of type 'undefined' to type '{ data?: unknown[] | undefined; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/pages/restaurant/RestaurantSalesPage.tsx(186,19): error TS2345: Argument of type '(b: { id: number; name: string; }) => { value: number; label: string; }' is not assignable to parameter of type '(value: unknown, index: number, array: unknown[]) => { value: number; label: string; }'.
+  Types of parameters 'b' and 'value' are incompatible.
+    Type 'unknown' is not assignable to type '{ id: number; name: string; }'.
+src/pages/restaurant/RestaurantSectionsPage.tsx(30,89): error TS2339: Property 'data' does not exist on type 'never'.
+src/pages/restaurant/RestaurantSectionsPage.tsx(78,17): error TS2339: Property 'isLoading' does not exist on type 'UseMutationResult<RestaurantSection, any, Partial<RestaurantSection> & { id?: number | undefined; }, unknown>'.
+  Property 'isLoading' does not exist on type 'Override<MutationObserverIdleResult<RestaurantSection, any, Partial<RestaurantSection> & { id?: number | undefined; }, unknown>, { ...; }> & { ...; }'.
+src/pages/restaurant/RestaurantSectionsPage.tsx(102,51): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+src/pages/restaurant/RestaurantSectionsPage.tsx(303,37): error TS2339: Property 'isLoading' does not exist on type 'UseMutationResult<RestaurantSection, any, Partial<RestaurantSection> & { id?: number | undefined; }, unknown>'.
+  Property 'isLoading' does not exist on type 'Override<MutationObserverIdleResult<RestaurantSection, any, Partial<RestaurantSection> & { id?: number | undefined; }, unknown>, { ...; }> & { ...; }'.
+src/pages/restaurant/RestaurantSectionsPage.tsx(310,37): error TS2339: Property 'isLoading' does not exist on type 'UseMutationResult<RestaurantSection, any, Partial<RestaurantSection> & { id?: number | undefined; }, unknown>'.
+  Property 'isLoading' does not exist on type 'Override<MutationObserverIdleResult<RestaurantSection, any, Partial<RestaurantSection> & { id?: number | undefined; }, unknown>, { ...; }> & { ...; }'.
+src/pages/restaurant/RestaurantSectionsPage.tsx(312,28): error TS2339: Property 'isLoading' does not exist on type 'UseMutationResult<RestaurantSection, any, Partial<RestaurantSection> & { id?: number | undefined; }, unknown>'.
+  Property 'isLoading' does not exist on type 'Override<MutationObserverIdleResult<RestaurantSection, any, Partial<RestaurantSection> & { id?: number | undefined; }, unknown>, { ...; }> & { ...; }'.
+src/pages/restaurant/RestaurantTablesPage.tsx(26,89): error TS2339: Property 'data' does not exist on type 'never'.
+src/pages/restaurant/RestaurantTablesPage.tsx(75,17): error TS2339: Property 'isLoading' does not exist on type 'UseMutationResult<RestaurantTable, Error, Partial<RestaurantTable> & { id?: number | undefined; }, unknown>'.
+  Property 'isLoading' does not exist on type 'Override<MutationObserverIdleResult<RestaurantTable, Error, Partial<RestaurantTable> & { id?: number | undefined; }, unknown>, { ...; }> & { ...; }'.
+src/pages/restaurant/RestaurantTablesPage.tsx(335,37): error TS2339: Property 'isLoading' does not exist on type 'UseMutationResult<RestaurantTable, Error, Partial<RestaurantTable> & { id?: number | undefined; }, unknown>'.
+  Property 'isLoading' does not exist on type 'Override<MutationObserverIdleResult<RestaurantTable, Error, Partial<RestaurantTable> & { id?: number | undefined; }, unknown>, { ...; }> & { ...; }'.
+src/pages/restaurant/RestaurantTablesPage.tsx(342,37): error TS2339: Property 'isLoading' does not exist on type 'UseMutationResult<RestaurantTable, Error, Partial<RestaurantTable> & { id?: number | undefined; }, unknown>'.
+  Property 'isLoading' does not exist on type 'Override<MutationObserverIdleResult<RestaurantTable, Error, Partial<RestaurantTable> & { id?: number | undefined; }, unknown>, { ...; }> & { ...; }'.
+src/pages/restaurant/RestaurantTablesPage.tsx(344,28): error TS2339: Property 'isLoading' does not exist on type 'UseMutationResult<RestaurantTable, Error, Partial<RestaurantTable> & { id?: number | undefined; }, unknown>'.
+  Property 'isLoading' does not exist on type 'Override<MutationObserverIdleResult<RestaurantTable, Error, Partial<RestaurantTable> & { id?: number | undefined; }, unknown>, { ...; }> & { ...; }'.
+src/pages/settings/PaymentMethods.tsx(153,7): error TS2353: Object literal may only specify known properties, and 'user_ids' does not exist in type 'Partial<PaymentMethod>'.
+src/pages/settings/PaymentMethods.tsx(367,38): error TS2339: Property 'linkedUsers' does not exist on type '{ title: string; addMethod: string; editMethod: string; deleteMethod: string; methodName: string; methodType: string; linkedAccount: string; noMethods: string; confirmDelete: string; allTypes: string; allStatuses: string; types: { ...; }; }'.
+src/pages/settings/Settings.tsx(190,21): error TS2322: Type 'string | number | boolean' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'false' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/pages/settings/Settings.tsx(202,21): error TS2322: Type 'string | number | boolean' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'false' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/pages/settings/Settings.tsx(215,21): error TS2322: Type 'string | number | boolean' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'false' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/pages/settings/Settings.tsx(228,21): error TS2322: Type 'string | number | boolean' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'false' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/pages/settings/Settings.tsx(241,21): error TS2322: Type 'string | number | boolean' is not assignable to type 'string | number | readonly string[] | undefined'.
+  Type 'false' is not assignable to type 'string | number | readonly string[] | undefined'.
+src/pages/settings/SettingsInstallments.tsx(65,54): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+src/pages/settings/SettingsInstallments.tsx(67,52): error TS2367: This comparison appears to be unintentional because the types 'number' and 'string' have no overlap.
+src/pages/settings/SettingsPOS.tsx(235,88): error TS2345: Argument of type 'string | number | null' is not assignable to parameter of type 'number | null'.
+  Type 'string' is not assignable to type 'number'.
+src/pages/settings/SettingsPOS.tsx(251,87): error TS2345: Argument of type 'string | number | null' is not assignable to parameter of type 'number | null'.
+  Type 'string' is not assignable to type 'number'.
+src/pages/settings/SettingsPOS.tsx(267,88): error TS2345: Argument of type 'string | number | null' is not assignable to parameter of type 'number | null'.
+  Type 'string' is not assignable to type 'number'.
+src/pages/settings/SettingsPOS.tsx(285,86): error TS2345: Argument of type 'string | number | null' is not assignable to parameter of type 'number | null'.
+  Type 'string' is not assignable to type 'number'.
+src/pages/settings/SettingsPOS.tsx(302,89): error TS2345: Argument of type 'string | number | null' is not assignable to parameter of type 'number | null'.
+  Type 'string' is not assignable to type 'number'.
+src/pages/users/RoleList.tsx(158,15): error TS2345: Argument of type '{ name: string; description: string; permission_ids: never[]; }' is not assignable to parameter of type 'SetStateAction<{ name: string; description: string; permission_ids: number[]; pricing_group_ids: number[]; }>'.
+  Property 'pricing_group_ids' is missing in type '{ name: string; description: string; permission_ids: never[]; }' but required in type '{ name: string; description: string; permission_ids: number[]; pricing_group_ids: number[]; }'.
+src/pages/users/RoleList.tsx(224,97): error TS2353: Object literal may only specify known properties, and 'pricing_group_ids' does not exist in type '{ name?: string | undefined; description?: string | undefined; permission_ids?: number[] | undefined; }'.
+src/pages/users/RoleList.tsx(293,21): error TS2345: Argument of type '{ name: string; description: string; permission_ids: never[]; }' is not assignable to parameter of type 'SetStateAction<{ name: string; description: string; permission_ids: number[]; pricing_group_ids: number[]; }>'.
+  Property 'pricing_group_ids' is missing in type '{ name: string; description: string; permission_ids: never[]; }' but required in type '{ name: string; description: string; permission_ids: number[]; pricing_group_ids: number[]; }'.
+src/pages/users/TenantUserList.tsx(170,9): error TS2353: Object literal may only specify known properties, and 'default_branch_id' does not exist in type '{ name: string; username: string; password: string; email?: string | undefined; phone?: string | undefined; role_id?: number | undefined; is_active?: boolean | undefined; }'.

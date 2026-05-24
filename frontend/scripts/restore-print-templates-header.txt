@@ -1,0 +1,54 @@
+const DOC_TYPES = [
+  { key: 'all', labelAr: 'الكل', labelEn: 'All', color: '#64748b', icon: '🗂' },
+  { key: 'invoice', labelAr: 'فواتير المبيعات', labelEn: 'Sales invoices', color: '#4f46e5', icon: '🧾' },
+  { key: 'receipt', labelAr: 'سندات القبض', labelEn: 'Receipts', color: '#059669', icon: '💚' },
+  { key: 'payment', labelAr: 'سندات الصرف', labelEn: 'Payments', color: '#dc2626', icon: '❤' },
+  { key: 'journal', labelAr: 'القيود اليومية', labelEn: 'Journal entries', color: '#7c3aed', icon: '📒' },
+  { key: 'purchase', labelAr: 'فواتير المشتريات', labelEn: 'Purchases', color: '#d97706', icon: '🛒' },
+  { key: 'pos', labelAr: 'إيصالات POS', labelEn: 'POS receipts', color: '#0891b2', icon: '🖨' },
+  { key: 'inventory', labelAr: 'تسوية مخزنية', labelEn: 'Inventory', color: '#0e7490', icon: '📦' },
+] as const
+
+const TYPE_BG: Record<string, string> = {
+  invoice: '#ede9fe',
+  receipt: '#ecfdf5',
+  payment: '#fef2f2',
+  journal: '#f5f3ff',
+  purchase: '#fffbeb',
+  pos: '#f0f9ff',
+  inventory: '#ecfeff',
+}
+
+const LAYOUT_LABEL_AR: Record<string, string> = {
+  classic: 'كلاسيك',
+  modern: 'عصري',
+  minimal: 'مينيمال',
+  zatca: 'ZATCA',
+  pro: 'احترافي',
+  simple: 'مبسط',
+  thermal: 'حراري',
+  restaurant: 'مطعم',
+  ecommerce: 'إلكتروني',
+  po: 'أمر شراء',
+  detailed: 'تفصيلي',
+}
+
+const LAYOUT_LABEL_EN: Record<string, string> = {
+  classic: 'Classic',
+  modern: 'Modern',
+  minimal: 'Minimal',
+  zatca: 'ZATCA',
+  pro: 'Pro',
+  simple: 'Simple',
+  thermal: 'Thermal',
+  restaurant: 'Restaurant',
+  ecommerce: 'E‑commerce',
+  po: 'PO',
+  detailed: 'Detailed',
+}
+
+function layoutLabel(layout: string | undefined, ar: boolean): string {
+  if (!layout) return ar ? 'كلاسيك' : 'Classic'
+  return ar ? LAYOUT_LABEL_AR[layout] ?? layout : LAYOUT_LABEL_EN[layout] ?? layout
+}
+
