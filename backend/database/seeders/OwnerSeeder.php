@@ -59,7 +59,6 @@ class OwnerSeeder extends Seeder
                 'role' => 'admin',
                 'role_id' => $adminRole?->id,
                 'is_active' => true,
-                'permissions' => ['*'],
             ],
         ]);
 
