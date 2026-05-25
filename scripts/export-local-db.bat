@@ -1,15 +1,13 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-chcp 65001 >nul
-
-echo ====================================
-echo   تصدير قاعدة البيانات المحلية
-echo ====================================
-
-REM الانتقال لجذر المشروع (المجلد الأب لـ scripts)
 cd /d "%~dp0.."
+
+echo ====================================
+echo   Export local database
+echo ====================================
+
 if not exist "backend\.env" (
-    echo [خطأ] لم يُعثر على backend\.env
+    echo ERROR: backend\.env not found
     pause
     exit /b 1
 )
@@ -18,7 +16,6 @@ set "ENV_FILE=backend\.env"
 set "BACKUP_DIR=scripts\backups"
 if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
 
-REM قراءة إعدادات قاعدة البيانات من .env
 set "DB_CONN="
 set "DB_NAME="
 set "DB_USER="
@@ -39,58 +36,48 @@ for /f "usebackq tokens=1,* delims==" %%a in (`findstr /r "^DB_CONNECTION= ^DB_D
 )
 
 if /i "%DB_CONN%"=="sqlite" (
-    echo [خطأ] المشروع مضبوط على SQLite. للنقل للسيرفر يجب استخدام MySQL محلياً.
-    echo         عدّل backend\.env ثم أعد التصدير.
+    echo ERROR: DB is SQLite. Run: php artisan db:sqlite-to-mysql --fresh
     pause
     exit /b 1
 )
 
 if "%DB_NAME%"=="" (
-    echo [خطأ] DB_DATABASE غير موجود في backend\.env
+    echo ERROR: DB_DATABASE missing in .env
     pause
     exit /b 1
 )
 
-REM توقيت الملف: YYYYMMDD_HHMMSS
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "TS=%%i"
 set "OUT_FILE=%BACKUP_DIR%\backup_%TS%.sql"
 
-echo قاعدة البيانات: %DB_NAME%
-echo المستخدم: %DB_USER%
-echo الملف: %OUT_FILE%
+echo Database: %DB_NAME%
+echo User: %DB_USER%
+echo Output: %OUT_FILE%
 echo.
 
-REM البحث عن mysqldump (Laragon / XAMPP / PATH)
 set "MYSQLDUMP="
-if exist "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe" set "MYSQLDUMP=C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe"
-if "%MYSQLDUMP%"=="" if exist "C:\laragon\bin\mysql\mysql-8.0.30-winx64\bin\mysqldump.exe" set "MYSQLDUMP=C:\laragon\bin\mysql\mysql-8.0.30-winx64\bin\mysqldump.exe"
-if "%MYSQLDUMP%"=="" if exist "C:\xampp\mysql\bin\mysqldump.exe" set "MYSQLDUMP=C:\xampp\mysql\bin\mysqldump.exe"
+if exist "C:\xampp\mysql\bin\mysqldump.exe" set "MYSQLDUMP=C:\xampp\mysql\bin\mysqldump.exe"
+if "%MYSQLDUMP%"=="" if exist "C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe" set "MYSQLDUMP=C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe"
 if "%MYSQLDUMP%"=="" (
     for /f "delims=" %%p in ('where mysqldump 2^>nul') do set "MYSQLDUMP=%%p"
 )
 
 if "%MYSQLDUMP%"=="" (
-    echo [خطأ] لم يُعثر على mysqldump. ثبّت Laragon/MySQL أو أضف mysqldump إلى PATH.
+    echo ERROR: mysqldump not found
     pause
     exit /b 1
 )
 
-echo جاري التصدير...
-"%MYSQLDUMP%" -h %DB_HOST% -P %DB_PORT% -u %DB_USER% -p%DB_PASS% ^
-  --single-transaction --routines --triggers --set-charset --default-character-set=utf8mb4 ^
-  %DB_NAME% > "%OUT_FILE%"
+echo Exporting...
+"%MYSQLDUMP%" -h %DB_HOST% -P %DB_PORT% -u %DB_USER% -p%DB_PASS% --single-transaction --routines --triggers --default-character-set=utf8mb4 %DB_NAME% > "%OUT_FILE%"
 
 if errorlevel 1 (
-    echo [خطأ] فشل mysqldump. تحقق من اسم المستخدم وكلمة المرور وخدمة MySQL.
+    echo ERROR: mysqldump failed
     pause
     exit /b 1
 )
 
-for %%A in ("%OUT_FILE%") do set "SIZE=%%~zA"
 echo.
-echo تم التصدير بنجاح!
-echo الملف: %OUT_FILE%
-echo الحجم: %SIZE% بايت
-echo.
-echo الخطوة التالية: scripts\upload-db-to-server.bat
+echo Export OK: %OUT_FILE%
+echo Next: scripts\upload-db-to-server.bat
 pause
