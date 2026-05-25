@@ -57,7 +57,8 @@ class DemoDataSeeder extends Seeder
                 [
                     'subscription_plan_id' => $plan->id,
                     'starts_at' => now(),
-                    'ends_at' => now()->addYears(2),
+                    // MySQL TIMESTAMP max ≈ 2038-01-19
+                    'ends_at' => now()->create(2038, 1, 1, 0, 0, 0),
                     'auto_renew' => true,
                     'amount_paid' => 0,
                     'currency' => 'SAR',
