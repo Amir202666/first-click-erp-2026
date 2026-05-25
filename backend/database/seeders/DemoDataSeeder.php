@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -40,6 +42,28 @@ class DemoDataSeeder extends Seeder
         }
 
         (new ChartOfAccountsSeeder)->run($tenant->id);
+
+        (new SubscriptionPlanSeeder)->run();
+
+        $plan = SubscriptionPlan::where('slug', 'advanced')->first()
+            ?? SubscriptionPlan::query()->first();
+
+        if ($plan) {
+            Subscription::updateOrCreate(
+                [
+                    'tenant_id' => $tenant->id,
+                    'status' => 'active',
+                ],
+                [
+                    'subscription_plan_id' => $plan->id,
+                    'starts_at' => now(),
+                    'ends_at' => now()->addYears(2),
+                    'auto_renew' => true,
+                    'amount_paid' => 0,
+                    'currency' => 'SAR',
+                ]
+            );
+        }
 
         $this->command->info('بيانات الدخول للمستخدم التجريبي:');
         $this->command->info('  اسم الشركة: الشركة التجريبية (أو first-company)');
