@@ -35,6 +35,24 @@ class DashboardController extends Controller
             'branch_id' => 'nullable|exists:branches,id',
         ]);
 
+        try {
+            return $this->buildDashboard($request);
+        } catch (\Throwable $e) {
+            report($e);
+            if ($request->boolean('probe') && $request->user()?->isSuperAdmin()) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                    'exception' => $e::class,
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ], 500);
+            }
+            throw $e;
+        }
+    }
+
+    private function buildDashboard(Request $request): JsonResponse
+    {
         $tenantId = $request->tenant_id;
         $branchId = $request->filled('branch_id') ? (int) $request->branch_id : null;
         $tenant = Tenant::find($tenantId);
@@ -230,7 +248,7 @@ class DashboardController extends Controller
             ->when($branchId, fn ($q) => $q->where('invoices.branch_id', $branchId))
             ->whereNotNull('invoice_lines.item_id')
             ->selectRaw('invoice_lines.item_id as item_id, COALESCE(items.name, invoice_lines.description) as name, SUM(invoice_lines.quantity) as quantity_sold, SUM(invoice_lines.total) as revenue')
-            ->groupBy('invoice_lines.item_id', 'name')
+            ->groupBy('invoice_lines.item_id', DB::raw('COALESCE(items.name, invoice_lines.description)'))
             ->orderByDesc('revenue')
             ->limit(5)
             ->get()
