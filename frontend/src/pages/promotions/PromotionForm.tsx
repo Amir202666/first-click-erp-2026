@@ -21,7 +21,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { promotionsApi } from '../../api/promotions'
 import { fetchItemCategories, fetchItemsForFilter } from '../../api/tenant'
 import { loyaltyApi } from '../../api/loyalty'
-import type { Promotion, PromotionChannel, PromotionType } from '../../types/promotions'
+import type { Promotion, PromotionChannel, PromotionStatus, PromotionType } from '../../types/promotions'
 import Toast, { type ToastType } from '../../components/ui/Toast'
 
 type TabId = 'basics' | 'conditions' | 'limits' | 'schedule' | 'performance'
@@ -430,14 +430,14 @@ export default function PromotionForm() {
       max_uses: form.max_uses || null,
       max_uses_per_day: form.max_uses_per_day || null,
       max_uses_per_customer: form.max_uses_per_customer || null,
-      status: form.status === 'draft' ? 'draft' : form.status,
+      status: form.status as PromotionStatus,
     }
 
     try {
       if (isEdit && id) {
-        await promotionsApi.update(tenantId, Number(id), payload)
+        await promotionsApi.update(tenantId, Number(id), payload as Partial<Promotion>)
       } else {
-        await promotionsApi.create(tenantId, payload)
+        await promotionsApi.create(tenantId, payload as Partial<Promotion>)
       }
       navigate('/promotions')
     } catch (err: unknown) {
@@ -984,13 +984,15 @@ export default function PromotionForm() {
                       ['max_uses_per_day', ar ? 'يومياً' : 'Per day'],
                       ['max_uses_per_customer', ar ? 'لكل عميل' : 'Per customer'],
                     ] as const
-                  ).map(([key, label]) => (
+                  ).map(([key, label]) => {
+                    const limitKey = key as 'max_uses' | 'max_uses_per_day' | 'max_uses_per_customer'
+                    return (
                     <label key={key} className="block">
                       <span className="text-xs text-slate-500">{label}</span>
                       <input
                         type="number"
                         min={1}
-                        value={(form as Record<string, unknown>)[key] ?? ''}
+                        value={form[limitKey] ?? ''}
                         onChange={(e) =>
                           patch(
                             key as keyof Promotion,
@@ -1000,7 +1002,8 @@ export default function PromotionForm() {
                         className={inputCls()}
                       />
                     </label>
-                  ))}
+                    )
+                  })}
                 </div>,
                 ar ? 'اترك الحقل فارغاً لعدم التحديد' : 'Leave blank for unlimited',
               )}
