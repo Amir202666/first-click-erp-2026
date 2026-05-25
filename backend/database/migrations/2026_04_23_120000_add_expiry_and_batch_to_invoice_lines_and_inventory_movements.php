@@ -18,7 +18,7 @@ return new class extends Migration
             $table->date('expiry_date')->nullable()->after('item_variant_id');
             $table->string('batch_number', 120)->nullable()->after('expiry_date');
             $table->index(['tenant_id', 'expiry_date']);
-            $table->index(['tenant_id', 'warehouse_id', 'expiry_date']);
+            $table->index(['tenant_id', 'warehouse_id', 'expiry_date'], 'im_wh_exp_idx');
         });
     }
 
@@ -31,7 +31,7 @@ return new class extends Migration
 
         Schema::table('inventory_movements', function (Blueprint $table) {
             $table->dropIndex(['tenant_id', 'expiry_date']);
-            $table->dropIndex(['tenant_id', 'warehouse_id', 'expiry_date']);
+            $table->dropIndex('im_wh_exp_idx');
             $table->dropColumn(['expiry_date', 'batch_number']);
         });
     }

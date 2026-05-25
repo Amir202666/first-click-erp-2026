@@ -287,6 +287,7 @@ class PosController extends Controller
             'lines.*.discount_percent' => 'nullable|numeric|min:0|max:100',
             'lines.*.tax_percent' => 'nullable|numeric|min:0|max:100',
             'lines.*.description' => 'nullable|string|max:500',
+            'promotion_id' => 'nullable|integer|exists:promotions,id',
         ]);
 
         $tenant = Tenant::findOrFail($tenantId);
@@ -378,6 +379,27 @@ class PosController extends Controller
             }
         }
 
+        $subtotal = \App\Services\PromotionService::rawSubtotalFromLines($lines);
+        $appliedPromo = null;
+        $promoDiscount = 0.0;
+        try {
+            $posChannel = ($validated['order_type'] ?? null) === 'delivery' ? 'delivery' : 'pos';
+            $resolved = app(\App\Services\PromotionService::class)->resolvePromotion(
+                $tenantId,
+                $posChannel,
+                $subtotal,
+                $request->filled('promotion_id') ? (int) $validated['promotion_id'] : null,
+                $customerId ? (int) $customerId : null,
+                $lines,
+            );
+            $appliedPromo = $resolved['promotion'];
+            $promoDiscount = $resolved['promotion_discount'];
+        } catch (\Throwable $e) {
+            \Log::warning('POS promo error: '.$e->getMessage());
+        }
+
+        $headerDiscount = round((float) ($validated['discount_amount'] ?? 0) + $promoDiscount, 3);
+
         $invoiceData = [
             'tenant_id' => $tenantId,
             'type' => 'sales',
@@ -388,7 +410,9 @@ class PosController extends Controller
             'warehouse_id' => $validated['warehouse_id'] ?? null,
             'pos_shift_id' => $validated['shift_id'] ?? null,
             'pos_session_id' => null,
-            'discount_amount' => $validated['discount_amount'] ?? 0,
+            'promotion_id' => $appliedPromo?->id,
+            'promotion_discount' => $promoDiscount,
+            'discount_amount' => $headerDiscount,
             'payment_timing' => $isCredit ? 'deferred' : 'paid',
             'amount_paid' => $isCredit ? 0 : $paymentAmount,
             'created_by' => $userId,
@@ -423,9 +447,26 @@ class PosController extends Controller
                 $tenantId,
                 $posDeliveryDriverId,
                 $userId,
-                $normalizedPaymentLines
+                $normalizedPaymentLines,
+                $appliedPromo,
+                $promoDiscount,
+                $subtotal
             ) {
                 $invoice = $this->invoiceService->createInvoice($invoiceData, $lines);
+
+                if ($appliedPromo && $promoDiscount > 0) {
+                    $posChannel = ($validated['order_type'] ?? null) === 'delivery' ? 'delivery' : 'pos';
+                    app(\App\Services\PromotionService::class)->applyPromotion(
+                        $appliedPromo,
+                        $posChannel,
+                        \App\Models\Invoice::class,
+                        (int) $invoice->id,
+                        $subtotal,
+                        $promoDiscount,
+                        $invoice->customer_id ? (int) $invoice->customer_id : null,
+                        $userId,
+                    );
+                }
 
                 if (! $deferToDriverCustody && ! $isCredit && $paymentAmount > 0) {
                     $invoice->update([

@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AccountDefaultsController;
+use App\Http\Controllers\Api\AdminBackupController;
 use App\Http\Controllers\Api\AdminPlanController;
+use App\Http\Controllers\Api\AdminResetController;
 use App\Http\Controllers\Api\AdminSubscriptionController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuditLogController;
@@ -12,6 +14,7 @@ use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CostCenterController;
 use App\Http\Controllers\Api\CurrencyController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\CustomerImportController;
 use App\Http\Controllers\Api\CustomerGroupController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DeliveryController;
@@ -29,6 +32,7 @@ use App\Http\Controllers\Api\IntegrationWebhookController;
 use App\Http\Controllers\Api\InventoryAdjustmentController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\ItemImportController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\ItemSettingsController;
 use App\Http\Controllers\Api\JournalEntryController;
@@ -46,6 +50,7 @@ use App\Http\Controllers\Api\PosShiftReportController;
 use App\Http\Controllers\Api\CashierDailyReportController;
 use App\Http\Controllers\Api\PosRestaurantController;
 use App\Http\Controllers\Api\PricingGroupController;
+use App\Http\Controllers\Api\PromotionController;
 use App\Http\Controllers\Api\ProductionOrderController;
 use App\Http\Controllers\Api\PurchaseRequestController;
 use App\Http\Controllers\Api\QuotationController;
@@ -64,6 +69,7 @@ use App\Http\Controllers\Api\V1\InventoryController as V1InventoryController;
 use App\Http\Controllers\Api\V1\OrderController as V1OrderController;
 use App\Http\Controllers\Api\V1\ProductController as V1ProductController;
 use App\Http\Controllers\Api\VendorController;
+use App\Http\Controllers\Api\VendorImportController;
 use App\Http\Controllers\Api\VendorGroupController;
 use App\Http\Controllers\Api\WarehouseController;
 use Illuminate\Support\Facades\Route;
@@ -108,6 +114,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/plans', [AdminPlanController::class, 'index']);
         Route::post('/plans', [AdminPlanController::class, 'store']);
         Route::put('/plans/{id}', [AdminPlanController::class, 'update']);
+
+        Route::get('/tenants', [AdminBackupController::class, 'tenants']);
+        Route::post('/backup/full', [AdminBackupController::class, 'backupFull']);
+        Route::post('/backup/tenant/{tenantId}', [AdminBackupController::class, 'backupTenant']);
+        Route::get('/backup/status/{jobId}', [AdminBackupController::class, 'status']);
+        Route::get('/backup/list', [AdminBackupController::class, 'list']);
+        Route::get('/backup/download/{jobId}', [AdminBackupController::class, 'download']);
+        Route::delete('/backup/{jobId}', [AdminBackupController::class, 'delete']);
+        Route::post('/reset/preview', [AdminResetController::class, 'preview']);
+        Route::post('/reset/execute', [AdminResetController::class, 'execute']);
+        Route::get('/reset/log', [AdminResetController::class, 'log']);
     });
 
     // ──── Tenant-Scoped Routes (عزل بيانات: المستأجر من الهيدر فقط، منع الحقن من الرابط) ────
@@ -196,6 +213,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Customers (party-search قبل apiResource حتى لا يُفسَّر quick-search كـ {customer})
         Route::post('/customers/party-search', [CustomerController::class, 'partySearch']);
+        Route::post('/customers/import', [CustomerImportController::class, 'import']);
         Route::apiResource('customers', CustomerController::class);
 
         // Customer Groups
@@ -210,8 +228,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/pricing-groups/{id}', [PricingGroupController::class, 'update']);
         Route::delete('/pricing-groups/{id}', [PricingGroupController::class, 'destroy']);
 
+        // Promotions (العروض والتخفيضات)
+        Route::get('/promotions/report', [PromotionController::class, 'report']);
+        Route::post('/promotions/calculate', [PromotionController::class, 'calculate']);
+        Route::get('/promotions/{id}', [PromotionController::class, 'show']);
+        Route::put('/promotions/{id}/toggle', [PromotionController::class, 'toggle']);
+        Route::get('/promotions', [PromotionController::class, 'index']);
+        Route::post('/promotions', [PromotionController::class, 'store']);
+        Route::put('/promotions/{id}', [PromotionController::class, 'update']);
+        Route::delete('/promotions/{id}', [PromotionController::class, 'destroy']);
+
         // Vendors
         Route::post('/vendors/party-search', [VendorController::class, 'partySearch']);
+        Route::post('/vendors/import', [VendorImportController::class, 'import']);
         Route::apiResource('vendors', VendorController::class);
         Route::get('/vendor-groups', [VendorGroupController::class, 'index']);
         Route::post('/vendor-groups', [VendorGroupController::class, 'store']);
@@ -238,6 +267,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/item-attribute-templates', [ItemSettingsController::class, 'storeAttributeTemplate']);
 
         // Items
+        Route::post('/items/import', [ItemImportController::class, 'import']);
         Route::get('/items/next-code', [ItemController::class, 'nextCode']);
         Route::get('/items/{id}/available-serials', [ItemController::class, 'availableSerials']);
         Route::post('/items/{id}/generate-barcode', [ItemController::class, 'generateBarcode']);

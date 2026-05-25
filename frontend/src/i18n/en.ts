@@ -88,6 +88,7 @@ const en: Translations = {
     paymentVouchers: 'Payment Vouchers',
     customers: 'Customers',
     addCustomer: 'Add Customer',
+    importCustomers: 'Import customers',
     customerBalances: 'Customer Balances',
     customerAging: 'Customer Aging',
     customerAnalysis: 'Customer evaluation & analysis',
@@ -96,8 +97,12 @@ const en: Translations = {
     loyaltySettings: 'Program Settings',
     loyaltyTiers: 'Tiers',
     loyaltyCustomers: 'Customer Points',
+    promotionsAndGifts: 'Promotions & Discounts',
+    promotions: 'Promotions & Discounts',
+    promotionsReport: 'Promotions Report',
     vendors: 'Vendors',
     addVendor: 'Add Vendor',
+    importVendors: 'Import vendors',
     vendorBalances: 'Vendor Balances',
     vendorPurchaseAnalysis: 'Supplier purchase analysis',
     vendorAging: 'Accounts payable aging',
@@ -105,6 +110,7 @@ const en: Translations = {
     vendorGroups: 'Vendor groups',
     itemsAndInventory: 'Items & Inventory',
     items: 'Items',
+    importItems: 'Import items',
     itemMovement: 'Item movement',
     itemVariants: 'Variants',
     itemUnits: 'Units',
@@ -178,6 +184,7 @@ const en: Translations = {
     admin: 'Admin',
     subscriptions: 'Subscriptions',
     plans: 'Plans',
+    backupReset: 'Backup & reset',
     restaurant: 'Restaurant',
     restaurantPos: 'Restaurant POS',
     restaurantSales: 'Restaurant Sales',
@@ -907,6 +914,7 @@ const en: Translations = {
   // Items
   items: {
     title: 'Items',
+    importTitle: 'Import items',
     item: 'Item',
     selectItem: 'Select item',
     addItem: 'Add Item',
@@ -1135,6 +1143,7 @@ const en: Translations = {
   // Customers
   customers: {
     title: 'Customers',
+    importTitle: 'Import customers',
     addCustomer: 'Add Customer',
     editCustomer: 'Edit Customer',
     customerNumber: 'Customer No.',
@@ -1175,6 +1184,7 @@ const en: Translations = {
   // Vendors
   vendors: {
     title: 'Vendors',
+    importTitle: 'Import vendors',
     addVendor: 'Add Vendor',
     editVendor: 'Edit Vendor',
     vendorNumber: 'Vendor No.',

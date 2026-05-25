@@ -9,10 +9,12 @@ import AccountStatement from './pages/accounts/AccountStatement'
 import AccountStatementSheet from './pages/accounts/AccountStatementSheet'
 import FinancialTransfers from './pages/accounts/FinancialTransfers'
 import CustomerList from './pages/customers/CustomerList'
+import ImportCustomers from './pages/customers/ImportCustomers'
 import CustomerBalances from './pages/customers/CustomerBalances'
 import CustomerAging from './pages/customers/CustomerAging'
 import CustomerAnalysisReport from './pages/customers/CustomerAnalysisReport'
 import CustomerGroups from './pages/customers/CustomerGroups'
+import ImportVendors from './pages/vendors/ImportVendors'
 import VendorList from './pages/vendors/VendorList'
 import VendorBalances from './pages/vendors/VendorBalances'
 import VendorProfile from './pages/vendors/VendorProfile'
@@ -20,6 +22,7 @@ import VendorPurchaseAnalysisReport from './pages/vendors/VendorPurchaseAnalysis
 import VendorAgingReport from './pages/vendors/VendorAgingReport'
 import VendorPerformanceReport from './pages/vendors/VendorPerformanceReport'
 import VendorGroups from './pages/vendors/VendorGroups'
+import ImportItems from './pages/items/ImportItems'
 import ItemList from './pages/items/ItemList'
 import ItemLedger from './pages/items/ItemLedger'
 import ItemVariantsPage from './pages/items/ItemVariantsPage'
@@ -103,6 +106,9 @@ import SettingsIntegrations from './pages/settings/SettingsIntegrations'
 import LoyaltySettings from './pages/loyalty/LoyaltySettings'
 import LoyaltyTiers from './pages/loyalty/LoyaltyTiers'
 import LoyaltyCustomers from './pages/loyalty/LoyaltyCustomers'
+import PromotionsList from './pages/promotions/PromotionsList'
+import PromotionForm from './pages/promotions/PromotionForm'
+import PromotionReport from './pages/promotions/PromotionReport'
 import TenantUserList from './pages/users/TenantUserList'
 import RoleList from './pages/users/RoleList'
 import AuditLogPage from './pages/users/AuditLogPage'
@@ -123,6 +129,8 @@ import NotFoundPage from './pages/NotFoundPage'
 import RenewSubscription from './pages/subscription/RenewSubscription'
 import AdminSubscriptions from './pages/admin/AdminSubscriptions'
 import AdminPlans from './pages/admin/AdminPlans'
+import AdminBackupReset from './pages/admin/AdminBackupReset'
+import { SuperAdminGuard } from './components/superadmin/SuperAdminGuard'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import BomList from './pages/manufacturing/BomList'
 import BomForm from './pages/manufacturing/BomForm'
@@ -219,11 +227,13 @@ function App() {
                     <Route path="/accounts/statement/sheet" element={<AccountStatementSheet />} />
                     <Route path="/accounts/statement" element={<AccountStatement />} />
                     <Route path="/financial-transfers" element={<FinancialTransfers />} />
+                    <Route path="/customers/import" element={<ImportCustomers />} />
                     <Route path="/customers" element={<CustomerList />} />
                     <Route path="/customers/balances" element={<CustomerBalances />} />
                     <Route path="/customers/aging" element={<CustomerAging />} />
                     <Route path="/customers/analysis" element={<CustomerAnalysisReport />} />
                     <Route path="/customer-groups" element={<CustomerGroups />} />
+                    <Route path="/vendors/import" element={<ImportVendors />} />
                     <Route path="/vendors" element={<VendorList />} />
                     <Route path="/vendors/balances" element={<VendorBalances />} />
                     <Route path="/vendors/analysis" element={<VendorPurchaseAnalysisReport />} />
@@ -231,6 +241,7 @@ function App() {
                     <Route path="/vendors/performance" element={<VendorPerformanceReport />} />
                     <Route path="/vendor-groups" element={<VendorGroups />} />
                     <Route path="/vendors/:id" element={<VendorProfile />} />
+                    <Route path="/items/import" element={<ImportItems />} />
                     <Route path="/items" element={<ItemList />} />
                     <Route path="/items/movements" element={<ItemMovementPage />} />
                     <Route path="/items/variants" element={<ItemVariantsPage />} />
@@ -328,6 +339,10 @@ function App() {
                     <Route path="/loyalty/programs/:programId/tiers" element={<LoyaltyTiers />} />
                     <Route path="/loyalty/tiers" element={<LoyaltyTiers />} />
                     <Route path="/loyalty/customers" element={<LoyaltyCustomers />} />
+                    <Route path="/promotions" element={<PromotionsList />} />
+                    <Route path="/promotions/report" element={<PromotionReport />} />
+                    <Route path="/promotions/new" element={<PromotionForm />} />
+                    <Route path="/promotions/:id/edit" element={<PromotionForm />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/reports/trial-balance" element={<TrialBalance />} />
                     <Route path="/reports/income-statement" element={<IncomeStatement />} />
@@ -376,6 +391,14 @@ function App() {
                     <Route path="/audit-log" element={<AuditLogPage />} />
                     <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
                     <Route path="/admin/plans" element={<AdminPlans />} />
+                    <Route
+                      path="/admin/backup-reset"
+                      element={
+                        <SuperAdminGuard>
+                          <AdminBackupReset />
+                        </SuperAdminGuard>
+                      }
+                    />
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </Layout>

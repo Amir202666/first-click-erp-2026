@@ -45,6 +45,7 @@ import {
   Shield,
   UserCog,
   UserPlus,
+  FileInput,
   ScrollText,
   PanelLeftClose,
   PanelLeft,
@@ -65,12 +66,14 @@ import {
   AlertTriangle,
   BriefcaseBusiness,
   BadgePercent,
+  Gift,
   BadgeMinus,
   Lock,
   Plug,
   Store,
   Star,
   Printer,
+  Database,
 } from 'lucide-react'
 import NotificationBell from '../notifications/NotificationBell'
 import ThemePicker from '../ThemePicker'
@@ -124,9 +127,10 @@ const navEntries: NavEntry[] = [
   {
     labelKey: 'nav.customers',
     icon: Users,
-    basePaths: ['/customers', '/customers/balances', '/customers/aging', '/customers/analysis', '/customer-groups'],
+    basePaths: ['/customers', '/customers/import', '/customers/balances', '/customers/aging', '/customers/analysis', '/customer-groups'],
     children: [
       { path: '/customers', labelKey: 'nav.addCustomer', icon: UserPlus },
+      { path: '/customers/import', labelKey: 'nav.importCustomers', icon: FileInput },
       { path: '/customers/balances', labelKey: 'nav.customerBalances', icon: FileText },
       { path: '/customers/analysis', labelKey: 'nav.customerAnalysis', icon: TrendingUp },
       { path: '/customers/aging', labelKey: 'nav.customerAging', icon: BarChart3 },
@@ -136,9 +140,10 @@ const navEntries: NavEntry[] = [
   {
     labelKey: 'nav.vendors',
     icon: Truck,
-    basePaths: ['/vendors', '/vendors/balances', '/vendors/analysis', '/vendors/aging', '/vendors/performance', '/vendor-groups'],
+    basePaths: ['/vendors', '/vendors/import', '/vendors/balances', '/vendors/analysis', '/vendors/aging', '/vendors/performance', '/vendor-groups'],
     children: [
       { path: '/vendors', labelKey: 'nav.addVendor', icon: UserPlus },
+      { path: '/vendors/import', labelKey: 'nav.importVendors', icon: FileInput },
       { path: '/vendors/balances', labelKey: 'nav.vendorBalances', icon: FileText },
       { path: '/vendors/analysis', labelKey: 'nav.vendorPurchaseAnalysis', icon: BarChart3 },
       { path: '/vendors/aging', labelKey: 'nav.vendorAging', icon: BarChart3 },
@@ -149,9 +154,10 @@ const navEntries: NavEntry[] = [
   {
     labelKey: 'nav.itemsAndInventory',
     icon: Boxes,
-    basePaths: ['/items', '/items/variants', '/item-units', '/item-categories', '/item-brands', '/pricing-groups', '/warehouses', '/inventory/transfers', '/inventory/adjustments', '/stock-movements', '/inventory-report', '/inventory/variant-report', '/inventory/expiry-stock-report', '/reports/serial-numbers-inventory', '/opening-stock', '/inventory/low-stock', '/items/movements', '/items/ledger', '/barcode-labels'],
+    basePaths: ['/items', '/items/import', '/items/variants', '/item-units', '/item-categories', '/item-brands', '/pricing-groups', '/warehouses', '/inventory/transfers', '/inventory/adjustments', '/stock-movements', '/inventory-report', '/inventory/variant-report', '/inventory/expiry-stock-report', '/reports/serial-numbers-inventory', '/opening-stock', '/inventory/low-stock', '/items/movements', '/items/ledger', '/barcode-labels'],
     children: [
       { path: '/items', labelKey: 'nav.items', icon: Package },
+      { path: '/items/import', labelKey: 'nav.importItems', icon: FileInput },
       { path: '/items/variants', labelKey: 'nav.itemVariants', icon: LayoutGrid },
       { path: '/item-units', labelKey: 'nav.itemUnits', icon: Ruler },
       { path: '/item-categories', labelKey: 'nav.itemCategories', icon: FolderTree },
@@ -233,6 +239,15 @@ const navEntries: NavEntry[] = [
       { path: '/loyalty/settings', labelKey: 'nav.loyaltySettings', icon: Settings },
       { path: '/loyalty/tiers', labelKey: 'nav.loyaltyTiers', icon: Award },
       { path: '/loyalty/customers', labelKey: 'nav.loyaltyCustomers', icon: Users },
+    ],
+  },
+  {
+    labelKey: 'nav.promotionsAndGifts',
+    icon: Gift,
+    basePaths: ['/promotions'],
+    children: [
+      { path: '/promotions', labelKey: 'nav.promotions', icon: BadgePercent },
+      { path: '/promotions/report', labelKey: 'nav.promotionsReport', icon: BarChart3 },
     ],
   },
   {
@@ -358,10 +373,11 @@ const navEntries: NavEntry[] = [
   {
     labelKey: 'nav.admin',
     icon: Shield,
-    basePaths: ['/admin/subscriptions', '/admin/plans'],
+    basePaths: ['/admin/subscriptions', '/admin/plans', '/admin/backup-reset'],
     children: [
       { path: '/admin/subscriptions', labelKey: 'nav.subscriptions', icon: CreditCard },
       { path: '/admin/plans', labelKey: 'nav.plans', icon: Package },
+      { path: '/admin/backup-reset', labelKey: 'nav.backupReset', icon: Database },
     ],
   },
 ]
@@ -806,7 +822,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Top Bar — ثابت ولا يتأثر بالتمرير */}
         <header
           dir={isRtl ? 'rtl' : 'ltr'}
-          className="no-print shrink-0 z-30 flex items-center justify-between gap-2 px-2 lg:px-2.5 py-0.5 shadow-sm w-full min-h-0"
+          className="no-print shrink-0 z-30 flex items-center justify-between gap-2 px-2 lg:px-2.5 py-0 shadow-sm w-full min-h-0 lg:min-h-[2rem]"
           style={{
             background: 'var(--fc-sidebar-bg)',
             borderBottom: '1px solid var(--fc-sidebar-divider)',
@@ -816,7 +832,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <button
               onClick={() => setSidebarCollapsed((c) => !c)}
-              className={`hidden lg:flex h-11 w-11 lg:h-[28px] lg:w-[28px] items-center justify-center rounded-md transition-colors shrink-0 ${headerIconBtnClass}`}
+              className={`hidden lg:flex h-11 w-11 lg:h-[26px] lg:w-[26px] items-center justify-center rounded-md transition-colors shrink-0 ${headerIconBtnClass}`}
               aria-label={sidebarCollapsed ? label('expandSidebar') : label('collapseSidebar')}
               title={sidebarCollapsed ? label('expandSidebar') : label('collapseSidebar')}
             >
@@ -838,8 +854,8 @@ export default function Layout({ children }: LayoutProps) {
                 placeholder={t.searchPagesPlaceholder}
                 className={
                   lightSidebarChrome
-                    ? `w-full border border-neutral-200 rounded-md h-11 lg:h-[28px] text-sm font-medium text-neutral-900 placeholder:text-neutral-500 bg-white/90 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-neutral-300 focus:border-neutral-400 transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`
-                    : `w-full border border-white/15 rounded-md h-11 lg:h-[28px] text-sm font-medium text-white placeholder-white/50 bg-white/10 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white/15 focus:border-white/25 focus:bg-white/10 transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`
+                    ? `w-full border border-neutral-200 rounded-md h-11 lg:h-[26px] text-sm font-medium text-neutral-900 placeholder:text-neutral-500 bg-white/90 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-neutral-300 focus:border-neutral-400 transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`
+                    : `w-full border border-white/15 rounded-md h-11 lg:h-[26px] text-sm font-medium text-white placeholder-white/50 bg-white/10 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white/15 focus:border-white/25 focus:bg-white/10 transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`
                 }
                 dir={isRtl ? 'rtl' : 'ltr'}
               />
@@ -865,7 +881,7 @@ export default function Layout({ children }: LayoutProps) {
             {isPosPage ? (
               <Link
                 to="/"
-                className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[28px] lg:px-2.5 ${headerBtnClass}`}
+                className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
                 title={lang === 'ar' ? 'الصفحة الرئيسية' : 'Home'}
               >
                 <ArrowLeft size={15} className={isRtl ? 'rotate-180' : ''} />
@@ -885,7 +901,7 @@ export default function Layout({ children }: LayoutProps) {
                 {/* نقطة البيع POS - يخفى عند الدخول لشاشة نقطة البيع */}
                 <Link
                   to="/invoices/pos"
-                  className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[28px] lg:px-2.5 ${headerBtnClass}`}
+                  className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
                   title={label('nav.posInvoices')}
                 >
                   <ShoppingCart size={15} />
@@ -903,7 +919,7 @@ export default function Layout({ children }: LayoutProps) {
                 ref={colorPickerBtnRef}
                 type="button"
                 onClick={() => setColorPickerOpen(!colorPickerOpen)}
-                className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[28px] lg:px-2.5 ${headerBtnClass}`}
+                className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
                 title={t.themeColor}
               >
                 <Palette size={15} />
@@ -930,7 +946,7 @@ export default function Layout({ children }: LayoutProps) {
             {/* Language Toggle */}
             <button
               onClick={toggleLang}
-              className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[28px] lg:px-2.5 ${headerBtnClass}`}
+              className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
               title={t.switchLanguage}
             >
               <Globe size={15} />
@@ -943,8 +959,8 @@ export default function Layout({ children }: LayoutProps) {
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className={
                   lightSidebarChrome
-                    ? 'flex items-center gap-1.5 h-11 px-3 rounded-md text-sm font-medium transition-colors border text-neutral-900 hover:bg-black/[0.06] border-black/10 lg:h-[28px] lg:px-2.5'
-                    : 'flex items-center gap-1.5 h-11 px-3 rounded-md text-sm font-medium transition-colors border text-white/90 hover:bg-white/10 border-white/15 lg:h-[28px] lg:px-2.5'
+                    ? 'flex items-center gap-1.5 h-11 px-3 rounded-md text-sm font-medium transition-colors border text-neutral-900 hover:bg-black/[0.06] border-black/10 lg:h-[26px] lg:px-2.5'
+                    : 'flex items-center gap-1.5 h-11 px-3 rounded-md text-sm font-medium transition-colors border text-white/90 hover:bg-white/10 border-white/15 lg:h-[26px] lg:px-2.5'
                 }
               >
                 <div

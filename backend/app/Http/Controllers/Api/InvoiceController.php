@@ -283,9 +283,53 @@ class InvoiceController extends Controller
             ], 422);
         }
 
+        $appliedPromo = null;
+        $promoDiscount = 0.0;
+        if (($validated['type'] ?? '') === 'sales' && empty($validated['is_return'])) {
+            try {
+                $tenantId = (int) $request->tenant_id;
+                $subtotal = \App\Services\PromotionService::rawSubtotalFromLines($validated['lines']);
+                $channel = ($validated['order_type'] ?? null) === 'delivery' ? 'delivery' : 'invoice';
+                $resolved = app(\App\Services\PromotionService::class)->resolvePromotion(
+                    $tenantId,
+                    $channel,
+                    $subtotal,
+                    $request->filled('promotion_id') ? (int) $request->promotion_id : null,
+                    isset($validated['customer_id']) ? (int) $validated['customer_id'] : null,
+                    $validated['lines'],
+                );
+                $appliedPromo = $resolved['promotion'];
+                $promoDiscount = $resolved['promotion_discount'];
+                if ($appliedPromo && $promoDiscount > 0) {
+                    $validated['promotion_id'] = $appliedPromo->id;
+                    $validated['promotion_discount'] = $promoDiscount;
+                    $validated['discount_amount'] = round((float) ($validated['discount_amount'] ?? 0) + $promoDiscount, 3);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Promo error: '.$e->getMessage());
+                $appliedPromo = null;
+                $promoDiscount = 0.0;
+            }
+        }
+
         try {
-            [$invoice, $receiptPayload] = DB::transaction(function () use ($request, $validated, $receiptSpecs) {
+            [$invoice, $receiptPayload] = DB::transaction(function () use ($request, $validated, $receiptSpecs, $appliedPromo, $promoDiscount) {
                 $invoice = $this->invoiceService->createInvoice($validated, $validated['lines']);
+
+                if ($appliedPromo && $promoDiscount > 0) {
+                    $channel = ($validated['order_type'] ?? null) === 'delivery' ? 'delivery' : 'invoice';
+                    $subtotal = \App\Services\PromotionService::rawSubtotalFromLines($validated['lines']);
+                    app(\App\Services\PromotionService::class)->applyPromotion(
+                        $appliedPromo,
+                        $channel,
+                        \App\Models\Invoice::class,
+                        (int) $invoice->id,
+                        $subtotal,
+                        $promoDiscount,
+                        isset($validated['customer_id']) ? (int) $validated['customer_id'] : null,
+                        (int) $request->user()->id,
+                    );
+                }
 
                 app(DeliveryService::class)->applyDispatchAfterPostedSalesInvoice(
                     $invoice->fresh(['customer']),
@@ -1031,6 +1075,7 @@ class InvoiceController extends Controller
             'sales_payment_tab' => 'nullable|string|in:cash,bank,deferred,installment,mixed',
             'redeem_points' => 'nullable|numeric|min:0',
             'loyalty_program_id' => 'nullable|integer|min:1',
+            'promotion_id' => 'nullable|integer|exists:promotions,id',
         ]);
 
         // Sanitization: منع إدخال أكواد ضارة في الحقول النصية (يُتوقع نص بسيط).

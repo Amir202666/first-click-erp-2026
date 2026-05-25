@@ -344,6 +344,7 @@ class PosRestaurantController extends Controller
                 ],
                 'redeem_points' => ['nullable', 'numeric', 'min:0'],
                 'loyalty_program_id' => ['nullable', 'integer', 'min:1'],
+                'promotion_id' => ['nullable', 'integer', 'exists:promotions,id'],
             ]);
             $amount = round(collect($validated['payments'])->sum(fn ($p) => (float) $p['amount']), 3);
         } else {
@@ -360,6 +361,7 @@ class PosRestaurantController extends Controller
                 ],
                 'redeem_points' => ['nullable', 'numeric', 'min:0'],
                 'loyalty_program_id' => ['nullable', 'integer', 'min:1'],
+                'promotion_id' => ['nullable', 'integer', 'exists:promotions,id'],
             ]);
             $amount = round((float) $validated['amount'], 3);
         }
@@ -386,7 +388,34 @@ class PosRestaurantController extends Controller
         }
 
         $orderTotal = round((float) $order->total, 3);
-        $netTotal = round(max(0, $orderTotal - $redeemDiscount), 3);
+        $promoLines = [];
+        foreach ($order->lines as $line) {
+            $promoLines[] = [
+                'item_id' => $line->item_id,
+                'quantity' => $line->quantity,
+                'unit_price' => $line->unit_price,
+            ];
+        }
+        $promoSubtotal = \App\Services\PromotionService::rawSubtotalFromLines($promoLines);
+        $appliedPromo = null;
+        $promoDiscount = 0.0;
+        try {
+            $promoChannel = $order->order_type === 'delivery' ? 'delivery' : 'restaurant';
+            $resolved = app(\App\Services\PromotionService::class)->resolvePromotion(
+                (int) $tenantId,
+                $promoChannel,
+                $promoSubtotal,
+                $request->filled('promotion_id') ? (int) $validated['promotion_id'] : null,
+                $order->customer_id ? (int) $order->customer_id : null,
+                $promoLines,
+            );
+            $appliedPromo = $resolved['promotion'];
+            $promoDiscount = $resolved['promotion_discount'];
+        } catch (\Throwable $e) {
+            \Log::warning('Restaurant promo error: '.$e->getMessage());
+        }
+
+        $netTotal = round(max(0, $orderTotal - $redeemDiscount - $promoDiscount), 3);
         if ($amount + 0.0005 < $netTotal) {
             return response()->json(['message' => 'المبلغ المدفوع أقل من إجمالي الطلب'], 422);
         }
@@ -421,7 +450,8 @@ class PosRestaurantController extends Controller
                 ? (int) $validated['payments'][0]['payment_method_id']
                 : ($validated['payment_method_id'] ?? null));
 
-        return DB::transaction(function () use ($order, $tenantId, $validated, $amount, $invoiceService, $paymentService, $shift, $session, $skipCashierForDriver, $checkoutDriverId, $useSplit, $primaryPaymentMethodId, $redeemDiscount, $redeemPoints) {
+        return DB::transaction(function () use ($order, $tenantId, $validated, $amount, $invoiceService, $paymentService, $shift, $session, $skipCashierForDriver, $checkoutDriverId, $useSplit, $primaryPaymentMethodId, $redeemDiscount, $redeemPoints, $appliedPromo, $promoDiscount, $promoSubtotal, $request) {
+            $headerDiscount = round($redeemDiscount + $promoDiscount, 3);
             $invoiceData = [
                 'tenant_id' => $tenantId,
                 'type' => 'sales',
@@ -432,7 +462,9 @@ class PosRestaurantController extends Controller
                 'status' => 'draft',
                 'order_type' => $order->order_type,
                 'table_id' => $order->table_id,
-                'discount_amount' => $redeemDiscount > 0.0005 ? $redeemDiscount : 0,
+                'promotion_id' => $appliedPromo?->id,
+                'promotion_discount' => $promoDiscount,
+                'discount_amount' => $headerDiscount > 0.0005 ? $headerDiscount : 0,
                 'amount_paid' => $skipCashierForDriver ? 0 : $amount,
                 'payment_timing' => $skipCashierForDriver ? 'deferred' : 'paid',
                 'payment_method_id' => $primaryPaymentMethodId,
@@ -454,6 +486,20 @@ class PosRestaurantController extends Controller
             }
 
             $invoice = $invoiceService->createInvoice($invoiceData, $lines, false);
+
+            if ($appliedPromo && $promoDiscount > 0) {
+                $promoChannel = $order->order_type === 'delivery' ? 'delivery' : 'restaurant';
+                app(\App\Services\PromotionService::class)->applyPromotion(
+                    $appliedPromo,
+                    $promoChannel,
+                    \App\Models\Invoice::class,
+                    (int) $invoice->id,
+                    $promoSubtotal,
+                    $promoDiscount,
+                    $order->customer_id ? (int) $order->customer_id : null,
+                    (int) $request->user()->id,
+                );
+            }
 
             if (! $skipCashierForDriver) {
                 $baseNotes = $validated['notes'] ?? null;

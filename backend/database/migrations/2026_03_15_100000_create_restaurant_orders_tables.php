@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('restaurant_orders', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
-            $table->unsignedBigInteger('branch_id');
-            $table->unsignedBigInteger('warehouse_id');
+            $table->unsignedBigInteger('branch_id')->nullable();
+            $table->unsignedBigInteger('warehouse_id')->nullable();
             $table->unsignedBigInteger('table_id')->nullable();
             $table->unsignedBigInteger('customer_id')->nullable();
             $table->string('order_type', 20)->default('dine_in');
@@ -35,7 +35,7 @@ return new class extends Migration
         Schema::create('restaurant_order_lines', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('restaurant_order_id');
-            $table->unsignedBigInteger('item_id');
+            $table->unsignedBigInteger('item_id')->nullable();
             $table->string('description')->nullable();
             $table->decimal('quantity', 18, 3);
             $table->decimal('unit_price', 18, 3);

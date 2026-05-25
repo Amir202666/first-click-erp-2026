@@ -53,6 +53,8 @@ import AccountSearchSelect from '../../components/AccountSearchSelect'
 import { DeliveryFeesSection, type DeliveryFeeLine } from '../../components/invoice/DeliveryFeesSection'
 import { PartialPaymentSection, type PartialPaymentState } from '../../components/invoice/PartialPaymentSection'
 import { LoyaltyInvoiceSection } from '../../components/loyalty/LoyaltyInvoiceSection'
+import { promotionsApi } from '../../api/promotions'
+import type { PromotionCalculateResult } from '../../types/promotions'
 import { loyaltyApi } from '../../api/loyalty'
 import type { CreateInvoiceResponse } from '../../api/tenant'
 
@@ -248,6 +250,10 @@ export default function CreateInvoice() {
   const [loyaltyRedeemPoints, setLoyaltyRedeemPoints] = useState(0)
   const [loyaltyRedeemDiscount, setLoyaltyRedeemDiscount] = useState(0)
   const [loyaltyProgramId, setLoyaltyProgramId] = useState<number | null>(null)
+
+  const [availablePromos, setAvailablePromos] = useState<PromotionCalculateResult[]>([])
+  const [appliedPromo, setAppliedPromo] = useState<PromotionCalculateResult | null>(null)
+  const [promoDiscount, setPromoDiscount] = useState(0)
 
   useEffect(() => {
     if (!tenantId) return
@@ -1278,6 +1284,49 @@ export default function CreateInvoice() {
 
   const grandTotal = totals.total
 
+  const rawOrderTotalForPromo = useMemo(
+    () => lines.reduce((s, l) => s + lineGrossBeforeDiscount(l), 0),
+    [lines],
+  )
+
+  useEffect(() => {
+    if (type !== 'sales' || isReturn || !tenantId || rawOrderTotalForPromo <= 0) {
+      setAvailablePromos([])
+      setAppliedPromo(null)
+      setPromoDiscount(0)
+      return
+    }
+    const channel = salesOrderFulfillment === 'delivery' ? 'delivery' : 'invoice'
+    promotionsApi
+      .calculate(tenantId, {
+        channel,
+        order_total: Math.round(rawOrderTotalForPromo * 1000) / 1000,
+        customer_id: type === 'sales' ? (partnerId ?? undefined) : undefined,
+        item_ids: lines.map((l) => l.item_id).filter((id): id is number => id != null),
+        items: lines
+          .filter((l) => l.item_id != null)
+          .map((l) => ({
+            item_id: l.item_id as number,
+            quantity: l.quantity,
+            unit_price: Number(l.unit_price) || 0,
+          })),
+      })
+      .then((r) => {
+        const promos = r.data.data ?? []
+        setAvailablePromos(promos)
+        if (promos.length > 0) {
+          setAppliedPromo(promos[0])
+          setPromoDiscount(promos[0].discount_amount)
+        } else {
+          setAppliedPromo(null)
+          setPromoDiscount(0)
+        }
+      })
+      .catch(() => {})
+  }, [type, isReturn, tenantId, rawOrderTotalForPromo, partnerId, lines, salesOrderFulfillment])
+
+  const effectiveGrandTotal = Math.max(0, grandTotal - promoDiscount)
+
   const installmentDownPaymentKwd = useMemo(() => {
     if (type !== 'sales' || isReturn || salesPaymentTab !== 'installment') return 0
     const raw = instDownType === 'percent' ? (grandTotal * instDownPayment) / 100 : instDownPayment
@@ -1417,6 +1466,11 @@ export default function CreateInvoice() {
       payload.discount_amount = totals.discountAmount
     }
 
+    if (type === 'sales' && !isReturn && promoDiscount > 0.0005 && appliedPromo) {
+      const base = Number(payload.discount_amount ?? 0)
+      payload.discount_amount = Math.round((base + promoDiscount) * 1000) / 1000
+      payload.promotion_id = appliedPromo.promotion_id
+    }
     if (type === 'sales' && !isReturn && loyaltyRedeemDiscount > 0.0005) {
       const base = Number(payload.discount_amount ?? 0)
       payload.discount_amount = Math.round((base + loyaltyRedeemDiscount) * 1000) / 1000
@@ -3188,6 +3242,53 @@ export default function CreateInvoice() {
                 <span className="totals-value" dir="ltr">- {fmtWithSymbol(totals.discountAmount)}</span>
               </div>
             </div>
+            {type === 'sales' && !isReturn && availablePromos.length > 0 && (
+              <div className="col-span-full">
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 mt-1">
+                  <p className="text-xs font-bold text-rose-700 mb-2">
+                    {lang === 'ar' ? '🏷️ عروض متاحة تلقائياً' : '🏷️ Available promotions'}
+                  </p>
+                  {availablePromos.map((p) => (
+                    <label
+                      key={p.promotion_id}
+                      className="flex items-center gap-2 text-xs cursor-pointer mb-1"
+                    >
+                      <input
+                        type="radio"
+                        name="promo"
+                        checked={appliedPromo?.promotion_id === p.promotion_id}
+                        onChange={() => {
+                          setAppliedPromo(p)
+                          setPromoDiscount(p.discount_amount)
+                        }}
+                      />
+                      <span>{p.promotion_name}</span>
+                      <span className="font-bold text-rose-600 ms-auto tabular-nums" dir="ltr">
+                        - {p.discount_amount.toFixed(3)} KWD
+                      </span>
+                    </label>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppliedPromo(null)
+                      setPromoDiscount(0)
+                    }}
+                    className="text-[10px] text-gray-400 mt-1 hover:text-gray-600"
+                  >
+                    {lang === 'ar' ? 'بدون عرض' : 'No promotion'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {type === 'sales' && !isReturn && promoDiscount > 0.0005 && (
+              <div className="totals-item total-row text-rose-700">
+                <span className="totals-label">{lang === 'ar' ? 'خصم العرض' : 'Promotion'}</span>
+                <span className="totals-value tabular-nums" dir="ltr">
+                  - {fmtWithSymbol(promoDiscount)}
+                </span>
+              </div>
+            )}
             {type === 'sales' && !isReturn && (
               <div className="totals-item total-row text-emerald-800">
                 <span className="totals-label total-label">{lang === 'ar' ? 'الإضافات' : 'Additions'}</span>
@@ -3204,7 +3305,9 @@ export default function CreateInvoice() {
             </div>
             <div className="totals-item total-row grand-total-row">
               <span className="totals-label grand-total-label">{lang === 'ar' ? 'الصافي النهائي' : 'Grand Total'}</span>
-              <span className="totals-value grand-total-value" dir="ltr">{fmtWithSymbol(grandTotal)}</span>
+              <span className="totals-value grand-total-value" dir="ltr">
+                {fmtWithSymbol(type === 'sales' && !isReturn ? effectiveGrandTotal : grandTotal)}
+              </span>
             </div>
             {type === 'sales' && !isReturn && partialPayment.enabled && partialPayment.amount > 0.0005 && (
               <>

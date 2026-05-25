@@ -22,9 +22,9 @@ const VENDOR_COLUMNS_STORAGE = 'vendorsListVisibleColumns'
 
 /** أوزان نسبية لـ colgroup: تُحسب النسبة لكل عمود ظاهر بحيث يبلغ المجموع 100% من عرض الجدول. */
 const VENDOR_COL_WEIGHT: Record<VendorColumnKey, number> = {
-  code: 13,
-  company_name: 22,
-  name: 22,
+  code: 8,
+  company_name: 23,
+  name: 23,
   email: 15,
   phone: 11,
   tax_number: 7,
@@ -448,8 +448,9 @@ export default function VendorList() {
                         sortKey={k}
                         sortState={sort as any}
                         onToggle={toggleSort as any}
-                        truncateLabel={false}
+                        truncateLabel={k === 'code'}
                         compact
+                        dense={k === 'code'}
                         widthClassName="min-w-0"
                         className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`}
                       />
@@ -475,7 +476,7 @@ export default function VendorList() {
                           return (
                             <td
                               key={k}
-                              className="truncate px-3 py-2 font-mono text-xs text-slate-600"
+                              className="truncate px-2 py-2 font-mono text-xs text-slate-600"
                               title={v.code ?? undefined}
                             >
                               {v.code ?? '—'}

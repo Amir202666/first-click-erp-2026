@@ -86,6 +86,7 @@ const ar = {
     paymentVouchers: 'سندات الصرف',
     customers: 'العملاء',
     addCustomer: 'إضافة عميل',
+    importCustomers: 'استيراد عملاء',
     customerBalances: 'أرصدة العملاء',
     customerAging: 'أعمار ديون العملاء',
     customerAnalysis: 'تقييم وتحليل العملاء',
@@ -94,8 +95,12 @@ const ar = {
     loyaltySettings: 'إعدادات البرنامج',
     loyaltyTiers: 'مستويات العضوية',
     loyaltyCustomers: 'نقاط العملاء',
+    promotionsAndGifts: 'العروض والتخفيضات',
+    promotions: 'العروض والتخفيضات',
+    promotionsReport: 'تقرير العروض',
     vendors: 'الموردين',
     addVendor: 'إضافة مورد',
+    importVendors: 'استيراد موردين',
     vendorBalances: 'أرصدة الموردين',
     vendorPurchaseAnalysis: 'تحليل مشتريات الموردين',
     vendorAging: 'أعمار ديون الموردين',
@@ -103,6 +108,7 @@ const ar = {
     vendorGroups: 'فئات الموردين',
     itemsAndInventory: 'الأصناف والمخازن',
     items: 'الأصناف',
+    importItems: 'استيراد أصناف',
     itemMovement: 'حركة الصنف',
     itemVariants: 'التباين والمتغيرات',
     itemUnits: 'وحدات القياس',
@@ -176,6 +182,7 @@ const ar = {
     admin: 'الإدارة',
     subscriptions: 'الاشتراكات',
     plans: 'الباقات',
+    backupReset: 'النسخ الاحتياطي والتصفير',
     restaurant: 'المطاعم',
     restaurantPos: 'نقطة بيع المطعم',
     restaurantSales: 'مبيعات المطعم',
@@ -905,6 +912,7 @@ const ar = {
   // Items
   items: {
     title: 'الأصناف',
+    importTitle: 'استيراد الأصناف',
     item: 'الصنف',
     selectItem: 'اختر الصنف',
     addItem: 'إضافة صنف',
@@ -1134,6 +1142,7 @@ const ar = {
   // Customers
   customers: {
     title: 'العملاء',
+    importTitle: 'استيراد العملاء',
     addCustomer: 'إضافة عميل',
     editCustomer: 'تعديل عميل',
     customerNumber: 'رقم العميل',
@@ -1174,6 +1183,7 @@ const ar = {
   // Vendors
   vendors: {
     title: 'الموردين',
+    importTitle: 'استيراد الموردين',
     addVendor: 'إضافة مورد',
     editVendor: 'تعديل مورد',
     vendorNumber: 'رقم المورد',

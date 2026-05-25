@@ -9,6 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('item_attribute_templates', function (Blueprint $table) {
+            $table->index('tenant_id', 'iat_tenant_id_idx');
             $table->dropUnique(['tenant_id', 'name']);
         });
     }
@@ -17,6 +18,7 @@ return new class extends Migration
     {
         Schema::table('item_attribute_templates', function (Blueprint $table) {
             $table->unique(['tenant_id', 'name']);
+            $table->dropIndex('iat_tenant_id_idx');
         });
     }
 };

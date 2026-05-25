@@ -30,7 +30,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
-            $table->index(['tenant_id', 'sort_order']);
+            $table->index(['tenant_id', 'sort_order'], 'rmcat_tenant_sort_idx');
         });
 
         Schema::create('restaurant_menu_items', function (Blueprint $table) {
@@ -55,7 +55,7 @@ return new class extends Migration
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
             $table->foreign('category_id')->references('id')->on('restaurant_menu_categories')->onDelete('cascade');
             $table->foreign('item_id')->references('id')->on('items')->nullOnDelete();
-            $table->index(['tenant_id', 'category_id', 'sort_order']);
+            $table->index(['tenant_id', 'category_id', 'sort_order'], 'rmitem_tnt_cat_sort_idx');
         });
     }
 

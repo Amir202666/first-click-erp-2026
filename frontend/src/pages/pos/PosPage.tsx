@@ -42,6 +42,8 @@ import { invoiceDocumentStatus } from '../../utils/invoiceStatuses'
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner'
 import { LoyaltyPOSSection } from '../../components/loyalty/LoyaltyPOSSection'
 import { loyaltyApi } from '../../api/loyalty'
+import { promotionsApi } from '../../api/promotions'
+import type { PromotionCalculateResult } from '../../types/promotions'
 import { openInvoiceViewForPrint, posPrintOptionsFromSettings } from '../../utils/openInvoicePrintDialog'
 
 const VAT_RATE = 0
@@ -339,6 +341,8 @@ export default function PosPage() {
   const [loyaltyRedeemPoints, setLoyaltyRedeemPoints] = useState(0)
   const [loyaltyRedeemDiscount, setLoyaltyRedeemDiscount] = useState(0)
   const [loyaltyProgramId, setLoyaltyProgramId] = useState<number | null>(null)
+  const [posPromo, setPosPromo] = useState<PromotionCalculateResult | null>(null)
+  const [posPromoDiscount, setPosPromoDiscount] = useState(0)
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: number; name: string; phone?: string | null } | null>(null)
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false)
@@ -1321,8 +1325,40 @@ export default function PosPage() {
   const discountAmount = Number(posTotals.discount)
   const taxTotal = Number(posTotals.tax)
   const total = Number(posTotals.total)
-  /** إجمالي مستحق الدفع في نافذة الدفع بعد خصم نقاط الولاء */
-  const posPayDueTotal = Math.max(0, parseFloat((total - loyaltyRedeemDiscount).toFixed(3)))
+  /** إجمالي مستحق الدفع في نافذة الدفع بعد خصم الولاء والعروض */
+  const posPayDueTotal = Math.max(
+    0,
+    parseFloat((total - loyaltyRedeemDiscount - posPromoDiscount).toFixed(3)),
+  )
+
+  useEffect(() => {
+    if (!showPayModal || !tenantId || total <= 0) {
+      setPosPromo(null)
+      setPosPromoDiscount(0)
+      return
+    }
+    const customerIdForPromo =
+      payModalCustomerIdRef.current ?? selectedCustomer?.id ?? undefined
+    const channel = posFulfillment === 'delivery' ? 'delivery' : 'pos'
+    promotionsApi
+      .calculate(tenantId, {
+        channel,
+        order_total: subtotal,
+        customer_id: customerIdForPromo,
+        item_ids: cart.map((l) => l.item_id),
+      })
+      .then((r) => {
+        const promos = r.data.data ?? []
+        if (promos.length > 0) {
+          setPosPromo(promos[0])
+          setPosPromoDiscount(promos[0].discount_amount)
+        } else {
+          setPosPromo(null)
+          setPosPromoDiscount(0)
+        }
+      })
+      .catch(() => {})
+  }, [showPayModal, tenantId, total, subtotal, selectedCustomer?.id, posFulfillment])
 
   const payModalTotalPaid = useMemo(
     () => posPayLines.reduce((s, l) => s + (Number(l.amount) || 0), 0),
@@ -1332,7 +1368,7 @@ export default function PosPage() {
   const addPosPaymentLine = useCallback(() => {
     setPosPayLines((prev) => {
       const totalPaidInner = prev.reduce((s, l) => s + (Number(l.amount) || 0), 0)
-      const due = Math.max(0, parseFloat((total - loyaltyRedeemDiscount).toFixed(3)))
+      const due = Math.max(0, parseFloat((total - loyaltyRedeemDiscount - posPromoDiscount).toFixed(3)))
       const remaining = Math.max(0, due - totalPaidInner)
       const activeMethods = paymentMethods.filter((m) => m.is_active)
       const nonCash = activeMethods.find((m) => m.type !== 'cash')
@@ -1346,7 +1382,7 @@ export default function PosPage() {
         },
       ]
     })
-  }, [paymentMethods, total, loyaltyRedeemDiscount])
+  }, [paymentMethods, total, loyaltyRedeemDiscount, posPromoDiscount])
 
   const removePosPaymentLine = useCallback((id: string) => {
     setPosPayLines((prev) => {
@@ -1385,9 +1421,9 @@ export default function PosPage() {
   const resetPosPayLinesToSingle = useCallback(() => {
     const activeMethods = paymentMethods.filter((m) => m.is_active)
     const cashId = activeMethods.find((m) => m.type === 'cash')?.id ?? activeMethods[0]?.id ?? null
-    const due = Math.max(0, parseFloat((total - loyaltyRedeemDiscount).toFixed(3)))
+    const due = Math.max(0, parseFloat((total - loyaltyRedeemDiscount - posPromoDiscount).toFixed(3)))
     setPosPayLines([{ id: posPaymentLineId(), methodId: cashId, amount: due }])
-  }, [paymentMethods, total, loyaltyRedeemDiscount])
+  }, [paymentMethods, total, loyaltyRedeemDiscount, posPromoDiscount])
 
   useEffect(() => {
     const id = setTimeout(() => searchInputRef.current?.focus(), 100)
@@ -1422,10 +1458,10 @@ export default function PosPage() {
     if (openPayAsCreditRef.current) return
     setPosPayLines((prev) => {
       if (prev.length !== 1) return prev
-      const due = Math.max(0, parseFloat((total - loyaltyRedeemDiscount).toFixed(3)))
+      const due = Math.max(0, parseFloat((total - loyaltyRedeemDiscount - posPromoDiscount).toFixed(3)))
       return [{ ...prev[0], amount: due }]
     })
-  }, [loyaltyRedeemDiscount, total, showPayModal])
+  }, [loyaltyRedeemDiscount, posPromoDiscount, total, showPayModal])
 
   useEffect(() => {
     if (!showPayModal || paymentMethods.length === 0) return
@@ -1554,7 +1590,8 @@ export default function PosPage() {
       warehouse_id: warehouseId ?? undefined,
       shift_id: currentShift?.id,
       customer_id: customerIdToSend,
-      discount_amount: Number((discountAmount + loyaltyDiscount).toFixed(3)),
+      discount_amount: Number((discountAmount + loyaltyDiscount + posPromoDiscount).toFixed(3)),
+      ...(posPromo && posPromoDiscount > 0.0005 ? { promotion_id: posPromo.promotion_id } : {}),
       ...(loyaltyProgram?.is_active &&
       loyaltyProgram?.apply_on_pos &&
       customerIdToSend != null &&
@@ -2586,6 +2623,33 @@ export default function PosPage() {
                         </span>
                       ) : null}
                     </p>
+                  )}
+
+                  {posPromo && posPromoDiscount > 0.0005 && (
+                    <div
+                      className="bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 mb-3 text-xs"
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-rose-700">🏷️ {posPromo.promotion_name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-rose-600 tabular-nums" dir="ltr">
+                            - {posPromoDiscount.toFixed(3)} KWD
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPosPromo(null)
+                              setPosPromoDiscount(0)
+                            }}
+                            className="text-gray-400 hover:text-gray-600"
+                            aria-label={lang === 'ar' ? 'إلغاء العرض' : 'Remove promotion'}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   {loyaltyProgram?.is_active && loyaltyProgram?.apply_on_pos && (

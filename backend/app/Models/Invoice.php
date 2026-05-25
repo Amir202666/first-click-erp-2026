@@ -77,7 +77,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'tenant_id', 'number', 'reference_number', 'type', 'is_return', 'parent_invoice_id', 'status', 'document_status', 'payment_status',
-        'customer_id', 'vendor_id', 'branch_id', 'warehouse_id', 'pos_shift_id', 'pos_session_id', 'payment_method_id', 'pricing_group_id', 'cost_center_id',
+        'customer_id', 'vendor_id', 'branch_id', 'warehouse_id', 'pos_shift_id', 'pos_session_id', 'payment_method_id', 'pricing_group_id', 'promotion_id', 'promotion_discount', 'cost_center_id',
         'date', 'due_date', 'payment_terms', 'receipt_status', 'payment_timing',
         'subtotal', 'tax_amount', 'discount_amount', 'total', 'cost_amount', 'auto_manufacturing_applied',
         'amount_paid', 'balance', 'currency', 'exchange_rate',
@@ -117,6 +117,11 @@ class Invoice extends Model
     public function deliveryDriver(): BelongsTo
     {
         return $this->belongsTo(DeliveryDriver::class, 'delivery_driver_id');
+    }
+
+    public function promotion(): BelongsTo
+    {
+        return $this->belongsTo(Promotion::class);
     }
 
     public function shippingOrder(): HasOne

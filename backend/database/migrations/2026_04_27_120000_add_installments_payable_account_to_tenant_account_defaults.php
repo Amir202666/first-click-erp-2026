@@ -12,7 +12,7 @@ return new class extends Migration
             $table->foreignId('installments_payable_account_id')
                 ->nullable()
                 ->after('installments_receivable_account_id')
-                ->constrained('accounts')
+                ->constrained('accounts', indexName: 'tad_inst_pay_fk')
                 ->nullOnDelete();
         });
     }
@@ -20,7 +20,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('tenant_account_defaults', function (Blueprint $table) {
-            $table->dropForeign(['installments_payable_account_id']);
+            $table->dropForeign('tad_inst_pay_fk');
             $table->dropColumn('installments_payable_account_id');
         });
     }
