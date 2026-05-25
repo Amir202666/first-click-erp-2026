@@ -31,14 +31,10 @@ class OwnerSeeder extends Seeder
             [
                 'name' => 'مالك النظام',
                 'username' => self::OWNER_USERNAME,
+                'password' => self::OWNER_PASSWORD,
                 'is_super_admin' => true,
             ]
         );
-
-        $user->forceFill([
-            'password' => self::OWNER_PASSWORD,
-            'is_super_admin' => true,
-        ])->save();
 
         $tenant = Tenant::updateOrCreate(
             ['slug' => self::OWNER_SLUG],

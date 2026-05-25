@@ -34,19 +34,16 @@ class SuperAdminSeeder extends Seeder
         $username = $credentials['username'] ?? self::USERNAME;
         $password = $credentials['password'] ?? self::PASSWORD;
 
+        // password ضمن نفس عملية الإنشاء — MySQL يرفض INSERT بدون password
         $user = User::updateOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
                 'username' => $username,
+                'password' => $password,
                 'is_super_admin' => true,
             ]
         );
-        // كلمة مرور نصية — الـ cast «hashed» على User يتولى التشفير (تجنب التشفير المزدوج)
-        $user->forceFill([
-            'password' => $password,
-            'is_super_admin' => true,
-        ])->save();
 
         $tenants = $tenantIds
             ? Tenant::whereIn('id', $tenantIds)->get()
@@ -94,15 +91,15 @@ class SuperAdminSeeder extends Seeder
 
     private function seedDemoUsers($tenants): void
     {
-        $demo = User::updateOrCreate(
+        User::updateOrCreate(
             ['email' => 'demo@firstclickerp.com'],
             [
                 'name' => 'مدير النظام',
                 'username' => 'demo-admin',
+                'password' => 'Demo@123456',
                 'is_super_admin' => false,
             ]
         );
-        $demo->forceFill(['password' => 'Demo@123456'])->save();
 
         foreach ($tenants as $tenant) {
             $adminRole = Role::where('tenant_id', $tenant->id)->where('slug', 'admin')->first();
