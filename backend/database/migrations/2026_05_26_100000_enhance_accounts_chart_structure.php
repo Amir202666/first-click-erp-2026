@@ -7,12 +7,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    private const PATH_INDEX = 'accounts_tenant_id_path_index';
+
     public function up(): void
     {
         Schema::table('accounts', function (Blueprint $table) {
             if (! Schema::hasColumn('accounts', 'path')) {
                 $table->string('path', 1000)->nullable()->after('level');
-                $table->index(['tenant_id', 'path']);
             }
             if (! Schema::hasColumn('accounts', 'is_group')) {
                 $table->boolean('is_group')->default(false)->after('is_postable');
@@ -28,6 +29,11 @@ return new class extends Migration
             }
         });
 
+        // فهرس مركّب ببادئة path — تجنّب خطأ MySQL 1071 (utf8mb4 × VARCHAR(1000))
+        if (Schema::hasColumn('accounts', 'path') && ! $this->indexExists('accounts', self::PATH_INDEX)) {
+            DB::statement('ALTER TABLE accounts ADD INDEX '.self::PATH_INDEX.' (tenant_id, path(191))');
+        }
+
         if (Schema::hasColumn('accounts', 'code')) {
             DB::statement('ALTER TABLE accounts MODIFY code VARCHAR(50) NOT NULL');
         }
@@ -37,9 +43,12 @@ return new class extends Migration
 
     public function down(): void
     {
+        if ($this->indexExists('accounts', self::PATH_INDEX)) {
+            DB::statement('ALTER TABLE accounts DROP INDEX '.self::PATH_INDEX);
+        }
+
         Schema::table('accounts', function (Blueprint $table) {
             if (Schema::hasColumn('accounts', 'path')) {
-                $table->dropIndex(['tenant_id', 'path']);
                 $table->dropColumn('path');
             }
             if (Schema::hasColumn('accounts', 'is_group')) {
@@ -59,8 +68,23 @@ return new class extends Migration
         DB::statement('ALTER TABLE accounts MODIFY code VARCHAR(20) NOT NULL');
     }
 
+    private function indexExists(string $table, string $indexName): bool
+    {
+        $db = DB::getDatabaseName();
+
+        return DB::table('information_schema.statistics')
+            ->where('table_schema', $db)
+            ->where('table_name', $table)
+            ->where('index_name', $indexName)
+            ->exists();
+    }
+
     private function backfillPathsAndGroups(): void
     {
+        if (! Schema::hasColumn('accounts', 'path')) {
+            return;
+        }
+
         $tenantIds = DB::table('accounts')->distinct()->pluck('tenant_id');
 
         foreach ($tenantIds as $tenantId) {
@@ -77,10 +101,11 @@ return new class extends Migration
                 $hasChildren = $accounts->contains(fn ($a) => (int) $a->parent_id === (int) $row->id);
                 $isGroup = $hasChildren || ! (bool) $row->is_postable;
 
-                DB::table('accounts')->where('id', $row->id)->update([
-                    'path' => $path,
-                    'is_group' => $isGroup,
-                ]);
+                $update = ['path' => $path];
+                if (Schema::hasColumn('accounts', 'is_group')) {
+                    $update['is_group'] = $isGroup;
+                }
+                DB::table('accounts')->where('id', $row->id)->update($update);
             }
         }
     }
