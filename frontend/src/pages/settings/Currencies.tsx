@@ -70,7 +70,14 @@ export default function Currencies() {
             : 'success'
       showToast(res.message, type)
     },
-    onError: (err: any) => showToast(err?.response?.data?.message ?? t.msg?.addError ?? 'Error', 'error'),
+    onError: (err: { response?: { data?: { message?: string }; status?: number } }) => {
+      const msg =
+        err?.response?.data?.message ??
+        (err?.response?.status === 500
+          ? (isRtl ? 'خطأ في الخادم — راجع سجل Laravel' : 'Server error — check Laravel log')
+          : (t.msg?.addError ?? 'Error'))
+      showToast(msg, 'error')
+    },
   })
 
   const handleFetchRates = async () => {

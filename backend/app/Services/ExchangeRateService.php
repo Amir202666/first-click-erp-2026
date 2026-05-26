@@ -7,29 +7,51 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * جلب أسعار الصرف — عدة مصادر مجانية + تحويل عبر USD عند الحاجة (KWD وغيره).
+ * جلب أسعار الصرف — عدة مصادر مجانية + تحويل عبر USD + أسعار احتياطية ثابتة لدول الخليج.
  */
 class ExchangeRateService
 {
-    /** عملات خليجية غالباً غير مدعومة في Frankfurter */
     private const GCC_CODES = ['KWD', 'BHD', 'OMR', 'QAR', 'AED', 'SAR'];
 
+    /** أسعار تقريبية: 1 من العمود = X من الصف (للطوارئ فقط عند انقطاع الإنترنت) */
+    private const STATIC_GCC_PER_KWD = [
+        'SAR' => 12.13,
+        'AED' => 11.88,
+        'BHD' => 1.22,
+        'OMR' => 1.24,
+        'QAR' => 11.78,
+        'USD' => 3.24,
+    ];
+
     /**
-     * @return array{updated: int, failed: array<string>, message: string, debug?: string}
+     * @return array{updated: int, failed: array<string>, message: string}
      */
     public function fetchAndUpdateRates(int $tenantId): array
     {
-        $currencies = Currency::where('tenant_id', $tenantId)->where('is_active', true)->get();
+        $currencies = $this->currencyQuery($tenantId)->where('is_active', true)->get();
+
         if ($currencies->isEmpty()) {
             return ['updated' => 0, 'failed' => [], 'message' => 'لا توجد عملات نشطة للتحديث.'];
         }
 
         $base = $currencies->firstWhere('is_default', true) ?? $currencies->first();
-        $baseCode = strtoupper($base->code);
+        if (! $base) {
+            return ['updated' => 0, 'failed' => [], 'message' => 'لم تُعثر على عملة أساسية.'];
+        }
+
+        $baseCode = $this->normalizeCode($base->code);
+        if ($baseCode === '') {
+            return [
+                'updated' => 0,
+                'failed' => [],
+                'message' => 'رمز العملة الأساسية غير صالح ('.$base->code.'). عدّله إلى KWD أو SAR (3 حروف).',
+            ];
+        }
+
         $others = $currencies
             ->filter(fn ($c) => $c->id !== $base->id)
-            ->pluck('code')
-            ->map(fn ($c) => strtoupper($c))
+            ->map(fn ($c) => $this->normalizeCode($c->code))
+            ->filter()
             ->unique()
             ->values()
             ->all();
@@ -54,8 +76,7 @@ class ExchangeRateService
             return [
                 'updated' => $updated,
                 'failed' => $others,
-                'message' => 'فشل جلب الأسعار من المصادر الخارجية. تحقق من اتصال السيرفر بالإنترنت أو حدّث الأسعار يدوياً.',
-                'debug' => config('app.debug') ? ($fetch['errors'] ?? '') : null,
+                'message' => 'فشل جلب الأسعار من الإنترنت. تحقق من اتصال السيرفر أو حدّث الأسعار يدوياً من الجدول.',
             ];
         }
 
@@ -65,15 +86,15 @@ class ExchangeRateService
             if ($currency->id === $base->id) {
                 continue;
             }
-            $code = strtoupper($currency->code);
-            if (! isset($rates['values'][$code])) {
-                $failed[] = $code;
+            $code = $this->normalizeCode($currency->code);
+            if ($code === '' || ! isset($rates['values'][$code])) {
+                $failed[] = $currency->code;
 
                 continue;
             }
             $rateFromApi = (float) $rates['values'][$code];
             if ($rateFromApi <= 0) {
-                $failed[] = $code;
+                $failed[] = $currency->code;
 
                 continue;
             }
@@ -92,6 +113,24 @@ class ExchangeRateService
         ];
     }
 
+    private function currencyQuery(int $tenantId)
+    {
+        return Currency::withoutGlobalScope('tenant')->where('tenant_id', $tenantId);
+    }
+
+    private function normalizeCode(?string $code): string
+    {
+        $code = strtoupper(trim((string) $code));
+        $code = str_replace(['.', ' ', '-'], '', $code);
+
+        return match ($code) {
+            'KD', 'KWDINAR', 'DINAR' => 'KWD',
+            'SR', 'RIYAL', 'SARSAUDI' => 'SAR',
+            'KD3', 'K3D' => 'KWD',
+            default => strlen($code) === 3 ? $code : '',
+        };
+    }
+
     /**
      * @param  list<string>  $targetCodes
      * @return array{data: ?array, errors: string}
@@ -102,14 +141,15 @@ class ExchangeRateService
         $tryGccFirst = in_array($baseCode, self::GCC_CODES, true);
 
         $attempts = $tryGccFirst
-            ? ['open_er', 'er_api_v4', 'usd_pivot', 'frankfurter']
-            : ['frankfurter', 'open_er', 'er_api_v4', 'usd_pivot'];
+            ? ['open_er', 'er_api_v4', 'usd_pivot', 'static_gcc', 'frankfurter']
+            : ['frankfurter', 'open_er', 'er_api_v4', 'usd_pivot', 'static_gcc'];
 
         foreach ($attempts as $method) {
             $result = match ($method) {
                 'open_er' => $this->fetchFromOpenErApi($baseCode, $targetCodes),
                 'er_api_v4' => $this->fetchFromExchangeRateApiV4($baseCode, $targetCodes),
-                'usd_pivot' => $this->fetchFromUsdPivot($baseCode, $targetCodes),
+                'usd_pivot' => $this->fetchFromUsdPivot($targetCodes, $baseCode),
+                'static_gcc' => $this->fetchFromStaticGcc($baseCode, $targetCodes),
                 'frankfurter' => $this->fetchFromFrankfurter($baseCode, $targetCodes),
                 default => null,
             };
@@ -128,6 +168,45 @@ class ExchangeRateService
         }
 
         return ['data' => null, 'errors' => implode('; ', $errors)];
+    }
+
+    /**
+     * @param  list<string>  $targetCodes
+     * @return array{values: array<string, float>, date: string, provider: string}|null
+     */
+    private function fetchFromStaticGcc(string $baseCode, array $targetCodes): ?array
+    {
+        $values = [];
+
+        if ($baseCode === 'KWD') {
+            foreach ($targetCodes as $code) {
+                if (isset(self::STATIC_GCC_PER_KWD[$code])) {
+                    $values[$code] = self::STATIC_GCC_PER_KWD[$code];
+                }
+            }
+        } elseif (isset(self::STATIC_GCC_PER_KWD[$baseCode])) {
+            $basePerKwd = self::STATIC_GCC_PER_KWD[$baseCode];
+            foreach ($targetCodes as $code) {
+                if ($code === 'KWD') {
+                    $values[$code] = 1 / $basePerKwd;
+
+                    continue;
+                }
+                if (isset(self::STATIC_GCC_PER_KWD[$code])) {
+                    $values[$code] = self::STATIC_GCC_PER_KWD[$code] / $basePerKwd;
+                }
+            }
+        }
+
+        if ($values === []) {
+            return null;
+        }
+
+        return [
+            'values' => $values,
+            'date' => now()->toDateString(),
+            'provider' => 'أسعار تقريبية (بدون إنترنت)',
+        ];
     }
 
     /**
@@ -168,9 +247,7 @@ class ExchangeRateService
     private function fetchFromOpenErApi(string $baseCode, array $targetCodes): ?array
     {
         $baseUrl = rtrim(config('exchange.providers.open_er_api', 'https://open.er-api.com/v6/latest'), '/');
-        $url = $baseUrl.'/'.$baseCode;
-
-        $data = $this->fetchJson($url);
+        $data = $this->fetchJson($baseUrl.'/'.$baseCode);
         if ($data === null || ($data['result'] ?? '') !== 'success') {
             return null;
         }
@@ -190,9 +267,7 @@ class ExchangeRateService
     private function fetchFromExchangeRateApiV4(string $baseCode, array $targetCodes): ?array
     {
         $baseUrl = rtrim(config('exchange.providers.er_api_v4', 'https://api.exchangerate-api.com/v4/latest'), '/');
-        $url = $baseUrl.'/'.$baseCode;
-
-        $data = $this->fetchJson($url);
+        $data = $this->fetchJson($baseUrl.'/'.$baseCode);
         if ($data === null || ! isset($data['rates'])) {
             return null;
         }
@@ -200,21 +275,20 @@ class ExchangeRateService
         return $this->extractTargetRates(
             $data['rates'],
             $targetCodes,
-            isset($data['time_last_updated']) ? '@'.$data['time_last_updated'] : ($data['date'] ?? null),
+            $data['date'] ?? null,
             'ExchangeRate-API v4'
         );
     }
 
     /**
-     * تحويل عبر USD: يعمل حتى لو فشل جلب أسعار مباشرة من KWD.
-     *
      * @param  list<string>  $targetCodes
      * @return array{values: array<string, float>, date: string, provider: string}|null
      */
-    private function fetchFromUsdPivot(string $baseCode, array $targetCodes): ?array
+    private function fetchFromUsdPivot(array $targetCodes, string $baseCode): ?array
     {
         $baseUrl = rtrim(config('exchange.providers.open_er_api', 'https://open.er-api.com/v6/latest'), '/');
         $data = $this->fetchJson($baseUrl.'/USD');
+
         if ($data === null || ($data['result'] ?? '') !== 'success') {
             $v4 = $this->fetchJson(
                 rtrim(config('exchange.providers.er_api_v4', 'https://api.exchangerate-api.com/v4/latest'), '/').'/USD'
@@ -244,7 +318,6 @@ class ExchangeRateService
 
         $values = [];
         foreach ($targetCodes as $code) {
-            $code = strtoupper($code);
             if (! isset($allRates[$code])) {
                 continue;
             }
@@ -252,7 +325,6 @@ class ExchangeRateService
             if ($targetPerUsd <= 0) {
                 continue;
             }
-            // 1 وحدة من العملة الأساسية = (targetPerUsd / basePerUsd) من العملة المستهدفة
             $values[$code] = $targetPerUsd / $basePerUsd;
         }
 
@@ -262,7 +334,7 @@ class ExchangeRateService
 
         return [
             'values' => $values,
-            'date' => is_string($date) && ! str_starts_with($date, '@') ? $date : now()->toDateString(),
+            'date' => $date,
             'provider' => $provider,
         ];
     }
@@ -276,7 +348,6 @@ class ExchangeRateService
     {
         $values = [];
         foreach ($targetCodes as $code) {
-            $code = strtoupper($code);
             if (isset($allRates[$code])) {
                 $values[$code] = (float) $allRates[$code];
             }
@@ -288,9 +359,7 @@ class ExchangeRateService
 
         $date = now()->toDateString();
         if (is_string($dateRaw) && $dateRaw !== '') {
-            if (str_starts_with($dateRaw, '@')) {
-                $date = date('Y-m-d', (int) substr($dateRaw, 1));
-            } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateRaw)) {
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateRaw)) {
                 $date = $dateRaw;
             } else {
                 $parsed = strtotime($dateRaw);
@@ -340,7 +409,7 @@ class ExchangeRateService
     private function httpGetBody(string $url): ?string
     {
         $timeout = (int) config('exchange.timeout_seconds', 20);
-        $headers = ['User-Agent' => 'FirstClickERP/1.0 (+https://firstclickerp.com)'];
+        $headers = ['User-Agent' => 'FirstClickERP/1.0'];
 
         foreach ([true, false] as $verifySsl) {
             try {
@@ -352,7 +421,6 @@ class ExchangeRateService
                 if ($response->successful()) {
                     return $response->body();
                 }
-                Log::info('Exchange HTTP non-success', ['url' => $url, 'status' => $response->status(), 'ssl' => $verifySsl]);
             } catch (\Throwable $e) {
                 Log::warning('Exchange HTTP error', ['url' => $url, 'ssl' => $verifySsl, 'error' => $e->getMessage()]);
             }
@@ -376,12 +444,7 @@ class ExchangeRateService
         ]);
 
         $body = @file_get_contents($url, false, $context);
-        if ($body === false) {
-            Log::error('Exchange stream fetch failed', ['url' => $url]);
 
-            return null;
-        }
-
-        return $body;
+        return $body === false ? null : $body;
     }
 }

@@ -103,7 +103,17 @@ class CurrencyController extends Controller
             return response()->json(['message' => 'معرف الشريك مطلوب.'], 422);
         }
 
-        $result = $this->exchangeRateService->fetchAndUpdateRates($tenantId);
+        try {
+            $result = $this->exchangeRateService->fetchAndUpdateRates($tenantId);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'updated' => 0,
+                'failed' => [],
+                'message' => 'خطأ أثناء جلب الأسعار: '.$e->getMessage(),
+            ], 422);
+        }
 
         return response()->json($result);
     }
