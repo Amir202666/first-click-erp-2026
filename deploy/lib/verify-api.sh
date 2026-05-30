@@ -10,23 +10,40 @@ if [ -z "$APP_URL" ] && [ -f "$BACKEND_DIR/.env" ]; then
 fi
 APP_URL="${APP_URL:-http://127.0.0.1}"
 
-HEALTH_URL="${APP_URL%/}/api/health"
-echo "🔍 فحص: $HEALTH_URL"
-
-BODY=$(curl -sf --max-time 10 "$HEALTH_URL" 2>/dev/null || true)
-
-if echo "$BODY" | grep -q '"ok"'; then
-  echo "✅ API يعمل: $BODY"
-  exit 0
-fi
-
-# محاولة محلية عبر php (بدون nginx)
-LOCAL=$(cd "$BACKEND_DIR" && php artisan route:list --path=health 2>/dev/null | grep -c health || true)
 if [ ! -f "$BACKEND_DIR/public/index.php" ]; then
   echo "❌ public/index.php مفقود — هذا سبب فشل تسجيل الدخول!"
   exit 1
 fi
 
-echo "❌ API لا يستجيب بشكل صحيح (got: ${BODY:-empty})"
-echo "   تحقق من nginx و php-fpm"
+health_ok() {
+  echo "$1" | grep -q '"ok"'
+}
+
+try_curl() {
+  local url="$1"
+  curl -sf --max-time 15 "$url" 2>/dev/null || true
+}
+
+HOST=$(echo "$APP_URL" | sed -E 's#^https?://([^/]+).*#\1#')
+HEALTH_URL="${APP_URL%/}/api/health"
+echo "🔍 فحص: $HEALTH_URL"
+
+BODY=$(try_curl "$HEALTH_URL")
+if health_ok "$BODY"; then
+  echo "✅ API يعمل: $BODY"
+  exit 0
+fi
+
+# فحص محلي عبر nginx (HTTPS خارجي قد يفشل من داخل السيرفر)
+LOCAL_URL="http://127.0.0.1/api/health"
+echo "🔍 فحص محلي: $LOCAL_URL (Host: $HOST)"
+BODY=$(curl -sf --max-time 15 -H "Host: ${HOST}" "$LOCAL_URL" 2>/dev/null || true)
+if health_ok "$BODY"; then
+  echo "✅ API يعمل محلياً: $BODY"
+  exit 0
+fi
+
+echo "❌ API لا يستجيب بشكل صحيح (external: ${BODY:-empty})"
+echo "   تحقق: tail -50 /var/log/nginx/firstclick-error.log"
+echo "   systemctl status php8.2-fpm --no-pager"
 exit 1
