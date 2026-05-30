@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Account;
 use App\Models\Customer;
-use App\Support\SqlHelper;
 use Illuminate\Support\Facades\DB;
 
 class CustomerWizardImportService
@@ -12,6 +11,7 @@ class CustomerWizardImportService
     public function __construct(
         private AccountingService $accountingService,
         private TenantSettingsService $settings,
+        private AccountService $accountService,
     ) {}
 
     /**
@@ -47,6 +47,11 @@ class CustomerWizardImportService
                     ->first();
 
                 if ($existing && $skipDuplicates && ! $updateExisting) {
+                    if (! $existing->account_id) {
+                        $account = $this->createAccountForCustomer($tenantId, $parentAccount, $existing->name);
+                        $existing->update(['account_id' => $account->id]);
+                        $accountsOpened++;
+                    }
                     $skipped++;
 
                     continue;
@@ -63,11 +68,15 @@ class CustomerWizardImportService
                         Account::where('id', $customer->account_id)->update([
                             'name' => $customer->name,
                         ]);
+                    } else {
+                        $account = $this->createAccountForCustomer($tenantId, $parentAccount, $customer->name);
+                        $customer->update(['account_id' => $account->id]);
+                        $accountsOpened++;
                     }
                 } else {
                     $accountCreated = false;
                     if (empty($payload['account_id'])) {
-                        $account = $this->createCustomerAccount($tenantId, $parentAccount, $payload['name']);
+                        $account = $this->createAccountForCustomer($tenantId, $parentAccount, $payload['name']);
                         $payload['account_id'] = $account->id;
                         $accountCreated = true;
                     }
@@ -105,6 +114,8 @@ class CustomerWizardImportService
                 ];
             }
         }
+
+        $this->accountService->backfillPaths($tenantId);
 
         return [
             'imported' => $imported,
@@ -168,26 +179,15 @@ class CustomerWizardImportService
         return (string) (($maxCode ?? 0) + 1);
     }
 
-    private function createCustomerAccount(int $tenantId, Account $parentAccount, string $name): Account
+    /** إنشاء حساب فرعي للعميل تحت الحساب الأب (يُستخدم في الاستيراد والإصلاح) */
+    public function createAccountForCustomer(int $tenantId, Account $parentAccount, string $name): Account
     {
-        $lastChild = Account::where('tenant_id', $tenantId)
-            ->where('parent_id', $parentAccount->id)
-            ->orderByRaw(SqlHelper::orderByNumericDesc('code'))
-            ->first();
-
-        $nextCode = $lastChild
-            ? (string) ((int) $lastChild->code + 1)
-            : $parentAccount->code.'01';
-
-        return Account::create([
-            'tenant_id' => $tenantId,
+        return $this->accountService->create($tenantId, [
             'parent_id' => $parentAccount->id,
-            'code' => $nextCode,
             'name' => $name,
             'type' => $parentAccount->type ?: 'asset',
-            'level' => ($parentAccount->level ?? 0) + 1,
-            'is_active' => true,
             'is_postable' => true,
+            'is_active' => true,
         ]);
     }
 
