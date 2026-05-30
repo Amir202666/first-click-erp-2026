@@ -26,11 +26,19 @@ server {
     index index.html index.php;
 
     location ^~ /api {
-        try_files \$uri \$uri/ /index.php?\$query_string;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param REQUEST_URI \$request_uri;
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_read_timeout 300;
     }
 
     location ^~ /sanctum {
-        try_files \$uri \$uri/ /index.php?\$query_string;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param REQUEST_URI \$request_uri;
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_read_timeout 300;
     }
 
     location / {

@@ -63,9 +63,7 @@ cd "$FRONTEND_DIR"
 npm ci --prefer-offline
 npm run build
 
-echo "📁 Copying frontend build to backend/public..."
-mkdir -p "$BACKEND_DIR/public"
-rsync -a --delete "$FRONTEND_DIR/dist/" "$BACKEND_DIR/public/" 2>/dev/null || cp -r "$FRONTEND_DIR/dist/"* "$BACKEND_DIR/public/"
+bash "$PROJECT_DIR/deploy/lib/sync-public.sh" "$PROJECT_DIR"
 
 # ── Restart services ──
 echo "🔄 Restarting services..."
