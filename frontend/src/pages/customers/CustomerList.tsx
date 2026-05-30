@@ -14,6 +14,7 @@ import { usePersistedColumnVisibility } from '../../hooks/usePersistedColumnVisi
 import { asArray } from '../../utils/asArray'
 import { useClientSort } from '../../hooks/useClientSort'
 import SortableTh from '../../components/ui/SortableTh'
+import TablePageSkeleton from '../../components/ui/TablePageSkeleton'
 import { getReportPeriodRange } from '../../utils/date'
 
 type CustomerColumnKey = 'account_code' | 'company_name' | 'name' | 'email' | 'phone' | 'tax_number' | 'actions'
@@ -474,9 +475,7 @@ export default function CustomerList() {
       {/* Table */}
       <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {isLoading ? (
-          <div className="flex h-40 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-600" />
-          </div>
+          <TablePageSkeleton rows={10} />
         ) : (
           <div className="w-full min-w-0 overflow-x-auto">
             <table className="w-full table-fixed border-collapse bg-white text-sm dark:bg-slate-800 [&_tbody_td]:min-w-0">

@@ -553,7 +553,8 @@ class InvoiceService
 
         $receivableAccountId = null;
         if ($invoice->payment_timing === 'paid') {
-            $receivableAccountId = $defaults->cash_account_id ?? $defaults->bank_account_id;
+            $cashOrBank = $defaults->cash_account_id ?? $defaults->bank_account_id;
+            $receivableAccountId = $this->resolveDefaultAccountId($tenantId, $cashOrBank ? (int) $cashOrBank : null);
         } else {
             if ($invoice->customer_id && $invoice->customer) {
                 $receivableAccountId = $invoice->customer->account_id ? (int) $invoice->customer->account_id : null;
@@ -563,7 +564,7 @@ class InvoiceService
                     );
                 }
             } else {
-                $receivableAccountId = $defaults->customers_account_id;
+                $receivableAccountId = $this->resolveDefaultAccountId($tenantId, $defaults->customers_account_id ? (int) $defaults->customers_account_id : null);
             }
         }
         if ($receivableAccountId) {
@@ -575,17 +576,19 @@ class InvoiceService
             ];
         }
 
-        if ($defaults->sales_account_id) {
+        $salesAccountId = $this->resolveDefaultAccountId($tenantId, $defaults->sales_account_id ? (int) $defaults->sales_account_id : null);
+        if ($salesAccountId) {
             $lines[] = [
-                'account_id' => $defaults->sales_account_id,
+                'account_id' => $salesAccountId,
                 'debit' => 0,
                 'credit' => (float) $invoice->subtotal,
                 'description' => "إيراد مبيعات #{$invoice->number}",
             ];
         }
-        if ($defaults->tax_payable_account_id && (float) $invoice->tax_amount > 0) {
+        $taxPayableId = $this->resolveDefaultAccountId($tenantId, $defaults->tax_payable_account_id ? (int) $defaults->tax_payable_account_id : null);
+        if ($taxPayableId && (float) $invoice->tax_amount > 0) {
             $lines[] = [
-                'account_id' => $defaults->tax_payable_account_id,
+                'account_id' => $taxPayableId,
                 'debit' => 0,
                 'credit' => (float) $invoice->tax_amount,
                 'description' => "ضريبة مبيعات #{$invoice->number}",
@@ -594,10 +597,11 @@ class InvoiceService
 
         // إجمالي الخصم = المجموع الفرعي − الوعاء الضريبي (للقيد المحاسبي)
         $totalDiscount = (float) $invoice->subtotal - ((float) $invoice->total - (float) $invoice->tax_amount);
-        if ($defaults->discounts_account_id && $totalDiscount > 0) {
+        $discountsAccountId = $this->resolveDefaultAccountId($tenantId, $defaults->discounts_account_id ? (int) $defaults->discounts_account_id : null);
+        if ($discountsAccountId && $totalDiscount > 0) {
             $decimals = $invoice->getCurrencyDecimalPlaces();
             $lines[] = [
-                'account_id' => $defaults->discounts_account_id,
+                'account_id' => $discountsAccountId,
                 'debit' => round($totalDiscount, $decimals),
                 'credit' => 0,
                 'description' => "خصم مبيعات #{$invoice->number}",
@@ -657,7 +661,7 @@ class InvoiceService
                 $invAccountId = $this->accountResolutionService->resolveInventoryAccount($line->item, $defaults);
             }
             if (! $invAccountId) {
-                $invAccountId = $defaults->inventory_account_id;
+                $invAccountId = $this->resolveDefaultAccountId($tenantId, $defaults->inventory_account_id ? (int) $defaults->inventory_account_id : null);
             }
             if (! $invAccountId) {
                 continue;
@@ -666,7 +670,7 @@ class InvoiceService
         }
 
         $extraPurchaseTax = 0.0;
-        $defaultInvId = (int) ($defaults->inventory_account_id ?? 0);
+        $defaultInvId = (int) ($this->resolveDefaultAccountId($tenantId, $defaults->inventory_account_id ? (int) $defaults->inventory_account_id : null) ?? 0);
         $additionalExpenseCreditorLines = [];
         foreach ($invoice->additionalExpenses as $exp) {
             $net = round((float) $exp->amount_net, $jeDec);
@@ -709,9 +713,10 @@ class InvoiceService
         }
 
         $lineTaxDebit = (float) $invoice->tax_amount + $extraPurchaseTax;
-        if ($defaults->tax_payable_account_id && $lineTaxDebit > 0) {
+        $purchaseTaxId = $this->resolveDefaultAccountId($tenantId, $defaults->tax_payable_account_id ? (int) $defaults->tax_payable_account_id : null);
+        if ($purchaseTaxId && $lineTaxDebit > 0) {
             $lines[] = [
-                'account_id' => $defaults->tax_payable_account_id,
+                'account_id' => $purchaseTaxId,
                 'debit' => round($lineTaxDebit, $jeDec),
                 'credit' => 0,
                 'description' => "ضريبة فاتورة مشتريات رقم: {$invoice->number}",
@@ -720,9 +725,10 @@ class InvoiceService
 
         // إجمالي الخصم = المجموع الفرعي − الوعاء الضريبي (للقيد المحاسبي)
         $totalDiscountPurchase = (float) $invoice->subtotal - ((float) $invoice->total - (float) $invoice->tax_amount);
-        if ($defaults->purchase_discounts_account_id && $totalDiscountPurchase > 0) {
+        $purchaseDiscountId = $this->resolveDefaultAccountId($tenantId, $defaults->purchase_discounts_account_id ? (int) $defaults->purchase_discounts_account_id : null);
+        if ($purchaseDiscountId && $totalDiscountPurchase > 0) {
             $lines[] = [
-                'account_id' => $defaults->purchase_discounts_account_id,
+                'account_id' => $purchaseDiscountId,
                 'debit' => 0,
                 'credit' => round($totalDiscountPurchase, $jeDec),
                 'description' => "خصم فاتورة مشتريات رقم: {$invoice->number}",
@@ -732,7 +738,7 @@ class InvoiceService
         // الطرف الدائن: دائماً حساب المورد (وسيط). النقدية تخرج لاحقاً عبر سند الصرف فقط — لا قيد للفاتورة على الصندوق.
         $payableAccountId = ($invoice->vendor && $invoice->vendor->account_id)
             ? (int) $invoice->vendor->account_id
-            : ($defaults->vendors_account_id ? (int) $defaults->vendors_account_id : null);
+            : $this->resolveDefaultAccountId($tenantId, $defaults->vendors_account_id ? (int) $defaults->vendors_account_id : null);
         if ($payableAccountId) {
             $lines[] = [
                 'account_id' => $payableAccountId,
@@ -855,7 +861,10 @@ class InvoiceService
                 'description' => "مرتجع مبيعات #{$invoice->number}",
             ];
         }
-        $salesReturnsAccountId = $defaults->sales_returns_account_id ?? $defaults->sales_account_id;
+        $salesReturnsAccountId = $this->resolveDefaultAccountId(
+            $tenantId,
+            (int) ($defaults->sales_returns_account_id ?? $defaults->sales_account_id ?? 0) ?: null
+        );
         if ($salesReturnsAccountId) {
             $lines[] = [
                 'account_id' => $salesReturnsAccountId,
@@ -864,9 +873,10 @@ class InvoiceService
                 'description' => "مرتجع مبيعات #{$invoice->number}",
             ];
         }
-        if ($defaults->tax_payable_account_id && (float) $invoice->tax_amount > 0) {
+        $returnTaxId = $this->resolveDefaultAccountId($tenantId, $defaults->tax_payable_account_id ? (int) $defaults->tax_payable_account_id : null);
+        if ($returnTaxId && (float) $invoice->tax_amount > 0) {
             $lines[] = [
-                'account_id' => $defaults->tax_payable_account_id,
+                'account_id' => $returnTaxId,
                 'debit' => (float) $invoice->tax_amount,
                 'credit' => 0,
                 'description' => "ضريبة مرتجع #{$invoice->number}",
@@ -913,11 +923,12 @@ class InvoiceService
 
         // مدين: حساب المورد الفرعي المحدد في الفاتورة
         if ($invoice->payment_timing === 'paid') {
-            $payableAccountId = $defaults->cash_account_id ?? $defaults->bank_account_id;
+            $cashOrBank = $defaults->cash_account_id ?? $defaults->bank_account_id;
+            $payableAccountId = $this->resolveDefaultAccountId($tenantId, $cashOrBank ? (int) $cashOrBank : null);
         } else {
             $payableAccountId = ($invoice->vendor && $invoice->vendor->account_id)
                 ? (int) $invoice->vendor->account_id
-                : $defaults->vendors_account_id;
+                : $this->resolveDefaultAccountId($tenantId, $defaults->vendors_account_id ? (int) $defaults->vendors_account_id : null);
         }
         if ($payableAccountId) {
             $lines[] = [
@@ -935,7 +946,7 @@ class InvoiceService
                 $invAccountId = $this->accountResolutionService->resolveInventoryAccount($line->item, $defaults);
             }
             if (! $invAccountId) {
-                $invAccountId = $defaults->inventory_account_id;
+                $invAccountId = $this->resolveDefaultAccountId($tenantId, $defaults->inventory_account_id ? (int) $defaults->inventory_account_id : null);
             }
             if ($invAccountId && $amount > 0) {
                 $lines[] = [
@@ -947,9 +958,10 @@ class InvoiceService
             }
         }
 
-        if ($defaults->tax_payable_account_id && (float) $invoice->tax_amount > 0) {
+        $returnTaxId = $this->resolveDefaultAccountId($tenantId, $defaults->tax_payable_account_id ? (int) $defaults->tax_payable_account_id : null);
+        if ($returnTaxId && (float) $invoice->tax_amount > 0) {
             $lines[] = [
-                'account_id' => $defaults->tax_payable_account_id,
+                'account_id' => $returnTaxId,
                 'debit' => 0,
                 'credit' => (float) $invoice->tax_amount,
                 'description' => "ضريبة مرتجع #{$invoice->number}",
@@ -1012,5 +1024,10 @@ class InvoiceService
                 ], $line->movementExpiryPayload()));
             }
         }
+    }
+
+    private function resolveDefaultAccountId(int $tenantId, ?int $accountId): ?int
+    {
+        return $this->accountResolutionService->resolveStoredDefaultAccountId($tenantId, $accountId);
     }
 }

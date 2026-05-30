@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -6,6 +6,8 @@ import { fetchAccountDefaults, updateAccountDefaults, fetchAccounts } from '../.
 import type { TenantAccountDefault, Account } from '../../types'
 import { Landmark, Save } from 'lucide-react'
 import Toast, { type ToastType } from '../../components/ui/Toast'
+import SearchableSelect from '../../components/ui/SearchableSelect'
+import { buildDefaultAccountSelectOptions } from '../../utils/defaultAccountSelectOptions'
 
 const KEY_LABELS: Record<string, string> = {
   cash_account_id: 'cash',
@@ -39,10 +41,12 @@ export default function AccountDefaults() {
   })
 
   const { data: accounts = [] } = useQuery<Account[]>({
-    queryKey: ['accounts', tenantId, 'postable'],
-    queryFn: () => fetchAccounts(tenantId, { postable_only: '1', active_only: '1' }),
+    queryKey: ['accounts', tenantId, 'defaults-settings'],
+    queryFn: () => fetchAccounts(tenantId, { include_groups: '1', active_only: '1' }),
     enabled: !!tenantId,
   })
+
+  const accountOptions = useMemo(() => buildDefaultAccountSelectOptions(accounts), [accounts])
 
   const showToast = useCallback((message: string, type: ToastType) => setToast({ message, type }), [])
 
@@ -81,7 +85,7 @@ export default function AccountDefaults() {
     updateMut.mutate(payload as Partial<TenantAccountDefault>)
   }
 
-  const textAlign = isRtl ? 'text-right' : 'text-left'
+  const textAlign = isRtl ? 'right' : 'left'
 
   return (
     <div className="p-6 space-y-6">
@@ -106,33 +110,31 @@ export default function AccountDefaults() {
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" /></div>
       ) : (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-visible">
           <div className="p-4 border-b border-slate-200 bg-slate-50">
             <p className="text-sm text-slate-600">{(t as any).accountDefaults?.requiredHint ?? 'يجب تحديد جميع الحسابات المطلوبة قبل ترحيل فواتير البيع أو الشراء.'}</p>
           </div>
-          <div className="p-6 grid gap-4 sm:grid-cols-2">
+          <div className="p-6 pb-28 grid gap-5 sm:grid-cols-2">
             {KEYS.map((key) => {
               const labelKey = KEY_LABELS[key]
               const label = (t as any).accountDefaults?.[labelKey] ?? key
               return (
-                <div key={key}>
-                  <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>
-                    {label}
-                    {key === 'capital_account_id' && (
-                      <span className="text-amber-600 text-xs mr-1"> ({(t as any).accountDefaults?.capitalNotUsed ?? 'لا يُستخدم تلقائياً'})</span>
-                    )}
-                  </label>
-                  <select
-                    value={form[key] ?? (defaults && (defaults as any)[key] != null ? String((defaults as any)[key]) : '')}
-                    onChange={(e) => handleChange(key, e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                  >
-                    <option value="">—</option>
-                    {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                    ))}
-                  </select>
-                </div>
+                <SearchableSelect
+                  key={key}
+                  label={
+                    label +
+                    (key === 'capital_account_id'
+                      ? ` (${(t as any).accountDefaults?.capitalNotUsed ?? 'لا يُستخدم تلقائياً'})`
+                      : '')
+                  }
+                  options={accountOptions}
+                  value={form[key] ? Number(form[key]) : null}
+                  onChange={(v) => handleChange(key, v != null && v !== '' ? String(v) : '')}
+                  placeholder="—"
+                  textAlign={isRtl ? 'right' : 'left'}
+                  wrapOptions
+                  dropdownMinWidth={320}
+                />
               )
             })}
           </div>

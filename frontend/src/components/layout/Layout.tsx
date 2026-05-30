@@ -9,6 +9,7 @@ import { DocumentTitleProvider } from '../../contexts/DocumentTitleContext'
 import DocumentTitle from '../DocumentTitle'
 import { ErrorBoundary } from '../ui/ErrorBoundary'
 import { fetchSettings } from '../../api/tenant'
+import { cacheSettings, readCachedSettings } from '../../utils/settingsStorage'
 import {
   LayoutDashboard,
   BookOpen,
@@ -78,6 +79,7 @@ import {
 import NotificationBell from '../notifications/NotificationBell'
 import ThemePicker from '../ThemePicker'
 import { clampUiFontScale, UI_FONT_SCALE_DEFAULT } from '../../constants/uiFontScale'
+import { applyUiFontScaleIfChanged, cacheUiFontScale, readCachedUiFontScale } from '../../utils/uiFontScaleStorage'
 import { getCompanyName, getCompanyLogoUrl } from '../../utils/companyBranding'
 
 interface LayoutProps {
@@ -108,12 +110,10 @@ const navEntries: NavEntry[] = [
   {
     labelKey: 'nav.accounts',
     icon: Landmark,
-    basePaths: ['/accounts', '/accounts/statement', '/accounts/statement/sheet', '/financial-transfers', '/journal-entries', '/fiscal-years', '/fiscal-years/close', '/receipt-vouchers', '/payment-vouchers', '/payment-methods', '/currencies', '/branches', '/cost-centers'],
+    basePaths: ['/accounts', '/accounts/statement', '/accounts/statement/sheet', '/financial-transfers', '/journal-entries', '/receipt-vouchers', '/payment-vouchers', '/payment-methods', '/currencies', '/branches', '/cost-centers'],
     children: [
       { path: '/accounts', labelKey: 'nav.chartOfAccounts', icon: BookOpen },
       { path: '/journal-entries', labelKey: 'nav.journalEntries', icon: FileText },
-      { path: '/fiscal-years', labelKey: 'nav.fiscalYears', icon: CalendarClock },
-      { path: '/fiscal-years/close', labelKey: 'nav.fiscalYearCloseWizard', icon: Lock },
       { path: '/accounts/statement', labelKey: 'nav.accountStatement', icon: FileText },
       { path: '/receipt-vouchers', labelKey: 'nav.receiptVouchers', icon: ArrowDownToLine },
       { path: '/payment-vouchers', labelKey: 'nav.paymentVouchers', icon: ArrowUpFromLine },
@@ -554,7 +554,7 @@ export default function Layout({ children }: LayoutProps) {
     }
   }, [pathname, meData?.plan_features, isSuperAdmin, canAccessPath, navigate])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setOpenGroups(deriveOpenGroupsFromPathname(pathname, location.search))
   }, [pathname, location.search])
 
@@ -630,18 +630,28 @@ export default function Layout({ children }: LayoutProps) {
   const tenantId = currentTenant?.id ?? 0
   const { data: settings } = useQuery({
     queryKey: ['settings', tenantId],
-    queryFn: () => fetchSettings(tenantId),
+    queryFn: async () => {
+      const data = await fetchSettings(tenantId)
+      cacheSettings(tenantId, data)
+      return data
+    },
     enabled: !!tenantId,
+    initialData: () => readCachedSettings(tenantId),
+    placeholderData: (prev) => prev ?? readCachedSettings(tenantId),
   })
   const companyName = getCompanyName(settings as Record<string, unknown>, currentTenant)
   const companyLogo = getCompanyLogoUrl(settings as Record<string, unknown>)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!tenantId) {
+      applyUiFontScaleIfChanged(UI_FONT_SCALE_DEFAULT)
+      return
+    }
     const raw = Number((settings as Record<string, unknown> | undefined)?.ui_font_scale_percent)
-    const pct = Number.isFinite(raw) ? clampUiFontScale(raw) : UI_FONT_SCALE_DEFAULT
-    document.documentElement.style.fontSize = `${pct}%`
-    return () => {
-      document.documentElement.style.fontSize = ''
+    const pct = Number.isFinite(raw) ? clampUiFontScale(raw) : readCachedUiFontScale(tenantId)
+    applyUiFontScaleIfChanged(pct)
+    if (Number.isFinite(raw)) {
+      cacheUiFontScale(tenantId, pct)
     }
   }, [settings, tenantId])
 
@@ -649,15 +659,8 @@ export default function Layout({ children }: LayoutProps) {
     <DocumentTitleProvider>
       <DocumentTitle />
     <div
-      className={`app-shell-print-layout w-full ${isPosPage ? 'flex h-screen overflow-hidden' : 'app-shell-layout-with-sidebar h-screen min-h-0 overflow-hidden'}`}
+      className={`app-shell-print-layout w-full flex flex-row h-full min-h-0 min-w-0 overflow-hidden ${isPosPage ? '' : ''}`}
       dir={isRtl ? 'rtl' : 'ltr'}
-      style={
-        isPosPage
-          ? undefined
-          : ({
-              ['--app-sidebar-width' as string]: sidebarCollapsed ? '0rem' : '16rem',
-            } as CSSProperties)
-      }
     >
       {!isPosPage && sidebarOpen && (
         <div
@@ -670,17 +673,18 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar - مخفي في صفحة نقطة البيع وعند الطباعة */}
       {!isPosPage && (
       <aside
-        className={`no-print
-          fixed z-50 lg:static lg:z-auto lg:transform-none
-          h-screen
-          ${isRtl ? 'right-0' : 'left-0'}
-          top-0 bottom-0
+        className={`no-print order-1
+          max-lg:fixed max-lg:z-50 max-lg:inset-y-0
+          lg:static lg:z-auto lg:transform-none
+          h-full shrink-0
+          ${isRtl ? 'max-lg:right-0' : 'max-lg:left-0'}
           flex flex-col
-          transform transition-all duration-300 ease-in-out
-          ${sidebarCollapsed ? 'lg:w-0 lg:overflow-hidden lg:min-w-0' : 'w-64 min-w-[16rem] max-w-[16rem] shrink-0'}
+          transform transition-[transform,opacity] duration-300 ease-in-out
+          ${sidebarCollapsed ? 'lg:w-0 lg:min-w-0 lg:max-w-0 lg:overflow-hidden lg:opacity-0 lg:pointer-events-none' : 'lg:w-64'}
+          w-64 min-w-[16rem] max-w-[16rem]
           ${isRtl
-            ? (sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0')
-            : (sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')
+            ? (sidebarOpen ? 'max-lg:translate-x-0' : 'max-lg:translate-x-full lg:translate-x-0')
+            : (sidebarOpen ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full lg:translate-x-0')
           }
         `}
         style={{ background: 'var(--fc-sidebar-bg)' }}
@@ -727,8 +731,6 @@ export default function Layout({ children }: LayoutProps) {
                   return can('hr.view')
                 }
                 if (child.path === '/reports/invoice-profits') return can('invoices.view_profit')
-                if (child.path === '/fiscal-years') return can('fiscal_years.view')
-                if (child.path === '/fiscal-years/close') return can('fiscal_years.close')
                 return true
               })
               if (visibleChildren.length === 0) return null
@@ -764,8 +766,8 @@ export default function Layout({ children }: LayoutProps) {
                   </button>
 
                   <div
-                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      expanded ? 'max-h-[70vh] opacity-100 mt-1' : 'max-h-0 opacity-0'
+                    className={`overflow-hidden ${
+                      expanded ? 'max-h-[70vh] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
                     }`}
                   >
                     <div className={`${isRtl ? 'pr-3' : 'pl-3'} max-h-[70vh] overflow-y-auto overflow-x-hidden scrollbar-hide space-y-0.5 py-0.5`}>
@@ -818,11 +820,11 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       {/* Main content — التمرير العمودي داخل main، الأفقي يظهر عند الحاجة لتفادي إخفاء الجداول */}
-      <div className="app-shell-print-main-column flex-1 flex flex-col min-w-0 min-h-0 h-screen overflow-x-auto overflow-y-hidden">
-        {/* Top Bar — ثابت ولا يتأثر بالتمرير */}
+      <div className="app-shell-print-main-column order-2 flex flex-col flex-1 min-w-0 min-h-0 h-full overflow-hidden">
+        {/* Top Bar — ارتفاع ثابت */}
         <header
           dir={isRtl ? 'rtl' : 'ltr'}
-          className="no-print shrink-0 z-30 flex items-center justify-between gap-2 px-2 lg:px-2.5 py-0 shadow-sm w-full min-h-0 lg:min-h-[2rem]"
+          className="no-print shrink-0 z-30 flex items-center justify-between gap-2 px-2 lg:px-2.5 h-11 lg:h-10 shadow-sm w-full"
           style={{
             background: 'var(--fc-sidebar-bg)',
             borderBottom: '1px solid var(--fc-sidebar-divider)',
@@ -1065,7 +1067,7 @@ export default function Layout({ children }: LayoutProps) {
         </header>
 
         <main
-          className={`flex-1 w-full max-w-full min-w-0 min-h-0 ${isPosPage ? 'flex flex-col overflow-hidden' : 'overflow-y-auto overflow-x-auto'}`}
+          className={`flex-1 w-full max-w-full min-w-0 min-h-0 ${isPosPage ? 'flex flex-col overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`}
           style={isPosPage ? undefined : { background: 'var(--fc-page-bg)' }}
         >
           <div className={`app-main-container min-w-0 ${isPosPage ? 'flex-1 flex flex-col min-h-0' : ''} ${isRestaurantListPage ? 'py-5' : ''}`}>
@@ -1081,7 +1083,7 @@ export default function Layout({ children }: LayoutProps) {
             fallbackMessage={(t as any).msg?.errorOccurred ?? (lang === 'ar' ? 'حدث خطأ غير متوقع. يرجى العودة والمحاولة مرة أخرى.' : 'An unexpected error occurred. Please go back and try again.')}
             isRtl={isRtl}
           >
-            {children}
+            <div className="fc-route-outlet">{children}</div>
           </ErrorBoundary>
           </div>
         </main>

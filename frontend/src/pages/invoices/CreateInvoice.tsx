@@ -2654,7 +2654,7 @@ export default function CreateInvoice() {
         </div>
         <div className="ui-table-scroll table-responsive-wrap overflow-y-visible -mx-2 sm:mx-0">
           <table
-            className={`w-full text-sm table-fixed ${
+            className={`w-full text-sm table-fixed fc-keep-table-fixed ${
               showVariantColumn && showExpiryColumns
                 ? showStockColumn
                   ? 'min-w-[79.5rem]'
@@ -3089,7 +3089,7 @@ export default function CreateInvoice() {
               <p className="text-xs text-slate-500">{lang === 'ar' ? 'لا توجد مصاريف إضافية.' : 'No additional expenses.'}</p>
             ) : (
               <div className="ui-table-scroll overflow-x-auto -mx-2 sm:mx-0">
-                <table className="w-full text-sm min-w-[56rem] table-fixed">
+                <table className="w-full text-sm min-w-[56rem] table-fixed fc-keep-table-fixed">
                   <thead>
                     <tr className="bg-slate-100 text-slate-600 text-xs">
                       <th className={`${textAlign} px-2 py-2 font-medium w-[30%] min-w-[12rem]`}>{lang === 'ar' ? 'البيان' : 'Description'}</th>

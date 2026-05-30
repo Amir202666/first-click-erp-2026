@@ -4,8 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './index.css'
 import { registerSW } from 'virtual:pwa-register'
+import { initUiFontScaleFromStorage } from './utils/uiFontScaleStorage'
 
-registerSW({ immediate: true })
+if (import.meta.env.PROD) {
+  registerSW({ immediate: true })
+}
+
+initUiFontScaleFromStorage()
 
 /** طبقة مودالات فوق #root والشريط — أنماط inline !important إن لم تُحمَّل CSS */
 function ensureModalRoot() {
@@ -30,6 +35,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
       retry: (failureCount, error: unknown) => {
         const status = (error as { response?: { status?: number } })?.response?.status
         if (status != null && status >= 400 && status < 500) return false

@@ -94,9 +94,15 @@
     --space-4: 32px;
   }
 
+  html {
+    font-size: calc(16px * var(--ui-font-scale, 1));
+    height: 100%;
+    text-size-adjust: 100%;
+  }
+
   html,
   body {
-    font-family: 'Cairo', system-ui, sans-serif;
+    font-family: 'Cairo', 'Segoe UI', system-ui, sans-serif;
     font-weight: 400;
     background-color: var(--color-neutral-100);
     color: var(--color-neutral-900);
@@ -104,6 +110,18 @@
     -moz-osx-font-smoothing: grayscale;
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
+  }
+
+  body,
+  #root {
+    height: 100%;
+    min-height: 100%;
+    min-width: 0;
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
   }
 
   /* إخفاء جميع أشرطة التمرير في الصفحة مع بقاء التمرير يعمل */
@@ -929,35 +947,61 @@
   padding-inline: clamp(6px, 1.5vw, 10px);
   min-width: 0;
   box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /*
-  تخطيط الشريط + المحتوى:
-  - أقل من lg: flex + شريط fixed (لا يشغل مسار flex) → عمود المحتوى بعرض السطر.
-  - من lg: grid بعمودين (عرض الشريط | minmax(0,1fr)) حتى لا يمتد الجدول تحت الشريط في RTL/LTR.
-  --app-sidebar-width يُعرَّف من Layout (0 عند الطي، 16rem عند الفتح).
+  تخطيط الشريط + المحتوى (Flex):
+  - DOM: شريط ثم محتوى — dir=ltr يضع الشريط يساراً، dir=rtl يضعه يميناً تلقائياً
+  - لا تستخدم row-reverse مع rtl (يُعيد الشريط لليسار)
+  - أقل من lg: الشريط fixed ولا يأخذ مساحة flex
 */
 .app-shell-layout-with-sidebar {
   display: flex;
   flex-direction: row;
+  align-items: stretch;
   width: 100%;
   min-width: 0;
   min-height: 0;
+  height: 100%;
 }
 
-@media (min-width: 1024px) {
-  .app-shell-layout-with-sidebar {
-    display: grid;
-    grid-template-columns: var(--app-sidebar-width, 16rem) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    align-items: stretch;
-  }
+.app-shell-layout-with-sidebar > .app-shell-print-main-column {
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: 100%;
+}
 
-  .app-shell-layout-with-sidebar > .app-shell-print-main-column {
-    min-width: 0;
-    max-width: none;
-    width: 100%;
-  }
+.app-shell-print-main-column {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.fc-route-outlet {
+  width: 100%;
+  min-width: 0;
+}
+
+.fc-route-outlet > * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* جداول القوائم: table-fixed يوزّع الفراغات — auto للصفحات العادية */
+.app-main-container table.table-fixed:not(.fc-keep-table-fixed) {
+  table-layout: auto;
+}
+
+.fc-list-table {
+  width: 100%;
+  table-layout: auto;
+}
+.fc-list-table th,
+.fc-list-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /*

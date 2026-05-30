@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -171,7 +172,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [config.mode, systemDark],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyCssTheme(currentTheme, isDark, config)
   }, [currentTheme, isDark, config])
 

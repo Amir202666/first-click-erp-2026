@@ -12,6 +12,7 @@ import {
   UI_FONT_SCALE_DEFAULT,
   clampUiFontScale,
 } from '../../constants/uiFontScale'
+import { applyUiFontScaleIfChanged, cacheUiFontScale } from '../../utils/uiFontScaleStorage'
 
 const KEYS = [
   'company_name',
@@ -46,7 +47,12 @@ export default function SettingsGeneral() {
 
   const updateMut = useMutation({
     mutationFn: (data: Partial<TenantSettings>) => updateSettings(tenantId, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      if (tenantId && variables.ui_font_scale_percent != null) {
+        const pct = clampUiFontScale(Number(variables.ui_font_scale_percent))
+        cacheUiFontScale(tenantId, pct)
+        applyUiFontScaleIfChanged(pct)
+      }
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       showToast(t.msg?.updatedSuccess ?? 'تم الحفظ بنجاح', 'success')
     },
@@ -80,7 +86,13 @@ export default function SettingsGeneral() {
       }
     })
     setForm(next)
-  }, [settings])
+    if (tenantId) {
+      const scale = next.ui_font_scale_percent
+      if (scale != null && scale !== '') {
+        cacheUiFontScale(tenantId, clampUiFontScale(Number(scale)))
+      }
+    }
+  }, [settings, tenantId])
 
   const handleChange = (key: string, value: string | number | boolean) => {
     setForm((f) => ({ ...f, [key]: value }))

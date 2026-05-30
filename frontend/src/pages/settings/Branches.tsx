@@ -9,6 +9,7 @@ import Toast, { type ToastType } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useClientSort } from '../../hooks/useClientSort'
 import SortableTh from '../../components/ui/SortableTh'
+import TablePageSkeleton from '../../components/ui/TablePageSkeleton'
 
 export default function Branches() {
   const { currentTenant } = useAuth()
@@ -123,7 +124,7 @@ export default function Branches() {
   const thAlign = isRtl ? 'text-right' : 'text-left'
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 min-w-0 max-w-full w-full">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="flex items-center justify-between">
@@ -155,19 +156,19 @@ export default function Branches() {
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200">
         {isLoading ? (
-          <div className="flex items-center justify-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>
+          <TablePageSkeleton rows={6} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm table-fixed">
+          <div className="ui-table-scroll">
+            <table className="fc-list-table w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 text-slate-600">
-                  <SortableTh label={t.branches.branchCode} sortKey="code" sortState={sort} onToggle={toggleSort} widthClassName="w-40 min-w-[9rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <SortableTh label={t.branches.branchName} sortKey="name" sortState={sort} onToggle={toggleSort} widthClassName="w-56 min-w-[12rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <SortableTh label={t.branches.address} sortKey="address" sortState={sort} onToggle={toggleSort} widthClassName="w-[22rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <SortableTh label={t.branches.phone} sortKey="phone" sortState={sort} onToggle={toggleSort} widthClassName="w-40" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <SortableTh label={t.branches.managerName} sortKey="manager" sortState={sort} onToggle={toggleSort} widthClassName="w-44" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <SortableTh label={t.status} sortKey="status" sortState={sort} onToggle={toggleSort} widthClassName="w-28" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <th className={`${thAlign} px-4 py-3 font-medium w-24`}>{t.actions}</th>
+                  <SortableTh label={t.branches.branchCode} sortKey="code" sortState={sort} onToggle={toggleSort} widthClassName="w-28" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <SortableTh label={t.branches.branchName} sortKey="name" sortState={sort} onToggle={toggleSort} widthClassName="w-48" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <SortableTh label={t.branches.address} sortKey="address" sortState={sort} onToggle={toggleSort} widthClassName="w-40 max-w-[10rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <SortableTh label={t.branches.phone} sortKey="phone" sortState={sort} onToggle={toggleSort} widthClassName="w-32" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <SortableTh label={t.branches.managerName} sortKey="manager" sortState={sort} onToggle={toggleSort} widthClassName="w-36 max-w-[9rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <SortableTh label={t.status} sortKey="status" sortState={sort} onToggle={toggleSort} widthClassName="w-24" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <th className={`${thAlign} px-4 py-3 font-medium w-16`}>{t.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -175,13 +176,13 @@ export default function Branches() {
                   <tr><td colSpan={7} className="text-center py-8 text-slate-400">{t.branches.noBranches}</td></tr>
                 ) : sortedRows.map((b) => (
                   <tr key={b.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{b.code}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{b.name}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs max-w-[200px] truncate">{b.address ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600 truncate">{b.code}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900 truncate">{b.name}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs truncate max-w-[10rem]" title={b.address ?? undefined}>{b.address ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs truncate">
                       <span dir="ltr">{b.phone ?? '—'}</span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{b.manager_name ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs truncate">{b.manager_name ?? '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${b.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                         {b.is_active ? t.active : t.inactive}

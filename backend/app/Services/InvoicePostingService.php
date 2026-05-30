@@ -365,9 +365,11 @@ class InvoicePostingService
         }
 
         $totalDiscount = (float) $invoice->subtotal - ((float) $invoice->total - (float) $invoice->tax_amount);
-        if ($defaults->discounts_account_id && $totalDiscount > 0) {
+        $tenantId = (int) $invoice->tenant_id;
+        $discountsId = $this->accountResolutionService->resolveStoredDefaultAccountId($tenantId, $defaults->discounts_account_id ? (int) $defaults->discounts_account_id : null);
+        if ($discountsId && $totalDiscount > 0) {
             $lines[] = [
-                'account_id' => $defaults->discounts_account_id,
+                'account_id' => $discountsId,
                 'cost_center_id' => $costCenterId,
                 'debit' => round($this->toBaseAmount($totalDiscount, $invoice), self::DECIMALS),
                 'credit' => 0,
@@ -375,9 +377,10 @@ class InvoicePostingService
             ];
         }
 
-        if ($defaults->sales_account_id) {
+        $salesId = $this->accountResolutionService->resolveStoredDefaultAccountId($tenantId, $defaults->sales_account_id ? (int) $defaults->sales_account_id : null);
+        if ($salesId) {
             $lines[] = [
-                'account_id' => $defaults->sales_account_id,
+                'account_id' => $salesId,
                 'cost_center_id' => $costCenterId,
                 'debit' => 0,
                 'credit' => round($this->toBaseAmount((float) $invoice->subtotal, $invoice), self::DECIMALS),
@@ -385,9 +388,10 @@ class InvoicePostingService
             ];
         }
 
-        if ($defaults->tax_payable_account_id && (float) $invoice->tax_amount > 0) {
+        $taxId = $this->accountResolutionService->resolveStoredDefaultAccountId($tenantId, $defaults->tax_payable_account_id ? (int) $defaults->tax_payable_account_id : null);
+        if ($taxId && (float) $invoice->tax_amount > 0) {
             $lines[] = [
-                'account_id' => $defaults->tax_payable_account_id,
+                'account_id' => $taxId,
                 'cost_center_id' => $costCenterId,
                 'debit' => 0,
                 'credit' => round($this->toBaseAmount((float) $invoice->tax_amount, $invoice), self::DECIMALS),
@@ -429,7 +433,10 @@ class InvoicePostingService
             return (int) $invoice->customer->account_id;
         }
 
-        return $defaults->customers_account_id ? (int) $defaults->customers_account_id : null;
+        return $this->accountResolutionService->resolveStoredDefaultAccountId(
+            (int) $invoice->tenant_id,
+            $defaults->customers_account_id ? (int) $defaults->customers_account_id : null
+        );
     }
 
     /**

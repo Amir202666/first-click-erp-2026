@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react'
+import { createContext, useContext, useState, useLayoutEffect, ReactNode, useCallback, useMemo } from 'react'
 import ar from '../i18n/ar'
 import en from '../i18n/en'
 import type { Translations } from '../i18n/ar'
@@ -32,7 +32,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const t = translations[lang]
   const isRtl = lang === 'ar'
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dir = t.dir
     document.documentElement.lang = t.lang
     localStorage.setItem('lang', lang)

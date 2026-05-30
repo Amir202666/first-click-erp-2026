@@ -15,6 +15,7 @@ class InstallmentService
 {
     public function __construct(
         private PaymentService $paymentService,
+        private AccountResolutionService $accountResolutionService,
     ) {}
 
     /**
@@ -151,7 +152,10 @@ class InstallmentService
                 $customer = $installment->customer;
                 $counterpartAccountId = (int) ($customer?->account_id ?? 0);
                 if (! $counterpartAccountId) {
-                    $counterpartAccountId = (int) ($defaults?->customers_account_id ?? 0);
+                    $counterpartAccountId = (int) ($this->accountResolutionService->resolveStoredDefaultAccountId(
+                        (int) $installment->tenant_id,
+                        $defaults?->customers_account_id ? (int) $defaults->customers_account_id : null
+                    ) ?? 0);
                 }
                 if (! $counterpartAccountId) {
                     throw new \InvalidArgumentException('ربط العميل بحساب دفتر أستاذ أو تهيئة حساب العملاء الافتراضي مطلوب لتسجيل التحصيل على ذممه.');

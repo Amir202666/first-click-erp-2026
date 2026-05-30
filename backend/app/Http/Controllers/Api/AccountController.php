@@ -26,7 +26,12 @@ class AccountController extends Controller
             ->when($request->type, fn ($q, $type) => $q->where('type', $type))
             ->when($request->parent_id, fn ($q, $pid) => $q->where('parent_id', $pid))
             ->when($request->boolean('root_only'), fn ($q) => $q->whereNull('parent_id'))
-            ->when($request->boolean('postable_only'), fn ($q) => $q->where('is_postable', true))
+            ->when(
+                $request->boolean('postable_only')
+                    && ! $request->boolean('include_groups')
+                    && ! $request->boolean('for_settings'),
+                fn ($q) => $q->where('is_postable', true)
+            )
             ->when($request->boolean('cash_bank_only'), fn ($q) => $q->where('is_active', true)->where(function ($q2) {
                 $q2->where('code', 'like', '111%')->orWhere('code', 'like', '112%');
             }))

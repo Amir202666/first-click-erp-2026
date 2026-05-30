@@ -63,8 +63,6 @@ import PurchaseRequestList from './pages/purchase-requests/PurchaseRequestList'
 import CreatePurchaseRequest from './pages/purchase-requests/CreatePurchaseRequest'
 import EditPurchaseRequest from './pages/purchase-requests/EditPurchaseRequest'
 import JournalEntryList from './pages/journal/JournalEntryList'
-import FiscalYearList from './pages/fiscal-years/FiscalYearList'
-import FiscalYearClose from './pages/FiscalYearClose'
 import CreateJournalEntry from './pages/journal/CreateJournalEntry'
 import JournalEntryEditRedirect from './pages/journal/JournalEntryEditRedirect'
 import PaymentList from './pages/payments/PaymentList'
@@ -205,7 +203,7 @@ function PrintTemplateDesignerRoute() {
 
 function App() {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter future={{ v7_relativeSplatPath: true }}>
       <LanguageProvider>
       <ThemeProvider>
       <AuthProvider>
@@ -303,8 +301,8 @@ function App() {
                     <Route path="/invoices/quotations/:id" element={<QuotationViewPage />} />
                     <Route path="/invoices/:type" element={<InvoiceList />} />
                     <Route path="/journal-entries" element={<JournalEntryList />} />
-                    <Route path="/fiscal-years" element={<FiscalYearList />} />
-                    <Route path="/fiscal-years/close" element={<FiscalYearClose />} />
+                    <Route path="/fiscal-years/close" element={<Navigate to="/settings/accounting?tab=fiscal_close&view=wizard" replace />} />
+                    <Route path="/fiscal-years" element={<Navigate to="/settings/accounting?tab=fiscal_close&view=list" replace />} />
                     <Route path="/journal-entries/create" element={<CreateJournalEntry />} />
                     <Route path="/journal-entries/edit/:id" element={<JournalEntryEditRedirect />} />
                     <Route path="/receipt-vouchers" element={<ReceiptVouchers />} />

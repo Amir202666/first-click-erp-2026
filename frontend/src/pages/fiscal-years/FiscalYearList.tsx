@@ -17,7 +17,13 @@ function inventorySnapshotLineCount(snapshot: unknown): number {
   return 0
 }
 
-export default function FiscalYearList() {
+export default function FiscalYearList({
+  embedded = false,
+  onOpenWizard,
+}: {
+  embedded?: boolean
+  onOpenWizard?: () => void
+} = {}) {
   const { currentTenant, can } = useAuth()
   const { t, isRtl } = useLanguage()
   const tenantId = currentTenant?.id ?? 0
@@ -90,20 +96,39 @@ export default function FiscalYearList() {
 
       <div className="flex flex-wrap items-start gap-3 justify-between">
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 flex-wrap">
-            <CalendarClock className="w-7 h-7 text-primary-600 shrink-0" />
-            {t.fiscalYear.title}
-          </h1>
-          <p className="mt-2 text-sm text-slate-600 leading-relaxed">{t.fiscalYear.intro}</p>
+          {!embedded && (
+            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 flex-wrap">
+              <CalendarClock className="w-7 h-7 text-primary-600 shrink-0" />
+              {t.fiscalYear.title}
+            </h1>
+          )}
+          {embedded && (
+            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2 flex-wrap">
+              <CalendarClock className="w-5 h-5 text-primary-600 shrink-0" />
+              {t.fiscalYear.title}
+            </h2>
+          )}
+          <p className={`${embedded ? 'mt-1' : 'mt-2'} text-sm text-slate-600 leading-relaxed`}>{t.fiscalYear.intro}</p>
           {canClose && (
             <p className="mt-3">
-              <Link
-                to="/fiscal-years/close"
-                className="text-sm font-medium text-primary-700 hover:text-primary-800 hover:underline inline-flex items-center gap-1"
-              >
-                <ExternalLink className="w-4 h-4 shrink-0" />
-                {t.fiscalYear.wizardLink}
-              </Link>
+              {embedded && onOpenWizard ? (
+                <button
+                  type="button"
+                  onClick={onOpenWizard}
+                  className="text-sm font-medium text-primary-700 hover:text-primary-800 hover:underline inline-flex items-center gap-1"
+                >
+                  <ExternalLink className="w-4 h-4 shrink-0" />
+                  {t.fiscalYear.wizardLink}
+                </button>
+              ) : (
+                <Link
+                  to="/settings/accounting?tab=fiscal_close&view=wizard"
+                  className="text-sm font-medium text-primary-700 hover:text-primary-800 hover:underline inline-flex items-center gap-1"
+                >
+                  <ExternalLink className="w-4 h-4 shrink-0" />
+                  {t.fiscalYear.wizardLink}
+                </Link>
+              )}
             </p>
           )}
         </div>

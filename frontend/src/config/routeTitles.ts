@@ -26,6 +26,7 @@ export const ROUTE_TITLE_RULES: RouteTitleRule[] = [
   { path: '/journal-entries', titleKey: 'nav.journalEntries' },
   { path: '/fiscal-years/close', titleKey: 'fiscalYearClose.pageTitle' },
   { path: '/fiscal-years', titleKey: 'nav.fiscalYears' },
+  { path: '/settings/accounting', titleKey: 'nav.settingsAccounting' },
   { path: '/receipt-vouchers', titleKey: 'nav.receiptVouchers' },
   { path: '/payment-vouchers', titleKey: 'nav.paymentVouchers' },
   { path: '/payment-methods', titleKey: 'nav.paymentMethods' },

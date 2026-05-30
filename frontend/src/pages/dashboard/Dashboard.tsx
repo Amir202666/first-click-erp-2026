@@ -27,6 +27,7 @@ import {
   LabelList,
 } from 'recharts'
 import CommandPalette from '../../components/dashboard/CommandPalette'
+import TablePageSkeleton from '../../components/ui/TablePageSkeleton'
 import {
   Eye,
   EyeOff,
@@ -474,8 +475,14 @@ export default function Dashboard() {
   // IMPORTANT: keep all hooks above this point (Rules of Hooks).
   if (!forceEmpty && (isLoadingKpi || isLoading30) && !(kpiData && data30)) {
     return (
-      <div className="p-6 flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
+      <div className="p-3 md:p-5 space-y-6 min-w-0 max-w-full">
+        <div className="h-10 w-full max-w-md bg-slate-200 rounded-xl animate-pulse" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="h-28 bg-white rounded-2xl border border-slate-200 animate-pulse" />
+          ))}
+        </div>
+        <TablePageSkeleton rows={6} />
       </div>
     )
   }

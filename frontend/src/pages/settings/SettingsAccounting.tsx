@@ -1,16 +1,20 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { fetchSettings, updateSettings, fetchAccounts, fetchCurrencies, fetchAccountDefaults, updateAccountDefaults } from '../../api/tenant'
 import type { TenantSettings, TenantAccountDefault, Account, Currency } from '../../types'
-import { Landmark, Save, BookOpen, Package, Hash } from 'lucide-react'
+import { Landmark, Save, BookOpen, Package, Hash, CalendarClock } from 'lucide-react'
 import Toast, { type ToastType } from '../../components/ui/Toast'
+import SearchableSelect from '../../components/ui/SearchableSelect'
+import AccountingFiscalCloseTab from '../../components/settings/AccountingFiscalCloseTab'
+import { buildDefaultAccountSelectOptions } from '../../utils/defaultAccountSelectOptions'
 
-type AccountingTab = 'general' | 'defaults' | 'docs' | 'tax' | 'items_options' | 'ref_numbers'
+type AccountingTab = 'general' | 'defaults' | 'docs' | 'tax' | 'items_options' | 'ref_numbers' | 'fiscal_close'
 
 function accountingTabFromParam(tab: string | null): AccountingTab {
+  if (tab === 'fiscal_close' || tab === 'fiscal-close') return 'fiscal_close'
   if (tab === 'defaults' || tab === 'docs' || tab === 'tax' || tab === 'items_options' || tab === 'ref_numbers') return tab
   return 'general'
 }
@@ -123,7 +127,13 @@ export default function SettingsAccounting() {
   const { data: accounts = [] } = useQuery<Account[]>({
     queryKey: ['accounts', tenantId, 'postable'],
     queryFn: () => fetchAccounts(tenantId, { postable_only: '1', active_only: '1' }),
-    enabled: !!tenantId,
+    enabled: !!tenantId && activeTab !== 'defaults',
+  })
+
+  const { data: defaultsAccounts = [] } = useQuery<Account[]>({
+    queryKey: ['accounts', tenantId, 'defaults-settings'],
+    queryFn: () => fetchAccounts(tenantId, { include_groups: '1', active_only: '1' }),
+    enabled: !!tenantId && activeTab === 'defaults',
   })
 
   const { data: currencies = [] } = useQuery<Currency[]>({
@@ -266,6 +276,8 @@ export default function SettingsAccounting() {
       setSearchParams({ tab: 'items_options' })
     } else if (tab === 'ref_numbers') {
       setSearchParams({ tab: 'ref_numbers' })
+    } else if (tab === 'fiscal_close') {
+      setSearchParams({ tab: 'fiscal_close', view: searchParams.get('view') ?? 'list' })
     } else {
       setSearchParams({})
     }
@@ -375,7 +387,63 @@ export default function SettingsAccounting() {
   }
 
   const textAlign = isRtl ? 'text-right' : 'text-left'
-  const isLoadingCurrent = activeTab === 'defaults' ? defaultsLoading : isLoading
+  const isLoadingCurrent = activeTab === 'defaults' ? defaultsLoading : activeTab === 'fiscal_close' ? false : isLoading
+
+  const monthOptions = useMemo(
+    () => FISCAL_MONTHS.map((m) => ({ value: m.value, label: m.label })),
+    [],
+  )
+
+  const currencyOptions = useMemo(
+    () =>
+      currencies.map((c) => ({
+        value: c.id,
+        label: `${c.code} — ${c.name}`,
+        primaryLabel: c.name,
+        secondaryLabel: c.code,
+        searchText: `${c.code} ${c.name}`,
+      })),
+    [currencies],
+  )
+
+  const currencyCodeOptions = useMemo(
+    () =>
+      currencies.map((c) => ({
+        value: c.code,
+        label: `${c.code} — ${c.name}`,
+        primaryLabel: c.code,
+        secondaryLabel: c.name,
+        searchText: `${c.code} ${c.name}`,
+      })),
+    [currencies],
+  )
+
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((a) => ({
+        value: a.id,
+        label: `${a.code} — ${a.name}`,
+        primaryLabel: a.name,
+        secondaryLabel: a.code,
+        searchText: `${a.code} ${a.name}`,
+      })),
+    [accounts],
+  )
+
+  const defaultsAccountOptions = useMemo(
+    () => buildDefaultAccountSelectOptions(defaultsAccounts),
+    [defaultsAccounts],
+  )
+
+  const roundingOptions = useMemo(
+    () => [
+      { value: 'none', label: 'بدون تقريب' },
+      { value: 'nearest', label: 'لأقرب رقم' },
+      { value: 'up', label: 'تقريب لأعلى' },
+      { value: 'down', label: 'تقريب لأسفل' },
+    ],
+    [],
+  )
 
   return (
     <div className="p-6 space-y-6">
@@ -433,6 +501,14 @@ export default function SettingsAccounting() {
         </button>
         <button
           type="button"
+          onClick={() => switchTab('fiscal_close')}
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'fiscal_close' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+        >
+          <CalendarClock size={18} />
+          {t.nav.settingsAccountingTabFiscalClose}
+        </button>
+        <button
+          type="button"
           onClick={() => switchTab('ref_numbers')}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'ref_numbers' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
         >
@@ -451,6 +527,8 @@ export default function SettingsAccounting() {
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
         </div>
+      ) : activeTab === 'fiscal_close' ? (
+        <AccountingFiscalCloseTab />
       ) : activeTab === 'ref_numbers' ? (
         <form onSubmit={handleRefNumbersSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 flex flex-col md:flex-row-reverse gap-6">
@@ -628,27 +706,26 @@ export default function SettingsAccounting() {
           </div>
         </form>
       ) : activeTab === 'defaults' ? (
-        <form onSubmit={handleDefaultsSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <form onSubmit={handleDefaultsSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-visible">
           <div className="p-4 border-b border-slate-200 bg-slate-50">
             <p className="text-sm text-slate-600">ربط الحسابات الافتراضية لعمليات البيع والشراء. رأس المال لا يُستخدم تلقائياً.</p>
           </div>
-          <div className="p-6 grid gap-4 sm:grid-cols-2">
+          <div className="p-6 pb-28 grid gap-5 sm:grid-cols-2">
             {DEFAULTS_KEYS.map((key) => (
               <div key={key}>
-                <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>
-                  {DEFAULTS_LABELS[key]}
-                  {key === 'capital_account_id' && <span className="text-amber-600 text-xs mr-1"> (لا يُستخدم تلقائياً)</span>}
-                </label>
-                <select
-                  value={defaultsForm[key] ?? ''}
-                  onChange={(e) => handleDefaultsChange(key, e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                >
-                  <option value="">—</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  label={
+                    DEFAULTS_LABELS[key] +
+                    (key === 'capital_account_id' ? ' (لا يُستخدم تلقائياً)' : '')
+                  }
+                  options={defaultsAccountOptions}
+                  value={defaultsForm[key] ? Number(defaultsForm[key]) : null}
+                  onChange={(v) => handleDefaultsChange(key, v != null && v !== '' ? String(v) : '')}
+                  placeholder="—"
+                  textAlign={isRtl ? 'right' : 'left'}
+                  wrapOptions
+                  dropdownMinWidth={320}
+                />
               </div>
             ))}
           </div>
@@ -659,74 +736,58 @@ export default function SettingsAccounting() {
           </div>
         </form>
       ) : activeTab === 'general' ? (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-visible">
+          <div className="p-6 pb-28 space-y-4">
             <h2 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">السنة المالية والحسابات الافتراضية</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>بداية السنة المالية (الشهر)</label>
-                <select
-                  value={String(form.fiscal_year_start_month ?? 1)}
-                  onChange={(e) => handleChange('fiscal_year_start_month', Number(e.target.value))}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                >
-                  {FISCAL_MONTHS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>العملة الافتراضية</label>
-                <select
-                  value={String(form.default_currency_id ?? '')}
-                  onChange={(e) => handleChange('default_currency_id', e.target.value ? Number(e.target.value) : '')}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                >
-                  <option value="">—</option>
-                  {currencies.map((c) => (
-                    <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>حساب الأرباح المبقاة</label>
-                <select
-                  value={String(form.retained_earnings_account_id ?? '')}
-                  onChange={(e) => handleChange('retained_earnings_account_id', e.target.value ? Number(e.target.value) : '')}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                >
-                  <option value="">—</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>حساب فروق العملة</label>
-                <select
-                  value={String(form.currency_diff_account_id ?? '')}
-                  onChange={(e) => handleChange('currency_diff_account_id', e.target.value ? Number(e.target.value) : '')}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                >
-                  <option value="">—</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>حساب الضرائب (افتراضي)</label>
-                <select
-                  value={String(form.tax_account_id ?? '')}
-                  onChange={(e) => handleChange('tax_account_id', e.target.value ? Number(e.target.value) : '')}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                >
-                  <option value="">—</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <SearchableSelect
+                label="بداية السنة المالية (الشهر)"
+                options={monthOptions}
+                value={Number(form.fiscal_year_start_month ?? 1)}
+                onChange={(v) => handleChange('fiscal_year_start_month', Number(v ?? 1))}
+                textAlign={isRtl ? 'right' : 'left'}
+                dropdownMinWidth={220}
+              />
+              <SearchableSelect
+                label="العملة الافتراضية"
+                options={currencyOptions}
+                value={form.default_currency_id ? Number(form.default_currency_id) : null}
+                onChange={(v) => handleChange('default_currency_id', v != null && v !== '' ? Number(v) : '')}
+                placeholder="—"
+                textAlign={isRtl ? 'right' : 'left'}
+                wrapOptions
+                dropdownMinWidth={280}
+              />
+              <SearchableSelect
+                label="حساب الأرباح المبقاة"
+                options={accountOptions}
+                value={form.retained_earnings_account_id ? Number(form.retained_earnings_account_id) : null}
+                onChange={(v) => handleChange('retained_earnings_account_id', v != null && v !== '' ? Number(v) : '')}
+                placeholder="—"
+                textAlign={isRtl ? 'right' : 'left'}
+                wrapOptions
+                dropdownMinWidth={320}
+              />
+              <SearchableSelect
+                label="حساب فروق العملة"
+                options={accountOptions}
+                value={form.currency_diff_account_id ? Number(form.currency_diff_account_id) : null}
+                onChange={(v) => handleChange('currency_diff_account_id', v != null && v !== '' ? Number(v) : '')}
+                placeholder="—"
+                textAlign={isRtl ? 'right' : 'left'}
+                wrapOptions
+                dropdownMinWidth={320}
+              />
+              <SearchableSelect
+                label="حساب الضرائب (افتراضي)"
+                options={accountOptions}
+                value={form.tax_account_id ? Number(form.tax_account_id) : null}
+                onChange={(v) => handleChange('tax_account_id', v != null && v !== '' ? Number(v) : '')}
+                placeholder="—"
+                textAlign={isRtl ? 'right' : 'left'}
+                wrapOptions
+                dropdownMinWidth={320}
+              />
             </div>
             <div className="flex flex-wrap gap-6 pt-2">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -746,25 +807,22 @@ export default function SettingsAccounting() {
           </div>
         </form>
       ) : (
-        <form onSubmit={handleDocsSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <form onSubmit={handleDocsSubmit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-visible">
           <div className="p-6 space-y-4">
             <h2 className="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">
               إعدادات الفواتير والسندات
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>العملة الافتراضية للفواتير والسندات</label>
-                <select
-                  value={docsForm.doc_default_currency_code ?? ''}
-                  onChange={(e) => handleDocsChange('doc_default_currency_code', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                >
-                  <option value="">—</option>
-                  {currencies.map((c) => (
-                    <option key={c.id} value={c.code}>{c.code} — {c.name}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <SearchableSelect
+                label="العملة الافتراضية للفواتير والسندات"
+                options={currencyCodeOptions}
+                value={docsForm.doc_default_currency_code ? String(docsForm.doc_default_currency_code) : null}
+                onChange={(v) => handleDocsChange('doc_default_currency_code', v != null ? String(v) : '')}
+                placeholder="—"
+                textAlign={isRtl ? 'right' : 'left'}
+                wrapOptions
+                dropdownMinWidth={280}
+              />
               <div>
                 <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>عدد الكسور العشرية في المبالغ</label>
                 <input
@@ -791,19 +849,14 @@ export default function SettingsAccounting() {
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
                 />
               </div>
-              <div>
-                <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>التقريب في المبالغ</label>
-                <select
-                  value={docsForm.doc_rounding_mode ?? 'none'}
-                  onChange={(e) => handleDocsChange('doc_rounding_mode', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
-                >
-                  <option value="none">بدون تقريب</option>
-                  <option value="nearest">لأقرب رقم</option>
-                  <option value="up">تقريب لأعلى</option>
-                  <option value="down">تقريب لأسفل</option>
-                </select>
-              </div>
+              <SearchableSelect
+                label="التقريب في المبالغ"
+                options={roundingOptions}
+                value={String(docsForm.doc_rounding_mode ?? 'none')}
+                onChange={(v) => handleDocsChange('doc_rounding_mode', v != null ? String(v) : 'none')}
+                textAlign={isRtl ? 'right' : 'left'}
+                dropdownMinWidth={220}
+              />
             </div>
             <div className="mt-6 pt-4 border-t border-slate-200">
               <h3 className="text-base font-semibold text-slate-800 mb-3">خانة المندوب في الفواتير والسندات</h3>

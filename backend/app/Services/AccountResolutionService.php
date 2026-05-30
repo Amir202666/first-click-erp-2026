@@ -15,6 +15,53 @@ use RuntimeException;
 class AccountResolutionService
 {
     /**
+     * حل حساب افتراضي محفوظ في الإعدادات إلى حساب قابل للترحيل.
+     * إذا كان مجموعة (is_group) يُستخدم أول حساب فرعي قابل للترحيل تحته.
+     */
+    public function resolveStoredDefaultAccountId(int $tenantId, ?int $accountId): ?int
+    {
+        if (! $accountId) {
+            return null;
+        }
+
+        $account = Account::where('tenant_id', $tenantId)
+            ->where('id', $accountId)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $account) {
+            return null;
+        }
+
+        if ($account->is_postable && ! $account->is_group) {
+            return (int) $account->id;
+        }
+
+        return $this->findFirstPostableDescendant($tenantId, (int) $account->id);
+    }
+
+    private function findFirstPostableDescendant(int $tenantId, int $parentId): ?int
+    {
+        $children = Account::where('tenant_id', $tenantId)
+            ->where('parent_id', $parentId)
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get();
+
+        foreach ($children as $child) {
+            if ($child->is_postable && ! $child->is_group) {
+                return (int) $child->id;
+            }
+            $found = $this->findFirstPostableDescendant($tenantId, (int) $child->id);
+            if ($found !== null) {
+                return $found;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * الحصول على إعدادات الحسابات الافتراضية للشريك (مع إنشائها إن لم توجد).
      */
     public function getDefaults(int $tenantId): TenantAccountDefault
@@ -218,7 +265,11 @@ class AccountResolutionService
             return (int) $item->category->inventory_account_id;
         }
 
-        return $defaults->inventory_account_id ? (int) $defaults->inventory_account_id : null;
+        $fromDefault = $defaults->inventory_account_id ? (int) $defaults->inventory_account_id : null;
+
+        return $fromDefault
+            ? $this->resolveStoredDefaultAccountId((int) $defaults->tenant_id, $fromDefault)
+            : null;
     }
 
     /**
@@ -233,7 +284,11 @@ class AccountResolutionService
             return (int) $item->category->cost_of_sales_account_id;
         }
 
-        return $defaults->cogs_account_id ? (int) $defaults->cogs_account_id : null;
+        $fromDefault = $defaults->cogs_account_id ? (int) $defaults->cogs_account_id : null;
+
+        return $fromDefault
+            ? $this->resolveStoredDefaultAccountId((int) $defaults->tenant_id, $fromDefault)
+            : null;
     }
 
     /**
@@ -248,7 +303,11 @@ class AccountResolutionService
             return (int) $item->category->sales_account_id;
         }
 
-        return $defaults->sales_account_id ? (int) $defaults->sales_account_id : null;
+        $fromDefault = $defaults->sales_account_id ? (int) $defaults->sales_account_id : null;
+
+        return $fromDefault
+            ? $this->resolveStoredDefaultAccountId((int) $defaults->tenant_id, $fromDefault)
+            : null;
     }
 
     /**
@@ -262,7 +321,10 @@ class AccountResolutionService
             return (int) $invoice->customer->account_id;
         }
 
-        return $defaults->customers_account_id ? (int) $defaults->customers_account_id : null;
+        return $this->resolveStoredDefaultAccountId(
+            (int) $invoice->tenant_id,
+            $defaults->customers_account_id ? (int) $defaults->customers_account_id : null
+        );
     }
 
     private function ensureNotCapital(array $accountIds, ?int $capitalId, string $operation): void
@@ -327,7 +389,7 @@ class AccountResolutionService
 
         $defaults = $this->getDefaults($tenantId);
         if (! empty($defaults->sales_account_id)) {
-            return (int) $defaults->sales_account_id;
+            return (int) $this->resolveStoredDefaultAccountId($tenantId, (int) $defaults->sales_account_id);
         }
 
         throw new RuntimeException(

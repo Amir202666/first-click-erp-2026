@@ -25,6 +25,8 @@ export interface Account {
   level: number
   currency?: string | null
   is_postable?: boolean
+  is_group?: boolean
+  path?: string | null
   children?: Account[]
   balance_info?: { debit: number; credit: number; balance: number }
   /** الربط المتقدم: معرّفات الفروع المرتبطة (فارغ = كل الفروع) */

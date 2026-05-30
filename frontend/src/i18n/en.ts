@@ -174,6 +174,7 @@ const en: Translations = {
     auditLog: 'Audit Log',
     settings: 'Settings',
     settingsAccounting: 'Accounting System Settings',
+    settingsAccountingTabFiscalClose: 'Fiscal year closing',
     settingsPOS: 'POS Settings',
     settingsManufacturing: 'Manufacturing Settings',
     settingsGeneral: 'General Settings',

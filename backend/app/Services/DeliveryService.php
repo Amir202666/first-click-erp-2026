@@ -26,10 +26,14 @@ class DeliveryService
      */
     public function resolveCreditAccountForSalesReturnInvoice(Invoice $invoice, $defaults): ?int
     {
+        $tenantId = (int) $invoice->tenant_id;
         if ($invoice->payment_timing === 'paid') {
-            $id = $defaults->cash_account_id ?? $defaults->bank_account_id;
+            $cashOrBank = $defaults->cash_account_id ?? $defaults->bank_account_id;
 
-            return $id ? (int) $id : null;
+            return $this->accountResolutionService->resolveStoredDefaultAccountId(
+                $tenantId,
+                $cashOrBank ? (int) $cashOrBank : null
+            );
         }
         $parentId = $invoice->parent_invoice_id;
         if ($parentId) {
@@ -46,7 +50,10 @@ class DeliveryService
             return (int) $invoice->customer->account_id;
         }
 
-        return $defaults->customers_account_id ? (int) $defaults->customers_account_id : null;
+        return $this->accountResolutionService->resolveStoredDefaultAccountId(
+            $tenantId,
+            $defaults->customers_account_id ? (int) $defaults->customers_account_id : null
+        );
     }
 
     public function markInvoiceReady(Invoice $invoice): void

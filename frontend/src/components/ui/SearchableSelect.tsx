@@ -79,7 +79,13 @@ export default function SearchableSelect({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLUListElement>(null)
-  const [dropdownStyle, setDropdownStyle] = useState<{ top: number; left: number; width: number } | null>(null)
+  const [dropdownStyle, setDropdownStyle] = useState<{
+    top?: number
+    bottom?: number
+    left: number
+    width: number
+    maxHeight: number
+  } | null>(null)
 
   const isHeader = variant === 'header'
   /** افتراضياً: طابق عرض القائمة المنسدلة مع عرض الحقل */
@@ -136,7 +142,11 @@ export default function SearchableSelect({
     if (!inputRef.current) return
     const rect = inputRef.current.getBoundingClientRect()
     const pad = 8
+    const gap = 4
     const vw = typeof window !== 'undefined' ? window.innerWidth : 800
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 600
+    const defaultMaxHeight = 288
+    const minDropdownHeight = 120
     const baseMin = wrapOptions ? 360 : 320
     const requested = dropdownMinWidth ?? baseMin
     const minDropWidth = isHeader ? Math.max(150, requested) : requested
@@ -152,11 +162,35 @@ export default function SearchableSelect({
       const idealLeft = rect.left
       left = Math.max(pad, Math.min(idealLeft, vw - pad - w))
     }
-    setDropdownStyle({
-      top: rect.bottom + 4,
-      left,
-      width: w,
-    })
+
+    const spaceBelow = vh - rect.bottom - pad
+    const spaceAbove = rect.top - pad
+    /** يفتح لأعلى عند ضيق المساحة أسفل الحقل مع توفر مساحة أكبر بالأعلى */
+    const openUpward = spaceBelow < defaultMaxHeight && spaceAbove > spaceBelow
+
+    if (openUpward) {
+      const maxHeight = Math.max(
+        minDropdownHeight,
+        Math.min(defaultMaxHeight, spaceAbove - gap),
+      )
+      setDropdownStyle({
+        bottom: vh - rect.top + gap,
+        left,
+        width: w,
+        maxHeight,
+      })
+    } else {
+      const maxHeight = Math.max(
+        minDropdownHeight,
+        Math.min(defaultMaxHeight, spaceBelow - gap),
+      )
+      setDropdownStyle({
+        top: rect.bottom + gap,
+        left,
+        width: w,
+        maxHeight,
+      })
+    }
   }, [wrapOptions, dropdownMinWidth, isHeader, effectiveMatchTriggerWidth])
 
   useLayoutEffect(() => {
@@ -176,8 +210,8 @@ export default function SearchableSelect({
 
   const menuClass =
     isHeader
-      ? `fixed ${tableHeaderControl ? 'z-[120000]' : 'z-[100000]'} max-h-72 overflow-y-auto overflow-x-hidden bg-white rounded-xl border border-slate-200/90 shadow-[0_12px_48px_-12px_rgba(15,23,42,0.22)] py-1.5 list-none m-0`
-      : 'fixed z-[99999] max-h-72 overflow-y-auto overflow-x-hidden bg-white border border-slate-300 rounded-lg shadow-lg py-0.5 list-none m-0'
+      ? `fixed ${tableHeaderControl ? 'z-[120000]' : 'z-[100000]'} overflow-y-auto overflow-x-hidden bg-white rounded-xl border border-slate-200/90 shadow-[0_12px_48px_-12px_rgba(15,23,42,0.22)] py-1.5 list-none m-0`
+      : 'fixed z-[99999] overflow-y-auto overflow-x-hidden bg-white border border-slate-300 rounded-lg shadow-lg py-0.5 list-none m-0'
 
   const dropdownList = isOpen && dropdownStyle && (
     <ul
@@ -186,10 +220,12 @@ export default function SearchableSelect({
       className={menuClass}
       style={{
         top: dropdownStyle.top,
+        bottom: dropdownStyle.bottom,
         left: dropdownStyle.left,
         width: dropdownStyle.width,
         minWidth: dropdownStyle.width,
         maxWidth: dropdownStyle.width,
+        maxHeight: dropdownStyle.maxHeight,
       }}
     >
       {filtered.length === 0 ? (

@@ -172,6 +172,7 @@ const ar = {
     auditLog: 'سجل التدقيق',
     settings: 'الإعدادات',
     settingsAccounting: 'إعدادات النظام المحاسبي',
+    settingsAccountingTabFiscalClose: 'إقفال السنة المالية',
     settingsPOS: 'إعدادات نقطة البيع',
     settingsManufacturing: 'إعدادات التصنيع',
     settingsGeneral: 'إعدادات عامة',

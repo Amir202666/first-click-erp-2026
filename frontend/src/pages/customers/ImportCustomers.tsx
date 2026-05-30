@@ -13,6 +13,7 @@ import StepSelectAccount from '../../components/customers/import/StepSelectAccou
 import StepPreview, { countValidPreviewRows } from '../../components/customers/import/StepPreview'
 import StepResult from '../../components/customers/import/StepResult'
 import type {
+  CustomerImportRow,
   CustomerImportRowParsed,
   FieldMapping,
   ImportResult,
@@ -122,7 +123,7 @@ export default function ImportCustomers() {
               clean[key] = value
             }
           })
-          return clean as CustomerImportRow
+          return clean as unknown as CustomerImportRow
         })
 
       if (customers.length === 0) {

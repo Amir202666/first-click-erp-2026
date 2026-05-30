@@ -426,7 +426,7 @@ export default function PaymentVouchers() {
   }
 
   return (
-    <div className="px-0 pt-4 pb-6 space-y-3 bg-[#f8f9fa] min-h-screen w-full min-w-0 max-w-full">
+    <div className="px-0 pt-4 pb-6 space-y-3 bg-[#f8f9fa] w-full min-w-0 max-w-full">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-lg font-normal text-slate-800">{t.payments.paymentVouchers}</h1>
         <div className="flex flex-wrap items-center gap-2">

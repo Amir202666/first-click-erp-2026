@@ -17,7 +17,13 @@ import { formatDisplayDate } from '../utils/date'
 
 const STEP_ICONS = ['📊', '⚖️', '📄', '📝', '🔒', '🆕']
 
-export default function FiscalYearClose() {
+export default function FiscalYearClose({
+  embedded = false,
+  onBackToList,
+}: {
+  embedded?: boolean
+  onBackToList?: () => void
+} = {}) {
   const { currentTenant, can } = useAuth()
   const { t, isRtl } = useLanguage()
   const navigate = useNavigate()
@@ -258,7 +264,11 @@ export default function FiscalYearClose() {
         dir={isRtl ? 'rtl' : 'ltr'}
       >
         <p className="text-sm">{fc.noClosePermission}</p>
-        <Link to="/fiscal-years" className="text-primary-600 text-sm mt-2 inline-block">
+        <Link
+          to="/settings/accounting?tab=fiscal_close&view=list"
+          className="text-primary-600 text-sm mt-2 inline-block"
+          onClick={embedded && onBackToList ? (e) => { e.preventDefault(); onBackToList() } : undefined}
+        >
           ← {t.fiscalYear.title}
         </Link>
       </div>
@@ -286,8 +296,9 @@ export default function FiscalYearClose() {
               {fc.goDashboard}
             </button>
             <Link
-              to="/fiscal-years"
+              to="/settings/accounting?tab=fiscal_close&view=list"
               className="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 inline-flex items-center"
+              onClick={embedded && onBackToList ? (e) => { e.preventDefault(); onBackToList() } : undefined}
             >
               {fc.goList}
             </Link>
@@ -317,9 +328,15 @@ export default function FiscalYearClose() {
       </div>
 
       <div className="flex gap-2 mb-4">
-        <Link to="/fiscal-years" className="text-sm text-primary-600 hover:underline">
-          ← {t.fiscalYear.title}
-        </Link>
+        {embedded && onBackToList ? (
+          <button type="button" onClick={onBackToList} className="text-sm text-primary-600 hover:underline">
+            ← {t.fiscalYear.title}
+          </button>
+        ) : (
+          <Link to="/settings/accounting?tab=fiscal_close&view=list" className="text-sm text-primary-600 hover:underline">
+            ← {t.fiscalYear.title}
+          </Link>
+        )}
       </div>
 
       {listLoading && <p className="text-slate-500 text-sm">{t.loading}</p>}

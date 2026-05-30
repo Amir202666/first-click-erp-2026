@@ -20,6 +20,7 @@ import SortableTh from '../../components/ui/SortableTh'
 import SearchableSelect, { type SearchableSelectOption } from '../../components/ui/SearchableSelect'
 import MultiSelectTags, { type MultiSelectTagsOption } from '../../components/ui/MultiSelectTags'
 import { filterBarOverflowClass, filterSelectCompactClass } from '../../utils/filterControlStyles'
+import TablePageSkeleton from '../../components/ui/TablePageSkeleton'
 
 const TYPE_BADGE: Record<string, string> = {
   cash: 'bg-emerald-100 text-emerald-700',
@@ -234,17 +235,17 @@ export default function PaymentMethods() {
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200">
         {isLoading ? (
-          <div className="flex items-center justify-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>
+          <TablePageSkeleton rows={6} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm table-fixed">
+          <div className="ui-table-scroll">
+            <table className="fc-list-table w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 text-slate-600">
-                  <SortableTh label={t.paymentMethods.methodName} sortKey="name" sortState={sort} onToggle={toggleSort} widthClassName="w-[22rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <SortableTh label={t.paymentMethods.methodType} sortKey="type" sortState={sort} onToggle={toggleSort} widthClassName="w-[16rem] min-w-[14rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <SortableTh label={t.paymentMethods.linkedAccount} sortKey="linked" sortState={sort} onToggle={toggleSort} widthClassName="w-[30rem] min-w-[22rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <SortableTh label={t.status} sortKey="status" sortState={sort} onToggle={toggleSort} widthClassName="w-36" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                  <th className={`${thAlign} px-4 py-3 font-medium`}>{t.actions}</th>
+                  <SortableTh label={t.paymentMethods.methodName} sortKey="name" sortState={sort} onToggle={toggleSort} widthClassName="w-48" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <SortableTh label={t.paymentMethods.methodType} sortKey="type" sortState={sort} onToggle={toggleSort} widthClassName="w-36" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <SortableTh label={t.paymentMethods.linkedAccount} sortKey="linked" sortState={sort} onToggle={toggleSort} widthClassName="w-44 max-w-[14rem]" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <SortableTh label={t.status} sortKey="status" sortState={sort} onToggle={toggleSort} widthClassName="w-28" className={`${thAlign} font-medium text-slate-700 dark:text-slate-200`} />
+                  <th className={`${thAlign} px-4 py-3 font-medium w-16`}>{t.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -263,7 +264,7 @@ export default function PaymentMethods() {
                         {typeLabel(m.type)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-normal break-words min-w-[22rem] max-w-none">{m.linked_account?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 truncate max-w-[14rem]" title={m.linked_account?.name ?? undefined}>{m.linked_account?.name ?? '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${m.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                         {m.is_active ? t.active : t.inactive}

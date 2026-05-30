@@ -13,6 +13,7 @@ import { asArray } from '../../utils/asArray'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useClientSort } from '../../hooks/useClientSort'
 import SortableTh from '../../components/ui/SortableTh'
+import TablePageSkeleton from '../../components/ui/TablePageSkeleton'
 import ChartOfAccountsImportWizard from './ChartOfAccountsImportWizard'
 import { buildAccountStatementSheetUrl } from './AccountStatement'
 import { getReportPeriodRange } from '../../utils/date'
@@ -409,8 +410,9 @@ export default function AccountList() {
 
   if (isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
+      <div className="p-6 space-y-6 min-w-0 max-w-full">
+        <div className="h-8 w-48 bg-slate-200 rounded animate-pulse" />
+        <TablePageSkeleton rows={10} />
       </div>
     )
   }

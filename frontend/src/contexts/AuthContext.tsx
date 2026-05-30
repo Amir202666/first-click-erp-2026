@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { api } from '../api/client'
+import { applyUiFontScaleIfChanged, readCachedUiFontScale } from '../utils/uiFontScaleStorage'
 
 interface User {
   id: number
@@ -58,8 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setCurrentTenant = (tenant: Tenant | null) => {
     setCurrentTenantState(tenant)
-    if (tenant) localStorage.setItem(TENANT_STORAGE_KEY, String(tenant.id))
-    else localStorage.removeItem(TENANT_STORAGE_KEY)
+    if (tenant) {
+      localStorage.setItem(TENANT_STORAGE_KEY, String(tenant.id))
+      applyUiFontScaleIfChanged(readCachedUiFontScale(tenant.id))
+    } else {
+      localStorage.removeItem(TENANT_STORAGE_KEY)
+    }
   }
 
   useEffect(() => {
