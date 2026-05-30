@@ -1,0 +1,19 @@
+[DEFAULT]
+bantime  = 3600
+findtime = 600
+maxretry = 5
+backend  = systemd
+
+[sshd]
+enabled = true
+port    = 2222
+# إن بقيت على 22: port = ssh
+
+[nginx-http-auth]
+enabled = true
+
+[nginx-limit-req]
+enabled  = true
+filter   = nginx-limit-req
+logpath  = /var/log/nginx/firstclick-error.log
+maxretry = 10

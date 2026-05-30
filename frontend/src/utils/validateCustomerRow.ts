@@ -22,24 +22,62 @@ const HEADER_SYNONYMS: Record<string, string[]> = {
   currency: ['currency', 'العملة'],
   credit_limit: ['credit_limit', 'credit', 'حد_الائتمان'],
   payment_terms: ['payment_terms', 'terms', 'days', 'أيام_السداد'],
-  opening_balance: ['opening_balance', 'balance', 'opening', 'الرصيد', 'الرصيد_الافتتاحي'],
-  opening_balance_date: ['opening_balance_date', 'balance_date', 'opening_date', 'تاريخ_الرصيد'],
+  opening_balance_date: [
+    'opening_balance_date',
+    'opening balance date',
+    'balance_date',
+    'تاريخ_الرصيد_الافتتاحي',
+    'تاريخ الرصيد الافتتاحي',
+  ],
+  opening_balance: [
+    'opening_balance',
+    'opening balance',
+    'الرصيد_الافتتاحي',
+    'الرصيد الافتتاحي',
+  ],
   notes: ['notes', 'note', 'remarks', 'ملاحظات'],
 }
 
+function headerMatchScore(headerNorm: string, synonym: string): number {
+  const syn = normHeader(synonym)
+  if (!syn) return 0
+  if (headerNorm === syn) return 100
+  if (headerNorm.startsWith(`${syn}_`) || headerNorm.endsWith(`_${syn}`)) return 80
+  if (headerNorm.includes(syn)) return syn.length >= 6 ? 40 : 0
+  return 0
+}
+
+const FIELD_MATCH_ORDER = Object.keys(HEADER_SYNONYMS)
+
 export function guessCustomerFieldMapping(headers: string[]): FieldMapping[] {
-  const used = new Set<string>()
-  return headers.map((fileColumn) => {
-    const n = normHeader(fileColumn)
-    for (const [field, syns] of Object.entries(HEADER_SYNONYMS)) {
-      if (used.has(fileColumn)) break
-      if (syns.some((s) => n === normHeader(s) || n.includes(normHeader(s)))) {
-        used.add(fileColumn)
-        return { fileColumn, systemField: field as FieldMapping['systemField'] }
+  const columnToField = new Map<string, FieldMapping['systemField']>()
+
+  for (const field of FIELD_MATCH_ORDER) {
+    const syns = HEADER_SYNONYMS[field]
+    let bestColumn: string | null = null
+    let bestScore = 0
+
+    for (const fileColumn of headers) {
+      if (columnToField.has(fileColumn)) continue
+      const n = normHeader(fileColumn)
+      for (const syn of syns) {
+        const score = headerMatchScore(n, syn)
+        if (score > bestScore) {
+          bestScore = score
+          bestColumn = fileColumn
+        }
       }
     }
-    return { fileColumn, systemField: null }
-  })
+
+    if (bestColumn && bestScore > 0) {
+      columnToField.set(bestColumn, field as FieldMapping['systemField'])
+    }
+  }
+
+  return headers.map((fileColumn) => ({
+    fileColumn,
+    systemField: columnToField.get(fileColumn) ?? null,
+  }))
 }
 
 export function validateCustomerRow(
@@ -49,12 +87,25 @@ export function validateCustomerRow(
   const data: Partial<CustomerImportRow> = {}
   const errors: string[] = []
 
+  const DATE_LIKE = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/
+
   mapping.forEach(({ fileColumn, systemField }) => {
     if (!systemField) return
     const raw = row[fileColumn]
     if (raw === undefined || raw === null) return
     const value = String(raw).trim()
     if (value === '') return
+
+    if (systemField === 'opening_balance' || systemField === 'opening_balance_date') {
+      if (DATE_LIKE.test(value)) {
+        if (!data.opening_balance_date) data.opening_balance_date = value.slice(0, 10)
+      } else if (systemField === 'opening_balance' || data.opening_balance === undefined) {
+        const num = Number(value.replace(/,/g, ''))
+        if (!Number.isNaN(num)) data.opening_balance = num
+      }
+      return
+    }
+
     ;(data as Record<string, unknown>)[systemField] = value
   })
 
@@ -87,7 +138,8 @@ export function validateCustomerRow(
   }
 
   if (data.opening_balance !== undefined) {
-    const num = Number(String(data.opening_balance).replace(/,/g, ''))
+    const raw = String(data.opening_balance).trim()
+    const num = Number(raw.replace(/,/g, ''))
     if (Number.isNaN(num)) {
       errors.push('الرصيد الافتتاحي يجب أن يكون رقماً')
     } else {

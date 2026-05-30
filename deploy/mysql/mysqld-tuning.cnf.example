@@ -1,0 +1,20 @@
+# MySQL 8 tuning — First Click ERP
+# cp إلى /etc/mysql/mysql.conf.d/99-firstclick.cnf
+# ملاحظة: query_cache أُزيل في MySQL 8 — لا تفعّله
+
+[mysqld]
+innodb_buffer_pool_size = 512M
+innodb_log_file_size    = 128M
+innodb_flush_log_at_trx_commit = 2
+innodb_flush_method     = O_DIRECT
+
+max_connections = 100
+connect_timeout = 10
+wait_timeout    = 600
+
+slow_query_log      = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time     = 2
+
+character-set-server = utf8mb4
+collation-server     = utf8mb4_unicode_ci

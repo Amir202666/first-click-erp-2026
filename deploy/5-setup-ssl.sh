@@ -6,8 +6,8 @@
 set -e
 
 # ── EDIT THIS ──
-DOMAIN="yourdomain.com"
-EMAIL="your-email@gmail.com"
+DOMAIN="firstclickerp.top"
+EMAIL="admin@firstclickerp.com"
 
 echo "🔒 Setting up SSL for $DOMAIN..."
 

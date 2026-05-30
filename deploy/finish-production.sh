@@ -22,9 +22,9 @@ npm ci --prefer-offline
 npm run build
 
 echo "🔄 Reloading services..."
-sed -i 's/php8.2-fpm/php8.4-fpm/g' /var/www/erp/deploy/3-deploy.sh 2>/dev/null || true
+PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
 systemctl reload nginx
-systemctl reload php8.4-fpm
+systemctl reload "php${PHP_VER}-fpm" 2>/dev/null || systemctl reload php8.2-fpm
 
 echo ""
 echo "✅ Production setup complete!"

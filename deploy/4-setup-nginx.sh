@@ -6,7 +6,7 @@
 set -e
 
 # ── EDIT THIS ──
-DOMAIN="yourdomain.com"       # أو استخدم الـ IP مؤقتاً
+DOMAIN="firstclickerp.top"    # عدّل إن لزم
 SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 
 echo "🌐 Setting up Nginx for: $DOMAIN (IP: $SERVER_IP)"
@@ -21,27 +21,26 @@ server {
     access_log /var/log/nginx/firstclick-access.log;
     error_log  /var/log/nginx/firstclick-error.log;
 
-    # ── Frontend (React SPA) ──
-    root /var/www/erp/frontend/dist;
-    index index.html;
+    # SPA + Laravel من نفس المجلد (بعد deploy.sh)
+    root /var/www/erp/backend/public;
+    index index.html index.php;
 
-    # React Router — all routes fallback to index.html
+    location ^~ /api {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ^~ /sanctum {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
     location / {
         try_files \$uri \$uri/ /index.html;
     }
 
-    # ── Backend API (Laravel) ──
-    location ^~ /api {
+    location ~ \.php\$ {
+        include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME /var/www/erp/backend/public/index.php;
-        include fastcgi_params;
-        fastcgi_read_timeout 300;
-    }
-
-    location ^~ /sanctum {
-        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME /var/www/erp/backend/public/index.php;
-        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         fastcgi_read_timeout 300;
     }
 

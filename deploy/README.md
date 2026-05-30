@@ -2,6 +2,8 @@
 
 دليل رفع النظام على VPS من Hostinger (Ubuntu) خطوة بخطوة.
 
+> **تأمين وأداء السيرفر (شامل):** [`docs/SERVER-SECURITY-PERFORMANCE.md`](../docs/SERVER-SECURITY-PERFORMANCE.md)
+
 ---
 
 ## المتطلبات
@@ -175,6 +177,8 @@ chown -R www-data:www-data /var/www/erp/backend/bootstrap/cache
 | `3-deploy.sh` | كل تحديث — pull, migrate, build |
 | `4-setup-nginx.sh` | مرة واحدة — إعداد الموقع |
 | `5-setup-ssl.sh` | مرة واحدة — HTTPS |
+| `6-apply-performance.sh` | Redis + OPcache + Supervisor + cache |
+| `nginx/firstclick-erp-ssl.conf` | Nginx إنتاج HTTPS |
 | `env.production` | قالب `backend/.env` |
 
 ---
