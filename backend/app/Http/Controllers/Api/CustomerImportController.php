@@ -55,7 +55,7 @@ class CustomerImportController extends Controller
             'imported' => $result['imported'],
             'skipped' => $result['skipped'],
             'errors' => count($result['errors']),
-            'accounts_opened' => $result['accountsOpened'],
+            'accounts_opened' => $result['accounts_opened'] ?? 0,
             'errorRows' => $result['errors'],
         ]);
     }

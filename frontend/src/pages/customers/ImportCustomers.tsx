@@ -40,6 +40,7 @@ export default function ImportCustomers() {
     importOpeningBalance: true,
   })
   const [uploadError, setUploadError] = useState('')
+  const [importError, setImportError] = useState('')
   const [result, setResult] = useState<ImportResult | null>(null)
 
   const { data: existingCustomers } = useQuery({
@@ -104,10 +105,29 @@ export default function ImportCustomers() {
   }, [rawRows, mapping, existingNames, settings.updateExisting, isAr])
 
   const importMut = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      if (!tenantId) {
+        throw new Error(isAr ? 'لم يتم تحديد الشركة — أعد تسجيل الدخول' : 'No company selected — please log in again')
+      }
+      if (!settings.parentAccountId) {
+        throw new Error(isAr ? 'اختر الحساب الأب في الخطوة 3' : 'Select parent account in step 3')
+      }
+
       const customers = previewRows
         .filter((r) => r._status === 'valid')
-        .map(({ _rowIndex, _errors, _status, ...row }) => row)
+        .map(({ _rowIndex, _errors, _status, ...row }) => {
+          const clean: Record<string, unknown> = {}
+          Object.entries(row).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+              clean[key] = value
+            }
+          })
+          return clean as CustomerImportRow
+        })
+
+      if (customers.length === 0) {
+        throw new Error(isAr ? 'لا توجد صفوف صالحة للاستيراد' : 'No valid rows to import')
+      }
 
       return importCustomersBatch(tenantId, {
         customers,
@@ -118,10 +138,22 @@ export default function ImportCustomers() {
       })
     },
     onSuccess: (data) => {
+      setImportError('')
       setResult(data)
       setStep(5)
       queryClient.invalidateQueries({ queryKey: ['customers', tenantId] })
       queryClient.invalidateQueries({ queryKey: ['accounts', tenantId] })
+    },
+    onError: (err: unknown) => {
+      const res = (err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })?.response?.data
+      const msg =
+        res?.errors?.customers?.[0]
+        ?? res?.errors?.parent_account_id?.[0]
+        ?? Object.values(res?.errors ?? {})[0]?.[0]
+        ?? res?.message
+        ?? (err instanceof Error ? err.message : null)
+        ?? (isAr ? 'فشل الاستيراد — تحقق من الاتصال أو سجلات الخادم' : 'Import failed — check connection or server logs')
+      setImportError(msg)
     },
   })
 
@@ -162,6 +194,10 @@ export default function ImportCustomers() {
       <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
         {uploadError ? (
           <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{uploadError}</p>
+        ) : null}
+
+        {importError && step === 4 ? (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{importError}</p>
         ) : null}
 
         {step === 1 ? (
@@ -212,7 +248,10 @@ export default function ImportCustomers() {
               <button
                 type="button"
                 disabled={!canNext() || importMut.isPending}
-                onClick={() => importMut.mutate()}
+                onClick={() => {
+                  setImportError('')
+                  importMut.mutate()
+                }}
                 className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm text-white disabled:opacity-50"
               >
                 <FileInput className="h-4 w-4" />

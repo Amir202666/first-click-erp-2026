@@ -106,7 +106,12 @@ class CustomerWizardImportService
             }
         }
 
-        return compact('imported', 'skipped', 'accountsOpened', 'errors');
+        return [
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'accounts_opened' => $accountsOpened,
+            'errors' => $errors,
+        ];
     }
 
     /** @param  array<string, mixed>  $row */

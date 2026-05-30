@@ -12,11 +12,16 @@ export default function StepResult({ lang, result }: StepResultProps) {
   const isAr = lang === 'ar'
   const navigate = useNavigate()
 
+  const hasSuccess = result.imported > 0
+  const hasErrors = result.errors > 0
+
   return (
     <div className="space-y-6 text-center">
-      <div className="text-4xl">✅</div>
+      <div className="text-4xl">{hasSuccess ? (hasErrors ? '⚠️' : '✅') : '❌'}</div>
       <h2 className="text-lg font-semibold text-slate-900">
-        {isAr ? 'اكتمل الاستيراد' : 'Import completed'}
+        {hasSuccess
+          ? (isAr ? 'اكتمل الاستيراد' : 'Import completed')
+          : (isAr ? 'لم يُستورد أي عميل' : 'No customers imported')}
       </h2>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
