@@ -70,8 +70,8 @@ export default function Login() {
           : 'Too many attempts — wait a minute and try again'
       } else if (status && status >= 500) {
         msg = lang === 'ar'
-          ? 'خطأ في الخادم — راجع إعداد Redis أو سجلات Laravel'
-          : 'Server error — check Redis or Laravel logs'
+          ? 'خطأ في الخادم — تأكد أن MySQL شغّال (XAMPP) ثم نفّذ: cd backend && php artisan config:clear && php artisan local:setup'
+          : 'Server error — ensure MySQL is running (XAMPP), then: php artisan config:clear && php artisan local:setup'
       } else if (!axiosErr.response) {
         msg = lang === 'ar'
           ? 'فشل الاتصال بالخادم — تأكد أن الموقع يعمل'

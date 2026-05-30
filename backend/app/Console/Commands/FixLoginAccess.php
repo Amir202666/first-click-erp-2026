@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 class FixLoginAccess extends Command
 {
     protected $signature = 'admin:fix-login
-                            {--slug=firstclick-erp : معرف الشركة للدخول}';
+                            {--slug=first-company : معرف الشركة للدخول}';
 
     protected $description = 'إصلاح فشل تسجيل الدخول: مسح cache، إعادة Super Admin، فحص الربط';
 

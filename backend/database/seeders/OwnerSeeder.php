@@ -15,7 +15,7 @@ use Illuminate\Database\Seeder;
  */
 class OwnerSeeder extends Seeder
 {
-    public const OWNER_SLUG = 'firstclick-erp';
+    public const OWNER_SLUG = 'first-company';
 
     public const OWNER_USERNAME = 'firstclick-erp';
 
