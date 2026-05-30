@@ -9,6 +9,8 @@ use App\Models\SubscriptionPlan;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * حساب مالك النظام — Super Admin + شركة رئيسية + اشتراك دائم.
@@ -82,11 +84,33 @@ class OwnerSeeder extends Seeder
             );
         }
 
-        $this->command->info('=== حساب مالك النظام (Super Admin) ===');
+        $this->purgeExtraAccounts($user, $tenant);
+
+        $this->command->info('=== حساب الدخول الوحيد ===');
         $this->command->info('  معرف الشركة: '.self::OWNER_SLUG);
-        $this->command->info('  اسم الشركة: FIRST CLICK ERP');
         $this->command->info('  اسم المستخدم: '.self::OWNER_USERNAME);
         $this->command->info('  كلمة المرور: '.self::OWNER_PASSWORD);
-        $this->command->info('  صلاحيات: Super Admin + إدارة البرنامج + اشتراك حتى 2038');
+        $this->command->info('  صلاحيات: Super Admin + اشتراك حتى 2038');
+    }
+
+    /** يبقي حساب firstclick-erp وشركة first-company فقط */
+    private function purgeExtraAccounts(User $owner, Tenant $tenant): void
+    {
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+        if (Schema::hasTable('personal_access_tokens')) {
+            DB::table('personal_access_tokens')
+                ->where('tokenable_type', User::class)
+                ->where('tokenable_id', '!=', $owner->id)
+                ->delete();
+        }
+
+        DB::table('tenant_users')->where('user_id', '!=', $owner->id)->delete();
+        DB::table('tenant_users')->where('tenant_id', '!=', $tenant->id)->delete();
+
+        User::where('id', '!=', $owner->id)->delete();
+        Tenant::withTrashed()->where('id', '!=', $tenant->id)->forceDelete();
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
 }

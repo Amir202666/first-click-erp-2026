@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
-import { Globe } from 'lucide-react'
+import { Eye, EyeOff, Globe } from 'lucide-react'
 
 const BRAND_TAGLINE =
   (lang: string) =>
@@ -10,10 +10,17 @@ const BRAND_TAGLINE =
       ? 'برنامج محاسبي | ذكاء محلي | انتشار عالمي'
       : 'ACCOUNTING SOFTWARE | LOCAL INTELLIGENCE | GLOBAL REACH'
 
+const LOGIN_CREDENTIALS = {
+  company: 'first-company',
+  username: 'firstclick-erp',
+  password: 'FirstClickERP',
+} as const
+
 export default function Login() {
   const [company, setCompany] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
@@ -47,10 +54,14 @@ export default function Login() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    await doLogin(company, username, password)
+  }
+
+  async function doLogin(companyValue: string, usernameValue: string, passwordValue: string) {
     setError('')
     setLoading(true)
     try {
-      await login(company, username, password)
+      await login(companyValue.trim(), usernameValue.trim(), passwordValue.trim())
       navigate('/')
     } catch (err: unknown) {
       const axiosErr = err as {
@@ -119,7 +130,7 @@ export default function Login() {
               <h1 className="text-lg font-semibold text-slate-900 md:text-xl">{t.integratedAccountingSystem}</h1>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
               {error && (
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
               )}
@@ -130,9 +141,10 @@ export default function Login() {
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition-shadow focus:border-cyan-500 focus:ring-2 focus:ring-inset focus:ring-cyan-500/25"
-                  placeholder={lang === 'ar' ? 'أدخل معرف الشركة المختصر' : 'Company ID (e.g. first-company)'}
+                  placeholder={lang === 'ar' ? 'first-company' : 'first-company'}
                   required
-                  autoComplete="organization"
+                  autoComplete="off"
+                  spellCheck={false}
                 />
               </div>
               <div>
@@ -142,22 +154,35 @@ export default function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition-shadow focus:border-cyan-500 focus:ring-2 focus:ring-inset focus:ring-cyan-500/25"
-                  placeholder={lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+                  placeholder="firstclick-erp"
                   required
-                  autoComplete="username"
+                  autoComplete="off"
+                  spellCheck={false}
                 />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">{t.password}</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition-shadow focus:border-cyan-500 focus:ring-2 focus:ring-inset focus:ring-cyan-500/25"
-                  placeholder="••••••••"
-                  required
-                  autoComplete="current-password"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 pe-11 text-sm text-slate-900 placeholder-slate-400 outline-none transition-shadow focus:border-cyan-500 focus:ring-2 focus:ring-inset focus:ring-cyan-500/25"
+                    placeholder="FirstClickERP"
+                    required
+                    autoComplete="new-password"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 end-2 flex items-center rounded-lg px-2 text-slate-400 hover:text-slate-600"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
               <button
                 type="submit"
@@ -166,9 +191,48 @@ export default function Login() {
               >
                 {loading ? t.loggingIn : t.login}
               </button>
+              {import.meta.env.DEV && (
+                <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] leading-relaxed text-amber-950">
+                  <p className="font-semibold">
+                    {lang === 'ar' ? 'حساب الدخول الوحيد:' : 'Login account:'}
+                  </p>
+                  <p className="font-mono text-[10px]">
+                    first-company | firstclick-erp | FirstClickERP
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void doLogin(
+                          LOGIN_CREDENTIALS.company,
+                          LOGIN_CREDENTIALS.username,
+                          LOGIN_CREDENTIALS.password,
+                        )
+                      }}
+                      disabled={loading}
+                      className="rounded-lg border border-emerald-400 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      {lang === 'ar' ? 'دخول مباشر' : 'Quick login'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError('')
+                        setCompany(LOGIN_CREDENTIALS.company)
+                        setUsername(LOGIN_CREDENTIALS.username)
+                        setPassword(LOGIN_CREDENTIALS.password)
+                        setShowPassword(true)
+                      }}
+                      className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[10px] font-medium text-amber-900 hover:bg-amber-100"
+                    >
+                      {lang === 'ar' ? 'ملء البيانات' : 'Fill credentials'}
+                    </button>
+                  </div>
+                </div>
+              )}
               <p className="pt-1 text-center text-[11px] leading-relaxed text-slate-500">
                 {t.loginDemoHint ??
-                  'المالك: المعرف = firstclick-erp، المستخدم = firstclick-erp، كلمة المرور = FirstClickERP'}
+                  'first-company | firstclick-erp | FirstClickERP'}
               </p>
             </form>
           </div>

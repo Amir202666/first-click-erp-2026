@@ -30,22 +30,18 @@ class LocalSetup extends Command
         }
         $this->line('  ✓ migrations');
 
-        Artisan::call('db:seed', ['--class' => 'SubscriptionPlanSeeder', '--force' => true]);
         Artisan::call('db:seed', ['--class' => 'OwnerSeeder', '--force' => true]);
-        Artisan::call('admin:create');
         Artisan::call('tenants:seed-defaults');
-        $this->line('  ✓ بيانات افتراضية + Super Admin');
+        $this->line('  ✓ حساب واحد + بيانات افتراضية');
 
         $this->newLine();
-        $this->info('═══ بيانات الدخول المحلية (نفس الإنتاج) ═══');
+        $this->info('═══ بيانات الدخول (محلي = إنتاج) ═══');
         $this->table(
             ['الحقل', 'القيمة'],
             [
                 ['معرف الشركة', 'first-company'],
-                ['Super Admin — بريد', 'admin@firstclickerp.com'],
-                ['Super Admin — كلمة المرور', 'FirstClick@2026'],
-                ['المالك — مستخدم', 'firstclick-erp'],
-                ['المالك — كلمة المرور', 'FirstClickERP'],
+                ['اسم المستخدم', 'firstclick-erp'],
+                ['كلمة المرور', 'FirstClickERP'],
             ]
         );
         $this->comment('شغّل: scripts\\local-dev.cmd ثم افتح http://localhost:5173');

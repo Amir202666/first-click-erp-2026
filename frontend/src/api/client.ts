@@ -1,7 +1,7 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios'
 
-// في التطوير: الاتصال المباشر بالخادم (يفضّل وجود VITE_API_URL في .env مثل http://127.0.0.1:8000/api)
-const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000/api' : '/api')
+// نفس المنشأ عبر Vite proxy (/api → 127.0.0.1:8000) لتجنّب مشاكل CORS والكookies
+const apiBase = import.meta.env.VITE_API_URL || '/api'
 
 const MAX_NETWORK_RETRIES = 3
 const RETRY_DELAY_MS = 1500

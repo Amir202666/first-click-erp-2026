@@ -49,8 +49,8 @@ echo [4/4] تم!
 echo.
 echo ═══ بيانات الدخول المحلية ═══
 echo   معرف الشركة:  first-company
-echo   Super Admin:   admin@firstclickerp.com / FirstClick@2026
-echo   المالك:        firstclick-erp / FirstClickERP
+echo   اسم المستخدم:  firstclick-erp
+echo   كلمة المرور:   FirstClickERP
 echo.
 echo   شغّل: scripts\local-dev.cmd
 echo   افتح: http://localhost:5173

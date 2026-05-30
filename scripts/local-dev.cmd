@@ -7,7 +7,7 @@ echo ========================================
 echo  First Click ERP - وضع التطوير
 echo ========================================
 echo   Backend:  http://127.0.0.1:8000
-echo   Frontend: http://localhost:5173
+echo   Frontend: http://127.0.0.1:5173
 echo   Health:   http://127.0.0.1:8000/api/health
 echo.
 echo   أغلق النوافذ لإيقاف الخوادم.

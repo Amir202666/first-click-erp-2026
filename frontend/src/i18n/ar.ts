@@ -58,7 +58,7 @@ const ar = {
   loginCompanyName: 'معرف الشركة المختصر',
   loginUsername: 'اسم المستخدم',
   loginDemoHint:
-    'firstclick-erp | المستخدم: firstclick-erp | كلمة المرور: FirstClickERP — أو Super Admin: admin@firstclickerp.com / FirstClick@2026',
+    'first-company | firstclick-erp | FirstClickERP',
   logout: 'تسجيل الخروج',
   email: 'البريد الإلكتروني',
   password: 'كلمة المرور',

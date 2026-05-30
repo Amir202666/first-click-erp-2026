@@ -84,7 +84,35 @@ php artisan tenant:export --tenant=1 --output=storage/app/exports/tenant1.sql
 
 ---
 
-## نسخة احتياطية قبل الاستيراد
+## نقل دليل الحسابات فقط (بدون قاعدة البيانات كاملة)
+
+عندما يكون المحلي فيه دليل حسابات كامل (مثلاً 103 حساب) والسيرفر فيه دليل مختصر (مثلاً 45):
+
+### 1) على جهازك — تصدير الدليل
+
+```batch
+scripts\export-chart-local.bat first-company
+```
+
+ينشئ: `backend\storage\app\exports\chart_first-company.json`
+
+### 2) على جهازك — رفع الملف
+
+```batch
+scripts\upload-chart-to-server.bat first-company
+```
+
+### 3) على السيرفر — استبدال الدليل (أمر واحد)
+
+```bash
+cd /var/www/erp/backend && php artisan accounts:replace-chart --slug=first-company --file=storage/app/imports/chart_first-company.json --force
+```
+
+> ⚠ يحذف **كل** حسابات الشركة على السيرفر ويستبدلها بالمحلي.  
+> يُحفظ نسخة احتياطية تلقائياً في `backend/storage/app/exports/chart_backup_*.json`
+
+---
+
 
 السكريبت `sync-database.sh` يحفظ تلقائياً في:
 
