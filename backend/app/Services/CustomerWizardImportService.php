@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Account;
 use App\Models\Customer;
+use App\Support\SqlHelper;
 use Illuminate\Support\Facades\DB;
 
 class CustomerWizardImportService
@@ -166,7 +167,7 @@ class CustomerWizardImportService
     {
         $lastChild = Account::where('tenant_id', $tenantId)
             ->where('parent_id', $parentAccount->id)
-            ->orderByRaw('CAST(code AS INTEGER) DESC')
+            ->orderByRaw(SqlHelper::orderByNumericDesc('code'))
             ->first();
 
         $nextCode = $lastChild

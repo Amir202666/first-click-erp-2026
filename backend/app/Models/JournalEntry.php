@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\FiscalYearLockService;
+use App\Support\SqlHelper;
 use App\Traits\Auditable;
 use App\Traits\BelongsToTenant;
 use App\Traits\HasAutoNumber;
@@ -99,7 +100,7 @@ class JournalEntry extends Model
         $last = static::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
             ->where('number', 'like', $fullPrefix.'%')
-            ->orderByRaw("CAST(REPLACE(number, '{$fullPrefix}', '') AS INTEGER) DESC")
+            ->orderByRaw(SqlHelper::orderByNumericDesc("REPLACE(number, '{$fullPrefix}', '')"))
             ->value('number');
 
         if ($last) {

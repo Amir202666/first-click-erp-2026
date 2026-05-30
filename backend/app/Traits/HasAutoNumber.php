@@ -2,6 +2,8 @@
 
 namespace App\Traits;
 
+use App\Support\SqlHelper;
+
 trait HasAutoNumber
 {
     public static function bootHasAutoNumber(): void
@@ -29,11 +31,14 @@ trait HasAutoNumber
         $year = date('Y');
         $fullPrefix = $prefix.$year.'-';
 
+        $field = $model->getNumberField();
+        $replaceExpr = "REPLACE({$field}, '{$fullPrefix}', '')";
+
         $last = static::withoutGlobalScopes()
             ->where('tenant_id', $model->tenant_id)
-            ->where($model->getNumberField(), 'like', $fullPrefix.'%')
-            ->orderByRaw("CAST(REPLACE({$model->getNumberField()}, '{$fullPrefix}', '') AS INTEGER) DESC")
-            ->value($model->getNumberField());
+            ->where($field, 'like', $fullPrefix.'%')
+            ->orderByRaw(SqlHelper::orderByNumericDesc($replaceExpr))
+            ->value($field);
 
         if ($last) {
             $lastNum = (int) str_replace($fullPrefix, '', $last);

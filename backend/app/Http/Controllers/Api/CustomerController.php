@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Support\SqlHelper;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Installment;
@@ -147,7 +148,7 @@ class CustomerController extends Controller
                 if ($parentAccount) {
                     $lastChild = Account::where('tenant_id', $request->tenant_id)
                         ->where('parent_id', $parentAccount->id)
-                        ->orderByRaw('CAST(code AS INTEGER) DESC')
+                        ->orderByRaw(SqlHelper::orderByNumericDesc('code'))
                         ->first();
 
                     $nextCode = $lastChild

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\DeliveryDriver;
+use App\Support\SqlHelper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -145,7 +146,7 @@ class DeliveryDriverController extends Controller
 
         // Numeric-ish sequential code per tenant (stored as string)
         $last = DeliveryDriver::where('tenant_id', $tenantId)
-            ->orderByRaw('CAST(code AS INTEGER) DESC')
+            ->orderByRaw(SqlHelper::orderByNumericDesc('code'))
             ->select('code')
             ->first();
 

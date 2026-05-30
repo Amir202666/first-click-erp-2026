@@ -9,6 +9,7 @@ use App\Models\TenantAccountDefault;
 use App\Models\Vendor;
 use App\Models\VendorGroup;
 use App\Support\PartySearchTerms;
+use App\Support\SqlHelper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -137,7 +138,7 @@ class VendorController extends Controller
                 if ($parentAccount) {
                     $lastChild = Account::where('tenant_id', $request->tenant_id)
                         ->where('parent_id', $parentAccount->id)
-                        ->orderByRaw('CAST(code AS INTEGER) DESC')
+                        ->orderByRaw(SqlHelper::orderByNumericDesc('code'))
                         ->first();
 
                     $nextCode = $lastChild

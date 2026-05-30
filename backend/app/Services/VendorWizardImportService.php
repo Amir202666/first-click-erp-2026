@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Account;
 use App\Models\Vendor;
 use App\Models\VendorGroup;
+use App\Support\SqlHelper;
 
 class VendorWizardImportService
 {
@@ -161,7 +162,7 @@ class VendorWizardImportService
     ): Account {
         $lastChild = Account::where('tenant_id', $tenantId)
             ->where('parent_id', $parentAccount->id)
-            ->orderByRaw('CAST(code AS INTEGER) DESC')
+            ->orderByRaw(SqlHelper::orderByNumericDesc('code'))
             ->first();
 
         $nextCode = $lastChild
