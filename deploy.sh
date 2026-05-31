@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
-# First Click ERP — نشر التحديثات على السيرفر
+# First Click ERP — نشر التحديثات على السيرفر (نسخة مستقرة)
 # الاستخدام: bash /var/www/erp/deploy.sh
 # ═══════════════════════════════════════════════════════════
 set -euo pipefail
@@ -16,6 +16,11 @@ detect_php_fpm() {
     if [ -S "$s" ]; then echo "$s"; return; fi
   done
   echo "unix:/var/run/php/php8.2-fpm.sock"
+}
+
+ensure_laravel_entry() {
+  cp -f "$PROJECT_DIR/deploy/stubs/laravel-public/index.php" "$PUBLIC_DIR/index.php"
+  cp -f "$PROJECT_DIR/deploy/stubs/laravel-public/.htaccess" "$PUBLIC_DIR/.htaccess"
 }
 
 echo "========================================"
@@ -46,10 +51,9 @@ trap cleanup EXIT
 # ── 2. جلب التعديلات ─────────────────────────────────────
 echo "📥 git pull..."
 cd "$PROJECT_DIR"
-if [ -n "$(git status --porcelain scripts/sync-database.sh 2>/dev/null)" ]; then
-  git checkout -- scripts/sync-database.sh 2>/dev/null || true
-fi
-git pull origin main
+git fetch origin main
+git reset --hard origin/main
+echo "📌 $(git log -1 --oneline)"
 
 # ── 3. Backend ───────────────────────────────────────────
 echo "📦 composer install..."
@@ -62,7 +66,7 @@ php artisan migrate --force
 echo "👤 حساب الدخول الوحيد..."
 php artisan db:seed --class=OwnerSeeder --force 2>/dev/null || true
 
-# ── 4. Frontend build → backend/public (يحفظ index.php) ──
+# ── 4. Frontend build → backend/public ───────────────────
 echo "🎨 بناء الواجهة..."
 cd "$FRONTEND_DIR"
 if [ -f package-lock.json ]; then
@@ -73,16 +77,15 @@ fi
 npm run build
 
 bash "$PROJECT_DIR/deploy/lib/sync-public.sh" "$PROJECT_DIR"
+ensure_laravel_entry
 
-# ── 5. Cache — آمن (Redis اختياري) ───────────────────────
+# ── 5. Cache ───────────────────────────────────────────────
 echo "⚡ cache..."
 cd "$BACKEND_DIR"
 php artisan storage:link 2>/dev/null || true
 
 if grep -qE '^CACHE_STORE=redis' .env 2>/dev/null; then
-  if ! php artisan cache:clear 2>/dev/null; then
-    echo "⚠️  Redis غير متاح — استخدم database في .env للاستقرار"
-  fi
+  php artisan cache:clear 2>/dev/null || echo "⚠️  Redis غير متاح — تجاهل cache:clear"
 fi
 
 php artisan config:clear
@@ -93,12 +96,7 @@ php artisan route:cache
 php artisan view:cache
 php artisan event:cache 2>/dev/null || true
 
-if id www-data &>/dev/null; then
-  chown -R www-data:www-data "$BACKEND_DIR/storage" "$BACKEND_DIR/bootstrap/cache" "$PUBLIC_DIR/index.php" 2>/dev/null || true
-fi
-chmod -R 775 "$BACKEND_DIR/storage" "$BACKEND_DIR/bootstrap/cache" 2>/dev/null || true
-
-# ── 6. Nginx (تطبيق القالب إن وُجد) ───────────────────────
+# ── 6. Nginx ───────────────────────────────────────────────
 PHP_SOCK=$(detect_php_fpm)
 if [ -f "$PROJECT_DIR/deploy/nginx/firstclick-erp-ssl.conf" ] && [ -d /etc/nginx/sites-available ]; then
   cp "$PROJECT_DIR/deploy/nginx/firstclick-erp-ssl.conf" /etc/nginx/sites-available/firstclick-erp
@@ -106,26 +104,40 @@ if [ -f "$PROJECT_DIR/deploy/nginx/firstclick-erp-ssl.conf" ] && [ -d /etc/nginx
   ln -sf /etc/nginx/sites-available/firstclick-erp /etc/nginx/sites-enabled/firstclick-erp 2>/dev/null || true
 fi
 
-# ── 7. خدمات ─────────────────────────────────────────────
+# ── 7. إيقاف الصيانة قبل الفحص (مهم — الفحص HTTP يفشل أثناء الصيانة) ──
+echo "▶  رفع وضع الصيانة قبل الفحص..."
+php artisan up
+trap - EXIT
+
+if id www-data &>/dev/null; then
+  chown -R www-data:www-data "$BACKEND_DIR/storage" "$BACKEND_DIR/bootstrap/cache" "$PUBLIC_DIR/index.php" 2>/dev/null || true
+fi
+chmod -R 775 "$BACKEND_DIR/storage" "$BACKEND_DIR/bootstrap/cache" 2>/dev/null || true
+
 if command -v systemctl &>/dev/null; then
-  nginx -t 2>/dev/null && systemctl reload nginx 2>/dev/null || true
+  nginx -t
+  systemctl reload nginx
   systemctl reload php8.4-fpm 2>/dev/null || systemctl reload php8.2-fpm 2>/dev/null || systemctl reload php-fpm 2>/dev/null || true
 fi
 if command -v supervisorctl &>/dev/null; then
   supervisorctl restart laravel-worker:* 2>/dev/null || true
 fi
 
-# ── 8. تحقق API (حرج لتسجيل الدخول) ──────────────────────
+# ── 8. تحقق API ───────────────────────────────────────────
 if ! bash "$PROJECT_DIR/deploy/lib/verify-api.sh" "$BACKEND_DIR"; then
-  echo "🔧 إصلاح تلقائي: استعادة index.php..."
-  cp -f "$PROJECT_DIR/deploy/stubs/laravel-public/index.php" "$PUBLIC_DIR/index.php"
+  echo "🔧 إصلاح index.php وإعادة المحاولة..."
+  ensure_laravel_entry
   systemctl reload nginx 2>/dev/null || true
-  bash "$PROJECT_DIR/deploy/lib/verify-api.sh" "$BACKEND_DIR" || {
-    echo "❌ ما زال API معطلاً — راجع: tail /var/log/nginx/firstclick-error.log"
-    exit 1
-  }
+  bash "$PROJECT_DIR/deploy/lib/verify-api.sh" "$BACKEND_DIR"
 fi
 
+# ── 9. سجل النشر ─────────────────────────────────────────
+DEPLOY_REV=$(git -C "$PROJECT_DIR" rev-parse --short HEAD)
+echo "$DEPLOY_REV $(date -Iseconds)" > "$PUBLIC_DIR/deploy-revision.txt"
+echo "📋 revision: $DEPLOY_REV → https://firstclickerp.top/deploy-revision.txt"
+
 echo "========================================"
-echo "✅ Deploy اكتمل — تسجيل الدخول جاهز"
+echo "✅ Deploy اكتمل — $(date '+%H:%M')"
+echo "   حدّث المتصفح: Ctrl+Shift+R"
+echo "   أو امسح Service Worker من DevTools"
 echo "========================================"

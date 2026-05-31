@@ -146,6 +146,24 @@ VITE_API_URL=/api
 
 ---
 
+## النشر بعد كل تحديث (أمر واحد)
+
+```bash
+cd /var/www/erp && bash deploy.sh
+```
+
+**تحقق أن النسخة وصلت:**
+
+```bash
+curl -s https://firstclickerp.top/deploy-revision.txt
+```
+
+يجب أن يطابق آخر commit على GitHub (`git log -1 --oneline`).
+
+> **سبب فشل Deploy سابقاً:** الفحص كان يتم **أثناء وضع الصيانة** فيُرجع HTML/301 بدل `{"ok":true}`. تم إصلاح ذلك — الصيانة تُرفع قبل الفحص.
+
+---
+
 ## أوامر مفيدة
 
 ```bash
@@ -185,8 +203,9 @@ chown -R www-data:www-data /var/www/erp/backend/bootstrap/cache
 
 ## استكشاف الأخطاء
 
-| المشكلة | الحل |
-|---------|------|
+| التعديلات لا تظهر في المتصفح | امسح Service Worker + Clear site data، أو Ctrl+Shift+R. تحقق من `/deploy-revision.txt` |
+| deploy.sh يفشل عند فحص API | تأكد `php artisan up` — السكربت الجديد يرفع الصيانة قبل الفحص |
+| 301 على curl محلي | طبيعي لـ HTTP — الفحص يستخدم HTTPS `--resolve` أو Laravel داخلياً |
 | 502 Bad Gateway | `systemctl status php8.2-fpm` — تأكد من المسار `php8.2-fpm.sock` |
 | 500 Laravel | `tail storage/logs/laravel.log` — غالباً `.env` أو صلاحيات `storage` |
 | صفحة بيضاء / 404 للروابط | تأكد من `try_files` ووجود `frontend/dist/index.html` |
