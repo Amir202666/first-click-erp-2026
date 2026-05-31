@@ -606,7 +606,7 @@ export default function Layout({ children }: LayoutProps) {
   const navHoverClass = lightSidebarChrome ? 'hover:bg-black/[0.06]' : 'hover:bg-white/10'
 
   const navLinkClassName = (active: boolean) =>
-    `flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 ease-out text-sm ${navHoverClass} ${
+    `flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 ease-out text-sm text-start ${navHoverClass} ${
       active ? 'font-semibold' : 'font-medium'
     }`
 
@@ -675,6 +675,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar - مخفي في صفحة نقطة البيع وعند الطباعة */}
       {!isPosPage && (
       <aside
+        dir={isRtl ? 'rtl' : 'ltr'}
         className={`no-print
           max-lg:fixed max-lg:z-50 max-lg:inset-y-0
           lg:static lg:z-auto lg:transform-none
@@ -760,7 +761,7 @@ export default function Layout({ children }: LayoutProps) {
                     }
                   >
                     <Icon size={18} className="shrink-0 w-[18px] h-[18px]" />
-                    <span className={`flex-1 ${isRtl ? 'text-right' : 'text-left'}`}>{label(entry.labelKey)}</span>
+                    <span className="flex-1 min-w-0 truncate text-start">{label(entry.labelKey)}</span>
                     <ChevronDown
                       size={14}
                       className={`shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
@@ -772,7 +773,7 @@ export default function Layout({ children }: LayoutProps) {
                       expanded ? 'max-h-[70vh] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
                     }`}
                   >
-                    <div className={`${isRtl ? 'pr-3' : 'pl-3'} max-h-[70vh] overflow-y-auto overflow-x-hidden scrollbar-hide space-y-0.5 py-0.5`}>
+                    <div className="ps-3 max-h-[70vh] overflow-y-auto overflow-x-hidden scrollbar-hide space-y-0.5 py-0.5">
                       {(() => {
                         return visibleChildren.map((child) => {
                           const ChildIcon = child.icon

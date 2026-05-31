@@ -964,6 +964,13 @@
   direction: ltr;
 }
 
+/* عناصر القائمة داخل الشريط تتبع dir على <aside> — لا ترث ltr من الحاوية الخارجية */
+.app-shell-print-layout aside[dir='rtl'] nav a,
+.app-shell-print-layout aside[dir='rtl'] nav button {
+  flex-direction: row;
+  text-align: start;
+}
+
 .app-shell-layout-with-sidebar {
   display: flex;
   flex-direction: row;
