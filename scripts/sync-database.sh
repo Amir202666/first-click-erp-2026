@@ -1,5 +1,5 @@
 #!/bin/bash
-# استيراد نسخة MySQL مرفوعة إلى /tmp/db_backup.sql على السيرفر
+# استيراد نسخة MySQL — ارفع الملف إلى أحد المسارات (انظر publish-all-to-online.bat)
 set -euo pipefail
 
 echo "===================================="
@@ -14,8 +14,23 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-if [[ ! -f /tmp/db_backup.sql ]]; then
-  echo "[خطأ] /tmp/db_backup.sql غير موجود. ارفع الملف أولاً عبر upload-db-to-server.bat"
+DB_BACKUP_FILE=""
+for candidate in \
+  "/tmp/db_backup.sql" \
+  "$PROJECT_ROOT/db_backup.sql" \
+  "$PROJECT_ROOT/storage/db_backup.sql"; do
+  if [[ -f "$candidate" ]]; then
+    DB_BACKUP_FILE="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$DB_BACKUP_FILE" ]]; then
+  echo "[خطأ] ملف db_backup.sql غير موجود."
+  echo "ارفع عبر Hostinger File Manager إلى أحد:"
+  echo "  /var/www/erp/db_backup.sql          (الأسهل — داخل مجلد المشروع)"
+  echo "  /var/www/erp/storage/db_backup.sql"
+  echo "  /tmp/db_backup.sql"
   exit 1
 fi
 
@@ -40,7 +55,7 @@ fi
 
 echo "قاعدة البيانات: $DB_NAME"
 echo "المستخدم: $DB_USER"
-echo "الملف: /tmp/db_backup.sql ($(du -h /tmp/db_backup.sql | cut -f1))"
+echo "الملف: $DB_BACKUP_FILE ($(du -h "$DB_BACKUP_FILE" | cut -f1))"
 echo ""
 
 mysql_cmd() {
@@ -60,8 +75,8 @@ mysqldump_cmd --single-transaction --routines --triggers "$DB_NAME" > "$BACKUP_B
 echo "تم: $BACKUP_BEFORE"
 
 echo "جاري استيراد البيانات الجديدة..."
-if ! mysql_cmd "$DB_NAME" < /tmp/db_backup.sql; then
-  echo "[خطأ] فشل استيراد MySQL. راجع /tmp/db_backup.sql"
+if ! mysql_cmd "$DB_NAME" < "$DB_BACKUP_FILE"; then
+  echo "[خطأ] فشل استيراد MySQL. راجع $DB_BACKUP_FILE"
   php artisan up 2>/dev/null || true
   exit 1
 fi

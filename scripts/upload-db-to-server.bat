@@ -30,17 +30,25 @@ echo Latest backup: %LATEST%
 echo Server: %SERVER_USER%@%SERVER_IP%
 echo.
 
+set "UPLOAD_FILE=%BACKUP_DIR%\UPLOAD_AS_db_backup.sql"
+if not exist "%UPLOAD_FILE%" set "UPLOAD_FILE=%BACKUP_DIR%\%LATEST%"
+
 echo Step 1 of 2 - Uploading file...
-scp "%BACKUP_DIR%\%LATEST%" %SERVER_USER%@%SERVER_IP%:/tmp/db_backup.sql
+echo   %UPLOAD_FILE%
+echo   -^> %SERVER_PATH%/db_backup.sql
+scp "%UPLOAD_FILE%" %SERVER_USER%@%SERVER_IP%:%SERVER_PATH%/db_backup.sql
 if errorlevel 1 (
-    echo ERROR: Upload failed. Check SSH password and OpenSSH client.
+    echo.
+    echo ERROR: Upload failed.
+    echo Try WinSCP or Hostinger VPS Terminal - see:
+    echo   docs\رفع-قاعدة-على-VPS-بدون-فايل-مانجر.md
     pause
     exit /b 1
 )
 
 echo.
-echo Step 2 of 2 - Importing on server...
-ssh %SERVER_USER%@%SERVER_IP% "bash %SERVER_PATH%/scripts/sync-database.sh"
+echo Step 2 of 2 - Deploy + import on server...
+ssh %SERVER_USER%@%SERVER_IP% "bash %SERVER_PATH%/deploy/publish-all-online.sh"
 if errorlevel 1 (
     echo ERROR: Import failed. See SSH output above.
     pause

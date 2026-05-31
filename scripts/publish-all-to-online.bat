@@ -59,8 +59,11 @@ echo      %CD%\scripts\backups\
 echo   2. File to upload (easier name):
 echo      scripts\backups\UPLOAD_AS_db_backup.sql
 echo      (same as %LATEST%)
-echo   3. In Hostinger upload to EXACT path on server:
-echo      /tmp/db_backup.sql
+echo   3. Hostinger File Manager - EASY path (you WILL see this folder):
+echo      Open: var  ^>  www  ^>  erp
+echo      Upload file and name it exactly: db_backup.sql
+echo      Full path: /var/www/erp/db_backup.sql
+echo      (tmp folder is NOT needed in File Manager)
 echo.
 echo   4. Then Hostinger - Browser Terminal - ONE command:
 echo.

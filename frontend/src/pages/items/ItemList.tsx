@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo, type MouseEvent, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { getModalContainer } from '../../utils/modalContainer'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -30,7 +30,7 @@ import type {
   ItemAttributeTemplate,
 } from '../../types'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Search, X, FileText, Layers, Printer, FileSpreadsheet, Columns3 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, X, FileText, Layers, Printer, FileSpreadsheet, Columns3, MoreVertical } from 'lucide-react'
 import Toast, { type ToastType } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { formatAmount } from '../../utils/currency'
@@ -215,6 +215,24 @@ export default function ItemList() {
   const [visibleColumns, setVisibleColumns] = usePersistedColumnVisibility(ITEM_COLUMNS_STORAGE, ITEM_COLUMN_KEYS)
   const [showColumnsMenu, setShowColumnsMenu] = useState(false)
   const columnsMenuRef = useRef<HTMLDivElement>(null)
+  const [openActionsId, setOpenActionsId] = useState<number | null>(null)
+  const [actionsAnchor, setActionsAnchor] = useState<{ top: number; left: number; width: number } | null>(null)
+
+  const closeActionsMenu = useCallback(() => {
+    setOpenActionsId(null)
+    setActionsAnchor(null)
+  }, [])
+
+  const openItemActionsMenu = useCallback((e: MouseEvent<HTMLButtonElement>, itemId: number) => {
+    e.stopPropagation()
+    if (openActionsId === itemId) {
+      closeActionsMenu()
+      return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setActionsAnchor({ top: rect.bottom, left: rect.left, width: rect.width })
+    setOpenActionsId(itemId)
+  }, [openActionsId, closeActionsMenu])
   const [bomLines, setBomLines] = useState<BomFormRow[]>([])
   const [bomSearch, setBomSearch] = useState('')
   const { data: attributeTemplates = [] } = useQuery<ItemAttributeTemplate[]>({
@@ -764,7 +782,7 @@ export default function ItemList() {
                 <tr className="bg-slate-50 text-slate-600">
                   {visibleColumnKeys.map((k) =>
                     k === 'actions' ? (
-                      <th key={k} className={`${textAlign} px-2 py-2.5 font-medium w-28`}>{columnLabels[k]}</th>
+                      <th key={k} className={`${textAlign} px-2 py-2.5 font-medium w-16`}>{columnLabels[k]}</th>
                     ) : (
                       <SortableTh
                         key={k}
@@ -824,12 +842,18 @@ export default function ItemList() {
                         </td>
                       )
                       if (k === 'actions') return (
-                        <td key={k} className="px-2 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <Link to={`/items/${item.id}/ledger`} className="text-slate-600 hover:text-slate-900" title={t.inventory.itemLedger}><FileText size={16} /></Link>
-                            <button onClick={() => openEdit(item)} className="text-primary-600 hover:text-primary-500" title={t.edit}><Pencil size={16} /></button>
-                            <button onClick={() => setDeleteTarget(item)} className="text-red-500 hover:text-red-400" title={t.delete}><Trash2 size={16} /></button>
-                          </div>
+                        <td key={k} className="px-2 py-2.5 align-middle">
+                          <button
+                            type="button"
+                            onClick={(e) => openItemActionsMenu(e, item.id)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            title={t.actions}
+                            aria-label={t.actions}
+                            aria-expanded={openActionsId === item.id}
+                            aria-haspopup="menu"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
                         </td>
                       )
                       return <td key={k} />
@@ -1717,6 +1741,75 @@ export default function ItemList() {
         </div>,
           getModalContainer(),
         )}
+
+      {openActionsId !== null && actionsAnchor && (() => {
+        const actionItem = sortedItems.find((x) => x.id === openActionsId)
+        if (!actionItem) return null
+        const menuItemClass = `flex items-center gap-2 px-3 py-2 text-sm w-full ${isRtl ? 'text-right' : 'text-left'}`
+        const MENU_MIN = 180
+        const pad = 8
+        const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
+        const top = Math.min(actionsAnchor.top + 4, (typeof window !== 'undefined' ? window.innerHeight : 800) - 200)
+        const menuStyle: CSSProperties = isRtl
+          ? {
+              top,
+              left: Math.max(pad, Math.min(actionsAnchor.left + actionsAnchor.width, vw - MENU_MIN - pad)),
+              right: 'auto',
+            }
+          : (() => {
+              const right = vw - actionsAnchor.left
+              const menuLeft = vw - right - MENU_MIN
+              if (menuLeft < pad) return { top, left: pad, right: 'auto' as const }
+              return { top, right, left: 'auto' as const }
+            })()
+        const menu = (
+          <>
+            <div className="fixed inset-0 z-[9998]" aria-hidden onClick={closeActionsMenu} />
+            <div
+              role="menu"
+              dir={isRtl ? 'rtl' : 'ltr'}
+              className="fixed z-[9999] min-w-[180px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+              style={menuStyle}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Link
+                to={`/items/${actionItem.id}/ledger`}
+                role="menuitem"
+                onClick={closeActionsMenu}
+                className={`${menuItemClass} text-slate-700 hover:bg-slate-50`}
+              >
+                <FileText size={16} className="shrink-0 text-slate-600" />
+                {t.inventory.itemLedger}
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                className={`${menuItemClass} text-slate-700 hover:bg-slate-50`}
+                onClick={() => {
+                  closeActionsMenu()
+                  openEdit(actionItem)
+                }}
+              >
+                <Pencil size={16} className="shrink-0 text-primary-600" />
+                {t.edit}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className={`${menuItemClass} text-red-600 hover:bg-red-50`}
+                onClick={() => {
+                  closeActionsMenu()
+                  setDeleteTarget(actionItem)
+                }}
+              >
+                <Trash2 size={16} className="shrink-0" />
+                {t.delete}
+              </button>
+            </div>
+          </>
+        )
+        return typeof document !== 'undefined' ? createPortal(menu, document.body) : menu
+      })()}
 
       {showSaveItemConfirm && (
         <ConfirmDialog

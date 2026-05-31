@@ -18,16 +18,21 @@ echo ""
 echo "--- Deploy code (build, migrate, nginx) ---"
 bash "$PROJECT_DIR/deploy.sh"
 
-if [ -f /tmp/db_backup.sql ]; then
+DB_BACKUP=""
+for f in /tmp/db_backup.sql "$PROJECT_DIR/db_backup.sql" "$PROJECT_DIR/storage/db_backup.sql"; do
+  if [ -f "$f" ]; then DB_BACKUP="$f"; break; fi
+done
+
+if [ -n "$DB_BACKUP" ]; then
   echo ""
-  echo "--- Import FULL database from /tmp/db_backup.sql ---"
+  echo "--- Import FULL database from $DB_BACKUP ---"
   bash "$PROJECT_DIR/scripts/sync-database.sh"
 else
   echo ""
-  echo "NOTE: /tmp/db_backup.sql not found."
+  echo "NOTE: db_backup.sql not found."
   echo "Only CODE was updated. To sync ALL data from your PC:"
   echo "  1) Run scripts\\publish-all-to-online.bat on Windows"
-  echo "  2) Upload backup_*.sql to /tmp/db_backup.sql via Hostinger"
+  echo "  2) Hostinger File Manager: upload to /var/www/erp/db_backup.sql"
   echo "  3) Run this script again"
 fi
 
