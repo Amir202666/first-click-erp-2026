@@ -25,3 +25,5 @@ if ! test_and_reload_nginx; then
 fi
 
 echo "✅ nginx يعمل — جرّب: curl -s https://firstclickerp.top/api/health"
+echo ""
+echo "تشخيص كامل: bash $PROJECT_DIR/deploy/diagnose-api.sh"

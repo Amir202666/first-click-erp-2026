@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { checkBackendHealth } from '../../api/client'
 import { Eye, EyeOff, Globe } from 'lucide-react'
 
 const BRAND_TAGLINE =
@@ -33,6 +34,24 @@ export default function Login() {
       document.title = 'FIRST CLICK ERP'
     }
   }, [t.login])
+
+  useEffect(() => {
+    let cancelled = false
+    checkBackendHealth().then((ok) => {
+      if (!cancelled) {
+        if (!ok) {
+          setError(
+            lang === 'ar'
+              ? 'فشل الاتصال بالخادم — تحقق من /api/health أو شغّل diagnose-api.sh على السيرفر'
+              : 'Cannot reach API — check /api/health or run diagnose-api.sh on the server'
+          )
+        }
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [lang])
 
   /** لون الخلفية على html وbody و#root حتى لا يظهر شريط بلون قديم أو يغطي #root اللون */
   useEffect(() => {
@@ -85,8 +104,8 @@ export default function Login() {
           : 'Server error — ensure MySQL is running (XAMPP), then: php artisan config:clear && php artisan local:setup'
       } else if (!axiosErr.response) {
         msg = lang === 'ar'
-          ? 'فشل الاتصال بالخادم — تأكد أن الموقع يعمل'
-          : 'Cannot reach server — check site is online'
+          ? 'فشل الاتصال بالخادم — nginx أو PHP-FPM متوقف. على السيرفر: bash deploy/fix-nginx-socket.sh'
+          : 'Cannot reach server — run: bash deploy/fix-nginx-socket.sh on the VPS'
       }
       setError(msg)
     } finally {
