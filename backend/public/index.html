@@ -7,11 +7,80 @@
     <meta name="theme-color" content="#10b981" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <title>First Click ERP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-CFIbASOl.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-B4uHfZnU.css">
+    <script>
+      (function () {
+        try {
+          var shellV = localStorage.getItem('fc_shell_version');
+          if (shellV !== '3') {
+            localStorage.setItem('fc_shell_version', '3');
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (r) { r.unregister(); });
+              });
+            }
+          }
+        } catch (e) { /* ignore */ }
+        try {
+          var lang = localStorage.getItem('lang');
+          if (lang === 'en') {
+            document.documentElement.lang = 'en';
+            document.documentElement.dir = 'ltr';
+          }
+        } catch (e) { /* ignore */ }
+        try {
+          var tid = localStorage.getItem('currentTenantId');
+          var key = tid ? 'fc_ui_font_scale_t' + tid : null;
+          var raw = key ? localStorage.getItem(key) : null;
+          if (raw == null && tid) {
+            var settingsRaw = localStorage.getItem('fc_settings_t' + tid);
+            if (settingsRaw) {
+              try {
+                var settings = JSON.parse(settingsRaw);
+                if (settings && settings.ui_font_scale_percent != null) {
+                  raw = String(settings.ui_font_scale_percent);
+                }
+              } catch (e2) { /* ignore */ }
+            }
+          }
+          var pct = raw ? parseFloat(raw) : 100;
+          if (!isFinite(pct)) pct = 100;
+          pct = Math.min(130, Math.max(75, Math.round(pct)));
+          document.documentElement.style.setProperty('--ui-font-scale', String(pct / 100));
+        } catch (e) {
+          document.documentElement.style.setProperty('--ui-font-scale', '1');
+        }
+      })();
+    </script>
+    <style>
+      :root { --ui-font-scale: 1; }
+      html {
+        font-size: calc(16px * var(--ui-font-scale, 1));
+        height: 100%;
+        -webkit-text-size-adjust: 100%;
+           -moz-text-size-adjust: 100%;
+                text-size-adjust: 100%;
+      }
+      body, #root { height: 100%; min-height: 100%; margin: 0; min-width: 0; }
+      #root { display: flex; flex-direction: column; }
+      .app-shell-layout-with-sidebar,
+      .app-shell-print-layout.flex {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+      }
+      html[dir="rtl"] .app-shell-print-layout.flex {
+        flex-direction: row-reverse;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-C2xIP4r5.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/query-kvIyjVY9.js">
+    <link rel="modulepreload" crossorigin href="/assets/router-BqzgL9q3.js">
+    <link rel="modulepreload" crossorigin href="/assets/ui-CNabJTSa.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-Ct9OAlF0.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="root"></div>
