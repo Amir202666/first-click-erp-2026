@@ -203,8 +203,10 @@ chown -R www-data:www-data /var/www/erp/backend/bootstrap/cache
 
 ## استكشاف الأخطاء
 
+| المشكلة | الحل |
+|---------|------|
 | التعديلات لا تظهر في المتصفح | امسح Service Worker + Clear site data، أو Ctrl+Shift+R. تحقق من `/deploy-revision.txt` |
-| deploy.sh يفشل عند فحص API | تأكد `php artisan up` — السكربت الجديد يرفع الصيانة قبل الفحص |
+| deploy.sh يفشل عند فحص API | السكript الجديد يرفع الصيانة قبل الفحص — حدّث: `git pull && bash deploy.sh` |
 | 301 على curl محلي | طبيعي لـ HTTP — الفحص يستخدم HTTPS `--resolve` أو Laravel داخلياً |
 | 502 Bad Gateway | `systemctl status php8.2-fpm` — تأكد من المسار `php8.2-fpm.sock` |
 | 500 Laravel | `tail storage/logs/laravel.log` — غالباً `.env` أو صلاحيات `storage` |
