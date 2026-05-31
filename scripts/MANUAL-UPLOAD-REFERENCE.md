@@ -1,7 +1,23 @@
-# رفع ملف العملات/الفروع/مراكز التكلفة يدوياً (بدون SSH من Windows)
+# رفع ملف العملات/الفروع/مراكز التكلفة (بدون SSH من Windows)
 
 إذا ظهر: `ssh: connect to host ... Connection timed out` — هذا طبيعي من جهازك.
-استخدم **لوحة Hostinger** ثم **Terminal في المتصفح**.
+
+## الطريقة الأسهل — عبر GitHub (موصى بها)
+
+1. على جهازك: `scripts\export-reference-local.bat first-company`
+2. انسخ الملف الأحدث إلى:
+   `backend\storage\app\imports\reference_first-company.json`
+3. `git add backend/storage/app/imports/reference_first-company.json`
+4. `git commit` + `git push`
+5. على السيرفر (Hostinger Terminal):
+
+```bash
+bash /var/www/erp/deploy/import-reference.sh
+```
+
+---
+
+## بديل — لوحة Hostinger File Manager
 
 ---
 
