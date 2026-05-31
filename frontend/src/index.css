@@ -956,8 +956,8 @@
 
 /*
   تخطيط الشريط + المحتوى (Flex):
-  - DOM: شريط ثم محتوى — dir=ltr يضع الشريط يساراً، dir=rtl يضعه يميناً تلقائياً
-  - لا تستخدم row-reverse مع rtl (يُعيد الشريط لليسار)
+  - DOM: شريط ثم محتوى — flex-row + dir=ltr → الشريط يساراً
+  - flex-row + dir=rtl → الشريط يميناً (لا تستخدم row-reverse مع rtl)
   - أقل من lg: الشريط fixed ولا يأخذ مساحة flex
 */
 .app-shell-layout-with-sidebar {
@@ -968,11 +968,6 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
-}
-
-html[dir='rtl'] .app-shell-print-layout.flex,
-html[dir='rtl'] .app-shell-layout-with-sidebar {
-  flex-direction: row-reverse;
 }
 
 .app-shell-layout-with-sidebar > .app-shell-print-main-column {
