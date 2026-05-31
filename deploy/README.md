@@ -208,7 +208,8 @@ chown -R www-data:www-data /var/www/erp/backend/bootstrap/cache
 
 | المشكلة | الحل |
 |---------|------|
-| `invalid host in upstream "/var/run/php/php8.4-fpm.sock"` | سببها استبدال خاطئ لـ `fastcgi_pass` (حذف `unix:`). شغّل: `bash deploy/fix-nginx-socket.sh` ثم `nginx -t` |
+| `invalid host in upstream "/var/run/php/php8.4-fpm.sock"` | `fastcgi_pass` بدون `unix:`. شغّل: `bash deploy/fix-nginx-socket.sh` |
+| `zero size shared memory zone "fc_login"` | ملف rate-limit غير مثبت. السكريبت ينسخه إلى `/etc/nginx/conf.d/firstclick-rate-limit.conf` تلقائياً |
 | التعديلات لا تظهر في المتصفح | امسح Service Worker + Clear site data، أو Ctrl+Shift+R. تحقق من `/deploy-revision.txt` |
 | deploy.sh يفشل عند فحص API | السكript الجديد يرفع الصيانة قبل الفحص — حدّث: `git pull && bash deploy.sh` |
 | 301 على curl محلي | طبيعي لـ HTTP — الفحص يستخدم HTTPS `--resolve` أو Laravel داخلياً |

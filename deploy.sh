@@ -27,6 +27,8 @@ log_err()  { echo -e "${RED}❌ $1${NC}"; }
 
 # shellcheck source=/dev/null
 source "$PROJECT_DIR/deploy/lib/detect-php-fpm.sh"
+# shellcheck source=/dev/null
+source "$PROJECT_DIR/deploy/lib/nginx-install.sh"
 
 NGINX_BACKUP=""
 ENV_BACKUP=""
@@ -206,25 +208,18 @@ apply_nginx_and_reload() {
   log_step "[8/10] nginx + PHP-FPM..."
   PHP_SOCK=$(detect_php_fpm_socket)
 
-  if [ -f "$NGINX_SOURCE" ] && [ -d /etc/nginx/sites-available ]; then
-    cp -f "$NGINX_SOURCE" "$NGINX_CONF"
-    apply_php_socket_to_nginx "$NGINX_CONF" "$PHP_SOCK"
-    ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/firstclick-erp 2>/dev/null || true
-  elif [ -f "$NGINX_CONF" ]; then
-    apply_php_socket_to_nginx "$NGINX_CONF" "$PHP_SOCK"
+  if [ -d /etc/nginx/sites-available ]; then
+    install_nginx_site "$PROJECT_DIR" "$PHP_SOCK"
   else
-    log_warn "لا يوجد ملف nginx — تخطي"
+    log_warn "nginx sites-available غير موجود — تخطي"
     return 0
   fi
 
-  if ! nginx -t 2>&1; then
+  if ! test_and_reload_nginx; then
     log_err "nginx -t فشل — استرجاع النسخة الاحتياطية"
     DEPLOY_FAILED=1
     exit 1
   fi
-
-  systemctl reload nginx
-  systemctl restart php8.4-fpm 2>/dev/null || systemctl restart php8.2-fpm 2>/dev/null || true
   log_ok "nginx و PHP-FPM"
 }
 
