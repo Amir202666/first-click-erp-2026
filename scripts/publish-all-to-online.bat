@@ -47,6 +47,7 @@ if errorlevel 1 (
 
 set "LATEST="
 for /f "delims=" %%f in ('dir /b /od "scripts\backups\backup_*.sql" 2^>nul') do set "LATEST=%%f"
+if defined LATEST copy /Y "scripts\backups\%LATEST%" "scripts\backups\UPLOAD_AS_db_backup.sql" >nul
 
 echo.
 echo ========== STEP 3/3: Upload SQL to server (manual) ==========
@@ -55,8 +56,10 @@ echo SSH from Windows often fails - use Hostinger File Manager:
 echo.
 echo   1. Open folder on your PC:
 echo      %CD%\scripts\backups\
-echo   2. File to upload: %LATEST%
-echo   3. In Hostinger upload to EXACT path:
+echo   2. File to upload (easier name):
+echo      scripts\backups\UPLOAD_AS_db_backup.sql
+echo      (same as %LATEST%)
+echo   3. In Hostinger upload to EXACT path on server:
 echo      /tmp/db_backup.sql
 echo.
 echo   4. Then Hostinger - Browser Terminal - ONE command:

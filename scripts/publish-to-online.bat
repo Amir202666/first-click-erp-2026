@@ -46,21 +46,8 @@ call :do_master_push
 goto show_server
 
 :full_db
-echo.
-echo WARNING: This replaces ALL production data with your local DB.
-echo.
-set /p "CONFIRM=Type YES to continue: "
-if /i not "!CONFIRM!"=="YES" (
-  echo Cancelled.
-  pause
-  exit /b 1
-)
-call scripts\export-local-db.bat
-if errorlevel 1 exit /b 1
-echo Upload via Hostinger File Manager: scripts\backups\latest.sql
-echo Then on server: bash /var/www/erp/scripts/sync-database.sh
-pause
-exit /b 0
+call "%~dp0publish-all-to-online.bat"
+exit /b %ERRORLEVEL%
 
 :do_code_push
 echo.
