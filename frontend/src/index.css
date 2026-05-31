@@ -955,13 +955,18 @@
 }
 
 /*
-  تخطيط الشريط + المحتوى:
-  - الحاوية دائماً direction: ltr (لا ترث dir=rtl من html)
-  - عربي: flex-row-reverse → الشريط يميناً
-  - إنجليزي: flex-row → الشريط يساراً
+  مكان الشريط (لا يعتمد على html[dir]) — ثابت بعد كل deploy:
+  fc-shell-ltr → شريط يسار | fc-shell-rtl → شريط يمين
 */
-.app-shell-print-layout.flex:not(.flex-col) {
+.app-shell-print-layout.fc-shell-ltr,
+.app-shell-print-layout.fc-shell-rtl {
   direction: ltr;
+}
+.app-shell-print-layout.fc-shell-ltr {
+  flex-direction: row;
+}
+.app-shell-print-layout.fc-shell-rtl {
+  flex-direction: row-reverse;
 }
 
 /* عناصر القائمة داخل الشريط تتبع dir على <aside> — لا ترث ltr من الحاوية الخارجية */

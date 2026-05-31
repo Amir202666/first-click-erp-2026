@@ -659,9 +659,12 @@ export default function Layout({ children }: LayoutProps) {
     <DocumentTitleProvider>
       <DocumentTitle />
     <div
-      dir="ltr"
       className={`app-shell-print-layout w-full flex h-full min-h-0 min-w-0 overflow-hidden ${
-        isPosPage ? 'flex-col' : isRtl ? 'flex-row-reverse' : 'flex-row'
+        isPosPage
+          ? 'flex-col fc-shell-pos'
+          : isRtl
+            ? 'flex-row fc-shell-rtl'
+            : 'flex-row fc-shell-ltr'
       }`}
     >
       {!isPosPage && sidebarOpen && (
