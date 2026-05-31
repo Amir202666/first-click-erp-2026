@@ -955,18 +955,37 @@
 }
 
 /*
-  مكان الشريط (لا يعتمد على html[dir]) — ثابت بعد كل deploy:
+  مكان الشريط — Grid ثابت (لا يتأثر بـ html[dir] ولا بـ Tailwind flex-row):
   fc-shell-ltr → شريط يسار | fc-shell-rtl → شريط يمين
 */
-.app-shell-print-layout.fc-shell-ltr,
-.app-shell-print-layout.fc-shell-rtl {
-  direction: ltr;
+.app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos),
+.app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
+  display: grid !important;
+  direction: ltr !important;
+  align-items: stretch;
 }
-.app-shell-print-layout.fc-shell-ltr {
-  flex-direction: row;
+.app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'fc-sidebar fc-main';
 }
-.app-shell-print-layout.fc-shell-rtl {
-  flex-direction: row-reverse;
+.app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'fc-main fc-sidebar';
+}
+.app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) > aside,
+.app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) > aside {
+  grid-area: fc-sidebar;
+}
+.app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) > .app-shell-print-main-column,
+.app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) > .app-shell-print-main-column {
+  grid-area: fc-main;
+  min-width: 0;
+}
+html[dir='rtl'] .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos),
+html[dir='rtl'] .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos),
+html[dir='ltr'] .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos),
+html[dir='ltr'] .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
+  direction: ltr !important;
 }
 
 /* عناصر القائمة داخل الشريط تتبع dir على <aside> — لا ترث ltr من الحاوية الخارجية */

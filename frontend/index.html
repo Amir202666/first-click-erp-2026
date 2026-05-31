@@ -11,8 +11,8 @@
       (function () {
         try {
           var shellV = localStorage.getItem('fc_shell_version');
-          if (shellV !== '8') {
-            localStorage.setItem('fc_shell_version', '8');
+          if (shellV !== '9') {
+            localStorage.setItem('fc_shell_version', '9');
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(function (regs) {
                 regs.forEach(function (r) { r.unregister(); });
@@ -30,6 +30,9 @@
           if (lang === 'en') {
             document.documentElement.lang = 'en';
             document.documentElement.dir = 'ltr';
+          } else {
+            document.documentElement.lang = 'ar';
+            document.documentElement.dir = 'rtl';
           }
         } catch (e) { /* ignore */ }
         try {
@@ -65,20 +68,40 @@
       }
       body, #root { height: 100%; min-height: 100%; margin: 0; min-width: 0; }
       #root { display: flex; flex-direction: column; }
-      .app-shell-print-layout.flex {
-        display: flex;
+      .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos),
+      .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
+        display: grid;
+        direction: ltr;
         align-items: stretch;
         width: 100%;
         height: 100%;
         min-width: 0;
         min-height: 0;
-        direction: ltr;
       }
-      .app-shell-print-layout.fc-shell-ltr {
-        flex-direction: row;
+      .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) {
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas: 'fc-sidebar fc-main';
       }
-      .app-shell-print-layout.fc-shell-rtl {
-        flex-direction: row-reverse;
+      .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: 'fc-main fc-sidebar';
+      }
+      .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) > aside,
+      .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) > aside {
+        grid-area: fc-sidebar;
+      }
+      .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) > .app-shell-print-main-column,
+      .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) > .app-shell-print-main-column {
+        grid-area: fc-main;
+        min-width: 0;
+      }
+      .app-shell-print-layout.fc-shell-pos.flex {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
       }
     </style>
   </head>
