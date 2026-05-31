@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo, type MouseEvent, type CSSProperties } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { getModalContainer } from '../../utils/modalContainer'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -223,7 +223,7 @@ export default function ItemList() {
     setActionsAnchor(null)
   }, [])
 
-  const openItemActionsMenu = useCallback((e: MouseEvent<HTMLButtonElement>, itemId: number) => {
+  const openItemActionsMenu = useCallback((e: ReactMouseEvent<HTMLButtonElement>, itemId: number) => {
     e.stopPropagation()
     if (openActionsId === itemId) {
       closeActionsMenu()
@@ -619,7 +619,7 @@ export default function ItemList() {
   const dataColumnKeys = visibleColumnKeys.filter((k) => k !== 'actions')
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: globalThis.MouseEvent) {
       if (columnsMenuRef.current && !columnsMenuRef.current.contains(e.target as Node)) setShowColumnsMenu(false)
     }
     if (showColumnsMenu) {
