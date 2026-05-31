@@ -1,0 +1,33 @@
+#!/bin/bash
+# نشر كامل بعد git push من المحلي — أمر واحد على السيرفر
+# bash /var/www/erp/deploy/publish-online.sh
+set -euo pipefail
+
+PROJECT_DIR="/var/www/erp"
+
+echo "========================================"
+echo "  Publish online — $(date '+%Y-%m-%d %H:%M')"
+echo "========================================"
+
+cd "$PROJECT_DIR"
+git fetch origin main
+git reset --hard origin/main
+echo "Commit: $(git log -1 --oneline)"
+
+bash "$PROJECT_DIR/deploy.sh"
+
+if [ -f "$PROJECT_DIR/scripts/sync-data/reference_first-company.json" ]; then
+  echo ""
+  echo "Importing reference data (currencies, branches, cost centers)..."
+  bash "$PROJECT_DIR/deploy/import-reference.sh" --import-only
+fi
+
+REV=$(cat "$PROJECT_DIR/backend/public/deploy-revision.txt" 2>/dev/null || echo "n/a")
+echo ""
+echo "========================================"
+echo "  Done"
+echo "  revision: $REV"
+echo "  https://firstclickerp.top/deploy-revision.txt"
+echo "  https://firstclickerp.top/api/health"
+echo "  Browser: Ctrl+Shift+R once after deploy"
+echo "========================================"
