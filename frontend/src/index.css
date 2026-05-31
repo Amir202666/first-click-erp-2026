@@ -955,14 +955,19 @@
 }
 
 /*
-  تخطيط الشريط + المحتوى (Flex):
-  - DOM: شريط ثم محتوى — flex-row + dir=ltr → الشريط يساراً
-  - flex-row + dir=rtl → الشريط يميناً (لا تستخدم row-reverse مع rtl)
-  - أقل من lg: الشريط fixed ولا يأخذ مساحة flex
+  تخطيط الشريط + المحتوى:
+  - الحاوية دائماً direction: ltr (لا ترث dir=rtl من html)
+  - عربي: flex-row-reverse → الشريط يميناً
+  - إنجليزي: flex-row → الشريط يساراً
 */
+.app-shell-print-layout.flex:not(.flex-col) {
+  direction: ltr;
+}
+
 .app-shell-layout-with-sidebar {
   display: flex;
   flex-direction: row;
+  direction: ltr;
   align-items: stretch;
   width: 100%;
   min-width: 0;
