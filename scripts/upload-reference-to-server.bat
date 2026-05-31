@@ -40,7 +40,22 @@ echo.
 
 scp "%LOCAL_FILE%" %SERVER%:%REMOTE_FILE%
 if errorlevel 1 (
-  echo ERROR: upload failed. Check SSH / password.
+  echo.
+  echo ERROR: SSH upload failed (often: Connection timed out from Windows).
+  echo This is normal - Hostinger may block port 22 from your PC.
+  echo.
+  echo MANUAL UPLOAD:
+  echo   1. Open File Explorer:
+  echo      %CD%\backend\storage\app\exports\
+  echo   2. Copy file: %LATEST%
+  echo   3. Hostinger hPanel - File Manager - upload to:
+  echo      /var/www/erp/backend/storage/app/imports/reference_%SLUG%.json
+  echo   4. Hostinger Browser Terminal - run:
+  echo      cd /var/www/erp/backend ^&^& php artisan tenant:sync-reference import --slug=%SLUG% --file=storage/app/imports/reference_%SLUG%.json
+  echo.
+  echo Full guide: scripts\MANUAL-UPLOAD-REFERENCE.md
+  echo.
+  start "" "%CD%\backend\storage\app\exports"
   pause
   exit /b 1
 )
