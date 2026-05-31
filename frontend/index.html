@@ -11,8 +11,8 @@
       (function () {
         try {
           var shellV = localStorage.getItem('fc_shell_version');
-          if (shellV !== '6') {
-            localStorage.setItem('fc_shell_version', '6');
+          if (shellV !== '7') {
+            localStorage.setItem('fc_shell_version', '7');
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(function (regs) {
                 regs.forEach(function (r) { r.unregister(); });

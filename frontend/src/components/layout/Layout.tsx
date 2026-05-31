@@ -822,8 +822,11 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
       )}
 
-      {/* Main content — التمرير العمودي داخل main، الأفقي يظهر عند الحاجة لتفادي إخفاء الجداول */}
-      <div className="app-shell-print-main-column flex flex-col flex-1 min-w-0 min-h-0 h-full overflow-hidden">
+      {/* Main content — dir هنا لمحتوى الصفحات (الحاوية الخارجية ltr لوضع الشريط فقط) */}
+      <div
+        dir={isRtl ? 'rtl' : 'ltr'}
+        className="app-shell-print-main-column flex flex-col flex-1 min-w-0 min-h-0 h-full overflow-hidden"
+      >
         {/* Top Bar — ارتفاع ثابت */}
         <header
           dir={isRtl ? 'rtl' : 'ltr'}

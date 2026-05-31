@@ -994,6 +994,32 @@
   overflow: hidden;
 }
 
+/* محتوى الصفحات — RTL كامل (الشريط له aside[dir] منفصل) */
+.app-shell-print-main-column[dir='rtl'],
+.app-shell-print-main-column[dir='rtl'] .app-main-container {
+  direction: rtl;
+  text-align: start;
+}
+
+.app-shell-print-main-column[dir='rtl'] table,
+.app-shell-print-main-column[dir='rtl'] .fc-list-table {
+  direction: rtl;
+}
+
+.app-shell-print-main-column[dir='rtl'] .fc-list-table th,
+.app-shell-print-main-column[dir='rtl'] .fc-list-table td {
+  text-align: start;
+}
+
+.app-shell-print-main-column[dir='rtl'] .ui-table-scroll {
+  direction: rtl;
+}
+
+/* عناوين الصفحات وأشرطة الأدوات: justify-between يتبع RTL تلقائياً */
+.app-shell-print-main-column[dir='rtl'] .app-main-container .flex.justify-between {
+  direction: rtl;
+}
+
 .fc-route-outlet {
   width: 100%;
   min-width: 0;
