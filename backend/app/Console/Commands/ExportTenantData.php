@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Process;
+use Illuminate\Support\Facades\Process;
 
 /**
  * تصدير بيانات MySQL (شركة واحدة أو كامل القاعدة).
@@ -94,7 +94,7 @@ class ExportTenantData extends Command
         }
 
         $args = [
-            'mysqldump',
+            self::resolveMysqldumpBinary(),
             '-h', $cfg['host'] ?? '127.0.0.1',
             '-P', (string) ($cfg['port'] ?? 3306),
             '-u', $cfg['username'] ?? 'root',
@@ -106,9 +106,11 @@ class ExportTenantData extends Command
             $cfg['database'],
         ];
 
-        $env = array_filter([
-            'MYSQL_PWD' => $cfg['password'] ?? '',
-        ]);
+        $env = [];
+        $password = $cfg['password'] ?? '';
+        if ($password !== null && $password !== '') {
+            $env['MYSQL_PWD'] = $password;
+        }
 
         $this->info('جاري التصدير الكامل عبر mysqldump...');
 
@@ -210,5 +212,22 @@ class ExportTenantData extends Command
         }
 
         return 'INSERT INTO `'.$table.'` ('.$quotedCols.') VALUES ('.implode(', ', $values).');'."\n";
+    }
+
+    private static function resolveMysqldumpBinary(): string
+    {
+        $candidates = [
+            'C:\\xampp\\mysql\\bin\\mysqldump.exe',
+            'C:\\laragon\\bin\\mysql\\mysql-8.4.3-winx64\\bin\\mysqldump.exe',
+            'C:\\laragon\\bin\\mysql\\mysql-8.2.0-winx64\\bin\\mysqldump.exe',
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return 'mysqldump';
     }
 }

@@ -39,7 +39,7 @@ if /i "!DOCOMMIT!"=="Y" (
 
 echo.
 echo ========== STEP 2/3: Export LOCAL database ==========
-call scripts\export-local-db.bat
+call scripts\export-local-db.bat --no-pause
 if errorlevel 1 (
   pause
   exit /b 1
