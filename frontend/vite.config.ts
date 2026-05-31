@@ -33,6 +33,8 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        skipWaiting: true,
+        clientsClaim: true,
         // The main bundle can exceed Workbox's default 2 MiB precache limit.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         runtimeCaching: [

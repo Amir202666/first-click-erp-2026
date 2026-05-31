@@ -659,8 +659,9 @@ export default function Layout({ children }: LayoutProps) {
     <DocumentTitleProvider>
       <DocumentTitle />
     <div
-      className={`app-shell-print-layout w-full flex flex-row h-full min-h-0 min-w-0 overflow-hidden ${isPosPage ? '' : ''}`}
-      dir={isRtl ? 'rtl' : 'ltr'}
+      className={`app-shell-print-layout w-full flex h-full min-h-0 min-w-0 overflow-hidden ${
+        isPosPage ? 'flex-col' : isRtl ? 'flex-row-reverse' : 'flex-row'
+      }`}
     >
       {!isPosPage && sidebarOpen && (
         <div
@@ -673,7 +674,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar - مخفي في صفحة نقطة البيع وعند الطباعة */}
       {!isPosPage && (
       <aside
-        className={`no-print order-1
+        className={`no-print
           max-lg:fixed max-lg:z-50 max-lg:inset-y-0
           lg:static lg:z-auto lg:transform-none
           h-full shrink-0
@@ -820,7 +821,7 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       {/* Main content — التمرير العمودي داخل main، الأفقي يظهر عند الحاجة لتفادي إخفاء الجداول */}
-      <div className="app-shell-print-main-column order-2 flex flex-col flex-1 min-w-0 min-h-0 h-full overflow-hidden">
+      <div className="app-shell-print-main-column flex flex-col flex-1 min-w-0 min-h-0 h-full overflow-hidden">
         {/* Top Bar — ارتفاع ثابت */}
         <header
           dir={isRtl ? 'rtl' : 'ltr'}

@@ -7,7 +7,12 @@ import { registerSW } from 'virtual:pwa-register'
 import { initUiFontScaleFromStorage } from './utils/uiFontScaleStorage'
 
 if (import.meta.env.PROD) {
-  registerSW({ immediate: true })
+  const updateSW = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      updateSW(true)
+    },
+  })
 }
 
 initUiFontScaleFromStorage()
