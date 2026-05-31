@@ -63,6 +63,28 @@ php artisan tenant:export --tenant=1 --output=storage/app/exports/tenant1.sql
 
 ---
 
+## مزامنة عملات + فروع + مراكز تكلفة فقط (بدون استبدال القاعدة كاملة)
+
+```batch
+scripts\export-reference-local.bat first-company
+scripts\upload-reference-to-server.bat first-company
+```
+
+على السيرفر:
+
+```bash
+cd /var/www/erp/backend
+php artisan tenant:sync-reference import --slug=first-company --file=storage/app/imports/reference_first-company.json
+```
+
+لحذف السجلات على السيرفر التي ليست في ملف التصدير (اختياري — بحذر):
+
+```bash
+php artisan tenant:sync-reference import --slug=first-company --file=storage/app/imports/reference_first-company.json --prune
+```
+
+---
+
 ## بعد الاستيراد
 
 1. تحقق من الدخول: `https://firstclickerp.top`
