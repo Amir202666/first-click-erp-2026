@@ -37,18 +37,11 @@ export default defineConfig(({ mode }) => ({
         clientsClaim: true,
         // The main bundle can exceed Workbox's default 2 MiB precache limit.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        navigateFallbackDenylist: [/^\/api/, /^\/sanctum/],
         runtimeCaching: [
           {
-            urlPattern: ({ request, url }) =>
-              request.method === 'GET' &&
-              url.pathname.startsWith('/api/') &&
-              /\/(items|customers|accounts|payment-methods)(\/|\?|$)/.test(url.pathname),
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'api-reference-data',
-              expiration: { maxEntries: 80, maxAgeSeconds: 86_400 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
           },
         ],
       },

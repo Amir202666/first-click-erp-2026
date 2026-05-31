@@ -35,23 +35,17 @@ export default function Login() {
     }
   }, [t.login])
 
-  useEffect(() => {
-    let cancelled = false
-    checkBackendHealth().then((ok) => {
-      if (!cancelled) {
-        if (!ok) {
-          setError(
-            lang === 'ar'
-              ? 'فشل الاتصال بالخادم — تحقق من /api/health أو شغّل diagnose-api.sh على السيرفر'
-              : 'Cannot reach API — check /api/health or run diagnose-api.sh on the server'
-          )
-        }
-      }
-    })
-    return () => {
-      cancelled = true
+  async function retryApiCheck() {
+    setError('')
+    const ok = await checkBackendHealth()
+    if (!ok) {
+      setError(
+        lang === 'ar'
+          ? 'الخادم لا يستجيب — افتح /api/health في تبويب جديد. إن ظهر {"ok":true} امسح كاش المتصفح (Ctrl+Shift+Delete) ثم أعد التحميل.'
+          : 'Server not responding — open /api/health in a new tab. If it shows {"ok":true}, clear browser cache and reload.'
+      )
     }
-  }, [lang])
+  }
 
   /** لون الخلفية على html وbody و#root حتى لا يظهر شريط بلون قديم أو يغطي #root اللون */
   useEffect(() => {
@@ -151,7 +145,16 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 space-y-2">
+                  <p>{error}</p>
+                  <button
+                    type="button"
+                    onClick={() => void retryApiCheck()}
+                    className="text-xs font-medium text-red-900 underline hover:no-underline"
+                  >
+                    {lang === 'ar' ? 'إعادة فحص الاتصال' : 'Retry connection check'}
+                  </button>
+                </div>
               )}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">{t.loginCompanyName}</label>
