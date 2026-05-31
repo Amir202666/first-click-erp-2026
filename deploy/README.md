@@ -174,10 +174,13 @@ tail -f /var/log/nginx/firstclick-error.log
 tail -f /var/www/erp/backend/storage/logs/laravel.log
 
 # حالة الخدمات
-systemctl status nginx php8.2-fpm mysql
+systemctl status nginx php8.4-fpm mysql
+
+# إصلاح سريع لـ nginx socket
+bash /var/www/erp/deploy/fix-nginx-socket.sh
 
 # إعادة تشغيل
-systemctl restart nginx php8.2-fpm mysql
+systemctl restart nginx php8.4-fpm mysql
 
 # صلاحيات التخزين (إن لزم)
 chown -R www-data:www-data /var/www/erp/backend/storage
@@ -205,10 +208,11 @@ chown -R www-data:www-data /var/www/erp/backend/bootstrap/cache
 
 | المشكلة | الحل |
 |---------|------|
+| `invalid host in upstream "/var/run/php/php8.4-fpm.sock"` | سببها استبدال خاطئ لـ `fastcgi_pass` (حذف `unix:`). شغّل: `bash deploy/fix-nginx-socket.sh` ثم `nginx -t` |
 | التعديلات لا تظهر في المتصفح | امسح Service Worker + Clear site data، أو Ctrl+Shift+R. تحقق من `/deploy-revision.txt` |
 | deploy.sh يفشل عند فحص API | السكript الجديد يرفع الصيانة قبل الفحص — حدّث: `git pull && bash deploy.sh` |
 | 301 على curl محلي | طبيعي لـ HTTP — الفحص يستخدم HTTPS `--resolve` أو Laravel داخلياً |
-| 502 Bad Gateway | `systemctl status php8.2-fpm` — تأكد من المسار `php8.2-fpm.sock` |
+| 502 Bad Gateway | `systemctl status php8.4-fpm` — تأكد من `unix:/var/run/php/php8.4-fpm.sock` |
 | 500 Laravel | `tail storage/logs/laravel.log` — غالباً `.env` أو صلاحيات `storage` |
 | صفحة بيضاء / 404 للروابط | تأكد من `try_files` ووجود `frontend/dist/index.html` |
 | CORS / تسجيل دخول | `SANCTUM_STATEFUL_DOMAINS` و `SESSION_DOMAIN` و HTTPS |

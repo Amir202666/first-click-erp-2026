@@ -57,7 +57,7 @@ fi
 if [ "$LARAVEL_OK" = "1" ]; then
   if [ "$HTTP_OK" = "0" ]; then
     echo "⚠️  Laravel يعمل لكن nginx/SSL يحتاج مراجعة — راجع:"
-    echo "   nginx -t && systemctl status php8.2-fpm --no-pager"
+    echo "   nginx -t && systemctl status php8.4-fpm --no-pager"
     echo "   tail -30 /var/log/nginx/firstclick-error.log"
   fi
   exit 0
