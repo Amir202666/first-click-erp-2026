@@ -212,6 +212,11 @@ class AdminSubscriptionController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'name_en' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:500',
+            'phone' => 'nullable|string|max:50',
+            'country' => 'nullable|string|max:100',
+            'city' => 'nullable|string|max:100',
             'company_slug' => 'required|string|max:100|regex:/^[a-zA-Z0-9_-]+$/',
             'manager_username' => 'required|string|max:255|unique:users,email',
             'manager_password' => 'required|string|min:8',
@@ -237,7 +242,12 @@ class AdminSubscriptionController extends Controller
 
         $tenant = Tenant::create([
             'name' => $request->name,
+            'name_en' => $request->name_en,
             'slug' => $slug,
+            'address' => $request->address,
+            'phone' => $request->phone,
+            'country' => $request->country,
+            'city' => $request->city,
             'email' => $request->manager_username,
             'default_currency' => $request->default_currency ?? 'SAR',
             'is_active' => true,

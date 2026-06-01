@@ -189,8 +189,13 @@ export default function AdminSubscriptions() {
   const [showAddCompany, setShowAddCompany] = useState(false)
   const [addCompanyStep, setAddCompanyStep] = useState<'plan' | 'details'>('plan')
   const [createTenantError, setCreateTenantError] = useState('')
-  const [newCompany, setNewCompany] = useState({
+  const emptyNewCompany = () => ({
     name: '',
+    name_en: '',
+    address: '',
+    phone: '',
+    country: '',
+    city: '',
     company_slug: '',
     manager_username: '',
     manager_password: '',
@@ -198,6 +203,7 @@ export default function AdminSubscriptions() {
     subscription_plan_id: '' as number | '',
     subscription_starts_at: new Date().toISOString().slice(0, 10),
   })
+  const [newCompany, setNewCompany] = useState(emptyNewCompany)
 
   const params = useMemo(
     () => ({
@@ -245,15 +251,7 @@ export default function AdminSubscriptions() {
       setShowAddCompany(false)
       setAddCompanyStep('plan')
       setCreateTenantError('')
-      setNewCompany({
-        name: '',
-        company_slug: '',
-        manager_username: '',
-        manager_password: '',
-        manager_name: '',
-        subscription_plan_id: '',
-        subscription_starts_at: new Date().toISOString().slice(0, 10),
-      })
+      setNewCompany(emptyNewCompany())
     },
     onError: (err: unknown) => {
       const res = (err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })?.response?.data
@@ -299,7 +297,6 @@ export default function AdminSubscriptions() {
   const colCompany = isAr ? 'الشركة' : 'Company'
   const colEmail = isAr ? 'البريد الإلكتروني' : 'Email'
   const colPlan = isAr ? 'نوع الباقة' : 'Plan'
-  const colTotalSales = isAr ? "إجمالي مبيعات الشركة (للمراقبة)" : 'Total sales (monitoring)'
   const colLastSeen = isAr ? 'تاريخ آخر ظهور' : 'Last seen'
   const colEndsAt = isAr ? 'تاريخ الانتهاء' : 'Ends at'
   const colStatus = isAr ? 'الحالة' : 'Status'
@@ -327,7 +324,6 @@ export default function AdminSubscriptions() {
     | 'slug'
     | 'email'
     | 'plan_name'
-    | 'total_sales'
     | 'last_seen_at'
     | 'subscription_ends_at'
     | 'subscription_status'
@@ -337,7 +333,6 @@ export default function AdminSubscriptions() {
       { key: 'slug', type: 'string', getValue: (r) => r.slug ?? '' },
       { key: 'email', type: 'string', getValue: (r) => r.company_email ?? r.manager_username ?? '' },
       { key: 'plan_name', type: 'string', getValue: (r) => r.plan_name ?? '' },
-      { key: 'total_sales', type: 'number', getValue: (r) => (r.total_sales == null ? 0 : Number(r.total_sales)) },
       { key: 'last_seen_at', type: 'date', getValue: (r) => r.last_seen_at ?? '' },
       { key: 'subscription_ends_at', type: 'date', getValue: (r) => r.subscription_ends_at ?? '' },
       { key: 'subscription_status', type: 'string', getValue: (r) => r.subscription_status ?? '' },
@@ -526,7 +521,6 @@ export default function AdminSubscriptions() {
                 <SortableTh label={colCompany} sortKey="name" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
                 <SortableTh label={colEmail} sortKey="email" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
                 <SortableTh label={colPlan} sortKey="plan_name" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
-                <SortableTh label={colTotalSales} sortKey="total_sales" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700 hidden lg:table-cell" />
                 <SortableTh label={colLastSeen} sortKey="last_seen_at" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700 hidden md:table-cell" />
                 <SortableTh label={colEndsAt} sortKey="subscription_ends_at" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
                 <SortableTh label={colStatus} sortKey="subscription_status" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
@@ -536,14 +530,14 @@ export default function AdminSubscriptions() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-500">
+                  <td colSpan={7} className="py-16 text-center text-slate-500">
                     <Loader2 className="w-9 h-9 animate-spin mx-auto mb-3 text-teal-600" />
                     {isAr ? 'جاري التحميل...' : 'Loading...'}
                   </td>
                 </tr>
               ) : sortedRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-0">
+                  <td colSpan={7} className="p-0">
                     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                       <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4">
                         <Inbox className="w-10 h-10" />
@@ -620,9 +614,6 @@ export default function AdminSubscriptions() {
                         >
                           {row.plan_name || '—'}
                         </span>
-                      </td>
-                      <td className="py-3 px-3 text-slate-700 tabular-nums hidden lg:table-cell">
-                        {row.total_sales != null ? formatAmount(row.total_sales, { decimal_places: 2 }, locale) : '—'}
                       </td>
                       <td className="py-3 px-3 text-slate-600 text-xs hidden md:table-cell">
                         {row.last_seen_at ? formatDisplayDate(row.last_seen_at) : '—'}
@@ -730,7 +721,7 @@ export default function AdminSubscriptions() {
         >
           <div
             className={`bg-white rounded-xl shadow-lg border border-slate-200 w-full p-4 sm:p-5 max-h-[94vh] overflow-y-auto ${
-              addCompanyStep === 'plan' ? 'max-w-6xl' : 'max-w-md'
+              addCompanyStep === 'plan' ? 'max-w-6xl' : 'max-w-lg'
             }`}
             onClick={(e) => e.stopPropagation()}
             dir={isAr ? 'rtl' : 'ltr'}
@@ -801,13 +792,69 @@ export default function AdminSubscriptions() {
                 )}
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'اسم الشركة' : 'Company name'}</label>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'اسم الشركة' : 'Company name (Arabic)'}</label>
                     <input
                       type="text"
                       className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
                       value={newCompany.name}
                       onChange={(e) => setNewCompany((c) => ({ ...c, name: e.target.value }))}
-                      placeholder={isAr ? 'اسم الشركة' : 'Company name'}
+                      placeholder={isAr ? 'مثال: شركة النور' : 'e.g. Al Noor Trading'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">
+                      {isAr ? 'اسم الشركة بالإنجليزية' : 'Company name (English)'}
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                      value={newCompany.name_en}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, name_en: e.target.value }))}
+                      placeholder="FIRST CLICK ERP"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'العنوان' : 'Address'}</label>
+                    <input
+                      type="text"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                      value={newCompany.address}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, address: e.target.value }))}
+                      placeholder={isAr ? 'الشارع، الحي، المبنى' : 'Street, district, building'}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'الدولة' : 'Country'}</label>
+                      <input
+                        type="text"
+                        className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                        value={newCompany.country}
+                        onChange={(e) => setNewCompany((c) => ({ ...c, country: e.target.value }))}
+                        placeholder={isAr ? 'مثال: السعودية' : 'e.g. Saudi Arabia'}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'المدينة' : 'City'}</label>
+                      <input
+                        type="text"
+                        className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                        value={newCompany.city}
+                        onChange={(e) => setNewCompany((c) => ({ ...c, city: e.target.value }))}
+                        placeholder={isAr ? 'مثال: الرياض' : 'e.g. Riyadh'}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'رقم الهاتف' : 'Phone'}</label>
+                    <input
+                      type="tel"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                      value={newCompany.phone}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, phone: e.target.value }))}
+                      placeholder="+966..."
+                      dir="ltr"
                     />
                   </div>
                   <div>
@@ -897,6 +944,11 @@ export default function AdminSubscriptions() {
                           return
                         createTenantMut.mutate({
                           name: newCompany.name.trim(),
+                          name_en: newCompany.name_en.trim() || undefined,
+                          address: newCompany.address.trim() || undefined,
+                          phone: newCompany.phone.trim() || undefined,
+                          country: newCompany.country.trim() || undefined,
+                          city: newCompany.city.trim() || undefined,
                           company_slug: newCompany.company_slug.trim().toLowerCase(),
                           manager_username: newCompany.manager_username.trim(),
                           manager_password: newCompany.manager_password,

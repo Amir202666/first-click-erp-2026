@@ -109,6 +109,11 @@ export function updateAdminSubscription(
 
 export function createAdminTenant(data: {
   name: string
+  name_en?: string
+  address?: string
+  phone?: string
+  country?: string
+  city?: string
   company_slug: string
   manager_username: string
   manager_password: string
