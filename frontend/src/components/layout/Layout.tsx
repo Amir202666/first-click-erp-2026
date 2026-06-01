@@ -462,7 +462,7 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { user, currentTenant, tenants, setCurrentTenant, logout, meData, canAccessPath, can, isPlatformSuperAdmin } = useAuth()
+  const { user, currentTenant, tenants, setCurrentTenant, logout, meData, canAccessPath, can, isPlatformSuperAdmin, hasFullTenantAccess } = useAuth()
   const isSuperAdmin = isPlatformSuperAdmin
   const { t, lang, toggleLang, isRtl } = useLanguage()
   const { currentTheme } = useTheme()
@@ -728,7 +728,7 @@ export default function Layout({ children }: LayoutProps) {
             if (isGroup(entry)) {
               if (entry.labelKey === 'nav.admin' && !isSuperAdmin) return null
               const visibleChildren = entry.children.filter((child) => {
-                // القائمة الجانبية: الصلاحيات فقط — قيود الباقة على الـ API
+                if (hasFullTenantAccess) return true
                 if (entry.labelKey === 'nav.hr') {
                   if (child.path.startsWith('/hr/payroll')) return can('hr.payroll.view')
                   return can('hr.view')

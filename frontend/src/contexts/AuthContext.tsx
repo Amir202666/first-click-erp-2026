@@ -2,7 +2,10 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { api } from '../api/client'
 import { applyUiFontScaleIfChanged, readCachedUiFontScale } from '../utils/uiFontScaleStorage'
 import { expandPlanFeatures, planAllowsAny, planAllowsFeature } from '../utils/planFeatures'
-import { isPlatformSuperAdmin as checkPlatformSuperAdmin } from '../utils/platformSuperAdmin'
+import {
+  hasFullTenantAccess as checkFullTenantAccess,
+  isPlatformSuperAdmin as checkPlatformSuperAdmin,
+} from '../utils/platformSuperAdmin'
 
 interface User {
   id: number
@@ -10,6 +13,7 @@ interface User {
   email: string
   username?: string
   is_super_admin?: boolean
+  platform_admin?: boolean
 }
 
 interface Tenant {
@@ -22,7 +26,9 @@ interface MeData {
   role: string | null
   role_slug?: string
   username?: string
+  email?: string
   is_super_admin?: boolean
+  platform_admin?: boolean
   permissions: string[]
   default_branch_id?: number | null
   default_warehouse_id?: number | null
@@ -48,6 +54,8 @@ interface AuthContextType {
   canAccessPath: (path: string) => boolean
   /** مالك المنصة (إدارة الاشتراكات) — ليس مدير الشركة */
   isPlatformSuperAdmin: boolean
+  /** مدير / صلاحيات * — كل قوائم الشركة في الشريط الجانبي */
+  hasFullTenantAccess: boolean
   isAuthenticated: boolean
   isLoading: boolean
   login: (company: string, username: string, password: string) => Promise<void>
@@ -87,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setSubscriptionExpired(false)
     api.get<{
-      role?: string; role_slug?: string; username?: string; is_super_admin?: boolean; permissions?: string[];
+      role?: string; role_slug?: string; username?: string; email?: string; is_super_admin?: boolean; platform_admin?: boolean; permissions?: string[];
       default_branch_id?: number | null; default_warehouse_id?: number | null;
       restrict_to_branch_warehouse?: boolean;
       tenant_user_id?: number | null;
@@ -101,7 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: data.role ?? null,
           role_slug: data.role_slug,
           is_super_admin: !!data.is_super_admin,
+          platform_admin: !!data.platform_admin,
           username: data.username,
+          email: data.email,
           permissions: data.permissions ?? [],
           default_branch_id: data.default_branch_id ?? null,
           default_warehouse_id: data.default_warehouse_id ?? null,
@@ -303,7 +313,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canAccessFeature,
         canAccessPath,
         isPlatformSuperAdmin:
-          checkPlatformSuperAdmin(meData) || checkPlatformSuperAdmin(user),
+          checkPlatformSuperAdmin(meData) ||
+          checkPlatformSuperAdmin(user),
+        hasFullTenantAccess:
+          checkFullTenantAccess(meData) ||
+          checkFullTenantAccess(user),
         isAuthenticated: !!user,
         isLoading,
         login,

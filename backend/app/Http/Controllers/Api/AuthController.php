@@ -101,6 +101,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'username' => $user->username,
                 'is_super_admin' => $user->isSuperAdmin(),
+                'platform_admin' => $user->isSuperAdmin(),
             ],
             'tenant' => [
                 'id' => $tenant->id,
@@ -169,6 +170,7 @@ class AuthController extends Controller
             'email' => $user->email,
             'username' => $user->username,
             'is_super_admin' => $user->isSuperAdmin(),
+            'platform_admin' => $user->isSuperAdmin(),
         ]);
     }
 
@@ -190,6 +192,7 @@ class AuthController extends Controller
                 'role' => 'super_admin',
                 'role_slug' => 'super_admin',
                 'is_super_admin' => true,
+                'platform_admin' => true,
                 'permissions' => ['*'],
             ]);
         }
@@ -260,6 +263,7 @@ class AuthController extends Controller
             'role' => $role ?? $roleSlug,
             'role_slug' => $roleSlug,
             'is_super_admin' => $user->isSuperAdmin(),
+            'platform_admin' => $user->isSuperAdmin(),
             'permissions' => $permissions,
             'default_branch_id' => $defaultBranchId,
             'default_warehouse_id' => $defaultWarehouseId,
