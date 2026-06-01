@@ -12,6 +12,7 @@ use App\Support\ReferenceDataNormalizer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * تصدير/استيراد بيانات مرجعية (عملات، فروع، مراكز تكلفة، طرق دفع) بين المحلي والسيرفر.
@@ -367,13 +368,19 @@ class SyncTenantReferenceData extends Command
             }
 
             foreach (array_slice($items, 1) as $duplicate) {
-                foreach (['hr_allowances', 'hr_deductions'] as $table) {
-                    if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
-                        DB::table($table)->where('currency_id', $duplicate->id)->update(['currency_id' => $keeper->id]);
-                    }
-                }
+                $this->reassignCurrencyForeignKeys($duplicate->id, $keeper->id);
                 $duplicate->delete();
             }
+        }
+    }
+
+    /** إعادة ربط العملة فقط في الجداول التي تحتوي العمود فعلياً. */
+    private function reassignCurrencyForeignKeys(int $fromCurrencyId, int $toCurrencyId): void
+    {
+        if (Schema::hasTable('hr_allowances') && Schema::hasColumn('hr_allowances', 'currency_id')) {
+            DB::table('hr_allowances')
+                ->where('currency_id', $fromCurrencyId)
+                ->update(['currency_id' => $toCurrencyId]);
         }
     }
 
