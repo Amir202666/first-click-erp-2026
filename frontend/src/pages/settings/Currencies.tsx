@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
-import { fetchCurrencies, createCurrency, updateCurrency, deleteCurrency, fetchExchangeRates, fetchSettings, updateSettings } from '../../api/tenant'
+import { fetchCurrencies, createCurrency, updateCurrency, deleteCurrency, fetchExchangeRates } from '../../api/tenant'
 import type { Currency } from '../../types'
 import { X } from 'lucide-react'
 import Toast, { type ToastType } from '../../components/ui/Toast'
@@ -32,7 +32,6 @@ export default function Currencies() {
   const [form, setForm] = useState({ code: '', name: '', name_en: '', symbol: '', decimal_places: 2, exchange_rate: '1', is_default: false, is_active: true })
   const [deleteTarget, setDeleteTarget] = useState<Currency | null>(null)
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null)
-  const [reportCurrencyCode, setReportCurrencyCode] = useState<string>('')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortKey | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -43,17 +42,6 @@ export default function Currencies() {
     queryFn: () => fetchCurrencies(tenantId),
     enabled: !!tenantId,
   })
-
-  const { data: settings } = useQuery({
-    queryKey: ['settings', tenantId],
-    queryFn: () => fetchSettings(tenantId),
-    enabled: !!tenantId,
-  })
-
-  useEffect(() => {
-    const code = (settings?.report_default_currency_code as string) ?? (currencies.find((c) => c.is_default)?.code ?? '')
-    if (code && code !== reportCurrencyCode) setReportCurrencyCode(code)
-  }, [settings?.report_default_currency_code, currencies, reportCurrencyCode])
 
   const showToast = useCallback((message: string, type: ToastType) => setToast({ message, type }), [])
 
@@ -87,15 +75,6 @@ export default function Currencies() {
       /* errors surfaced via onError */
     }
   }
-
-  const saveReportCurrencyMut = useMutation({
-    mutationFn: (code: string) => updateSettings(tenantId, { report_default_currency_code: code }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] })
-      showToast(t.currencies.saveSettings ? 'تم حفظ العملة الافتراضية للتقارير' : 'Saved', 'success')
-    },
-    onError: () => showToast(t.msg?.updateError ?? 'Error', 'error'),
-  })
 
   const createMut = useMutation({
     mutationFn: (d: Partial<Currency>) => createCurrency(tenantId, d),
@@ -284,33 +263,26 @@ export default function Currencies() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5" dir={dir}>
-        {kpiItems.map((kpi) => (
-          <div key={kpi.label} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
-            <p className="text-[10px] text-gray-400 font-semibold mb-1">{kpi.label}</p>
-            <p className={`text-lg font-bold ${kpi.color}`}>{kpi.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5" dir={dir}>
-        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1">
-            ⭐ {t.currencies.reportDefaultCurrency}
-          </p>
-          <select
-            value={reportCurrencyCode}
-            onChange={(e) => setReportCurrencyCode(e.target.value)}
-            className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm font-medium focus:border-emerald-400 focus:outline-none bg-gray-50 focus:bg-white transition-colors"
-          >
-            <option value="">—</option>
-            {currencies.filter((c) => c.is_active).map((c) => (
-              <option key={c.id} value={c.code}>{c.symbol ?? c.code} — {c.name}</option>
-            ))}
-          </select>
+      <div
+        className="mb-5 flex flex-row flex-nowrap items-stretch gap-3 w-full min-w-0"
+        dir={dir}
+      >
+        <div
+          className="fc-currencies-kpi-row grid flex-1 min-w-0 gap-3"
+          style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
+        >
+          {kpiItems.map((kpi) => (
+            <div
+              key={kpi.label}
+              className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm min-w-0"
+            >
+              <p className="text-[10px] text-gray-400 font-semibold mb-1 truncate">{kpi.label}</p>
+              <p className={`text-lg font-bold ${kpi.color} truncate`}>{kpi.value}</p>
+            </div>
+          ))}
         </div>
 
-        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+        <div className="shrink-0 w-[min(100%,17rem)] bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex flex-col justify-center">
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-1">
             🔄 {t.currencies.fetchRates}
           </p>
@@ -318,7 +290,7 @@ export default function Currencies() {
             type="button"
             onClick={handleFetchRates}
             disabled={fetchRatesMut.isPending || currencies.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <span className={fetchRatesMut.isPending ? 'inline-block animate-spin' : ''}>🔄</span>
             {fetchRatesMut.isPending ? t.currencies.fetchingRates : t.currencies.fetchRates}
@@ -487,17 +459,6 @@ export default function Currencies() {
             </table>
           </div>
         )}
-
-        <div className="flex items-center justify-end px-5 py-3.5 border-t border-gray-100 gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={() => reportCurrencyCode && saveReportCurrencyMut.mutate(reportCurrencyCode)}
-            disabled={saveReportCurrencyMut.isPending || !reportCurrencyCode}
-            className="px-5 py-2 bg-gradient-to-l from-emerald-500 to-emerald-600 text-white rounded-xl text-sm font-semibold shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saveReportCurrencyMut.isPending ? t.saving : `✓ ${t.currencies.saveSettings}`}
-          </button>
-        </div>
       </div>
 
       {showModal && (

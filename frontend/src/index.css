@@ -1044,6 +1044,13 @@ html[dir='ltr'] .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
   direction: rtl;
 }
 
+/* صفحة العملات — 4 بطاقات KPI في سطر واحد */
+.fc-currencies-kpi-row {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  width: 100%;
+}
+
 .fc-route-outlet {
   width: 100%;
   min-width: 0;
