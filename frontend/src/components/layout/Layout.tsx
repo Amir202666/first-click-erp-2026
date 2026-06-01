@@ -105,6 +105,44 @@ function isGroup(entry: NavEntry): entry is NavGroup {
   return 'children' in entry
 }
 
+/** إدارة المنصة والمستخدمين وHR في أعلى القائمة — لا تختفي أسفل الشريط */
+function buildSidebarNavEntries(isSuperAdmin: boolean, hasFullTenantAccess: boolean): NavEntry[] {
+  const findGroup = (labelKey: string) =>
+    navEntries.find((e): e is NavGroup => isGroup(e) && e.labelKey === labelKey)
+
+  const pinned = new Set<string>()
+  const head: NavEntry[] = []
+
+  const dashboard = navEntries.find((e) => !isGroup(e) && e.path === '/')
+  if (dashboard) head.push(dashboard)
+
+  if (isSuperAdmin) {
+    const admin = findGroup('nav.admin')
+    if (admin) {
+      head.push(admin)
+      pinned.add('nav.admin')
+    }
+  }
+
+  if (hasFullTenantAccess) {
+    for (const key of ['nav.userManagement', 'nav.hr'] as const) {
+      const group = findGroup(key)
+      if (group) {
+        head.push(group)
+        pinned.add(key)
+      }
+    }
+  }
+
+  const rest = navEntries.filter((entry) => {
+    if (!isGroup(entry)) return entry.path !== '/'
+    if (entry.labelKey === 'nav.admin' && !isSuperAdmin) return false
+    return !pinned.has(entry.labelKey)
+  })
+
+  return [...head, ...rest]
+}
+
 const navEntries: NavEntry[] = [
   { path: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
   {
@@ -569,6 +607,11 @@ export default function Layout({ children }: LayoutProps) {
     [pathname, location.search],
   )
 
+  const sidebarNavEntries = useMemo(
+    () => buildSidebarNavEntries(isSuperAdmin, hasFullTenantAccess),
+    [isSuperAdmin, hasFullTenantAccess],
+  )
+
   /** داخل مجموعة: نُظلّل فقط الرابط الأكثر تحديداً (أطول مسار يطابق pathname) لتفادي تظليل "إضافة مورد" و"أرصدة الموردين" معاً */
   const getActiveChildPath = (children: NavItem[]): string | null => {
     const matched = children
@@ -724,7 +767,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2.5 pt-2 pb-4 space-y-0.5">
-          {navEntries.map((entry) => {
+          {sidebarNavEntries.map((entry) => {
             if (isGroup(entry)) {
               if (entry.labelKey === 'nav.admin' && !isSuperAdmin) return null
               const visibleChildren = entry.children.filter((child) => {
@@ -914,6 +957,16 @@ export default function Layout({ children }: LayoutProps) {
                   <ShoppingCart size={15} />
                   <span className="hidden sm:inline">{label('nav.posInvoices')}</span>
                 </Link>
+                {isSuperAdmin && (
+                  <Link
+                    to="/admin/subscriptions"
+                    className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
+                    title={label('nav.admin')}
+                  >
+                    <CreditCard size={15} />
+                    <span className="hidden sm:inline">{label('nav.admin')}</span>
+                  </Link>
+                )}
               </>
             )}
             {/* الإشعارات المركزية — يسار زر الألوان */}

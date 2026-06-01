@@ -14,14 +14,31 @@ class GrantSuperAdmin extends Command
 {
     protected $signature = 'admin:grant-super-admin
                             {--username=* : أسماء مستخدمين (افتراضي: حسابات مالك المنصة المعروفة)}
-                            {--email= : بريد واحد بدلاً من username}';
+                            {--email= : بريد واحد}
+                            {--display-name= : الاسم الظاهر في النظام مثل «مالك النظام»}';
 
     protected $description = 'تفعيل صلاحية مالك المنصة (is_super_admin) — إدارة الاشتراكات تظهر له فقط';
 
     public function handle(): int
     {
         $email = trim((string) $this->option('email'));
+        $displayName = trim((string) $this->option('display-name'));
         $usernames = array_filter(array_map('trim', (array) $this->option('username')));
+
+        if ($displayName !== '') {
+            $users = User::query()->where('name', $displayName)->get();
+            if ($users->isEmpty()) {
+                $this->error("لم يُعثر على مستخدم بالاسم: {$displayName}");
+
+                return self::FAILURE;
+            }
+            foreach ($users as $user) {
+                $this->promoteUser($user);
+            }
+            $this->info('سجّل خروجاً ثم ادخل من جديد.');
+
+            return self::SUCCESS;
+        }
 
         if ($email !== '') {
             $user = User::query()->where('email', $email)->first();

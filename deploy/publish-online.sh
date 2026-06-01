@@ -20,6 +20,7 @@ echo ""
 echo "Platform owner (is_super_admin)..."
 cd "$PROJECT_DIR/backend"
 php artisan admin:grant-super-admin || true
+php artisan admin:grant-super-admin --display-name="مالك النظام" 2>/dev/null || true
 
 if [ -f "$PROJECT_DIR/scripts/sync-data/reference_first-company.json" ]; then
   echo ""
