@@ -462,8 +462,8 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const { user, currentTenant, tenants, setCurrentTenant, logout, meData, canAccessPath, can } = useAuth()
-  const isSuperAdmin = meData?.role_slug === 'super_admin'
+  const { user, currentTenant, tenants, setCurrentTenant, logout, meData, canAccessPath, can, isPlatformSuperAdmin } = useAuth()
+  const isSuperAdmin = isPlatformSuperAdmin
   const { t, lang, toggleLang, isRtl } = useLanguage()
   const { currentTheme } = useTheme()
   const lightSidebarChrome = currentTheme.isLightSidebar

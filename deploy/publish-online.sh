@@ -16,6 +16,11 @@ echo "Commit: $(git log -1 --oneline)"
 
 bash "$PROJECT_DIR/deploy.sh"
 
+echo ""
+echo "Platform owner (is_super_admin)..."
+cd "$PROJECT_DIR/backend"
+php artisan admin:grant-super-admin || true
+
 if [ -f "$PROJECT_DIR/scripts/sync-data/reference_first-company.json" ]; then
   echo ""
   echo "Importing reference data (currencies, branches, payment methods, units, categories)..."

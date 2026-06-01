@@ -4,9 +4,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { ShieldAlert, Loader2 } from 'lucide-react'
 
 export function SuperAdminGuard({ children }: { children: ReactNode }) {
-  const { meData, isLoading } = useAuth()
-  const isSuperAdmin =
-    meData?.role_slug === 'super_admin' || meData?.permissions?.includes('*')
+  const { isPlatformSuperAdmin, isLoading } = useAuth()
+  const isSuperAdmin = isPlatformSuperAdmin
 
   if (isLoading) {
     return (

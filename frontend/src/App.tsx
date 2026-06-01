@@ -387,8 +387,22 @@ function App() {
                     <Route path="/tenant-users" element={<TenantUserList />} />
                     <Route path="/roles" element={<RoleList />} />
                     <Route path="/audit-log" element={<AuditLogPage />} />
-                    <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
-                    <Route path="/admin/plans" element={<AdminPlans />} />
+                    <Route
+                      path="/admin/subscriptions"
+                      element={
+                        <SuperAdminGuard>
+                          <AdminSubscriptions />
+                        </SuperAdminGuard>
+                      }
+                    />
+                    <Route
+                      path="/admin/plans"
+                      element={
+                        <SuperAdminGuard>
+                          <AdminPlans />
+                        </SuperAdminGuard>
+                      }
+                    />
                     <Route
                       path="/admin/backup-reset"
                       element={

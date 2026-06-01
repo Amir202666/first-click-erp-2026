@@ -45,7 +45,7 @@ function StatusBadge({ status, isAr }: { status: string; isAr: boolean }) {
 }
 
 export default function AdminSubscriptions() {
-  const { meData } = useAuth()
+  const { isPlatformSuperAdmin: isSuperAdmin } = useAuth()
   const { lang } = useLanguage()
   const queryClient = useQueryClient()
   const isAr = lang === 'ar'
@@ -75,8 +75,6 @@ export default function AdminSubscriptions() {
     subscription_plan_id: '' as number | '',
     subscription_starts_at: new Date().toISOString().slice(0, 10),
   })
-
-  const isSuperAdmin = meData?.role_slug === 'super_admin' || meData?.permissions?.includes('*')
 
   const params = useMemo(
     () => ({

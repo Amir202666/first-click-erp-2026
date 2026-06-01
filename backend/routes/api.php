@@ -75,7 +75,15 @@ use App\Http\Controllers\Api\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 // ──── Health (لا يحتاج تسجيل دخول، للتحقق من أن الخادم يعمل)
-Route::get('/health', fn () => response()->json(['ok' => true]));
+Route::get('/health', function () {
+    $revFile = public_path('deploy-revision.txt');
+    $revision = is_file($revFile) ? trim((string) file_get_contents($revFile)) : null;
+
+    return response()->json([
+        'ok' => true,
+        'revision' => $revision,
+    ]);
+});
 
 // ──── Public integration API (مفتاح X-API-Key، بدون جلسة مستخدم) ────
 Route::prefix('v1')->middleware(['throttle:1000,1', 'api.key'])->group(function () {

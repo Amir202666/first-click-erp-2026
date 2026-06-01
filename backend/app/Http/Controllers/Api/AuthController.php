@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Support\PlanFeatureResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -233,7 +234,8 @@ class AuthController extends Controller
                 $subscriptionStatus = $sub->status;
                 $subscriptionExpired = $sub->ends_at->isPast();
                 if ($sub->plan) {
-                    $planFeatures = is_array($sub->plan->features) ? $sub->plan->features : [];
+                    $raw = is_array($sub->plan->features) ? $sub->plan->features : [];
+                    $planFeatures = PlanFeatureResolver::expand($raw);
                 }
             } else {
                 $subscriptionStatus = 'expired';
@@ -247,7 +249,7 @@ class AuthController extends Controller
             'email' => $user->email,
             'role' => $role ?? $roleSlug,
             'role_slug' => $roleSlug,
-            'is_super_admin' => false,
+            'is_super_admin' => $user->isSuperAdmin(),
             'permissions' => $permissions,
             'default_branch_id' => $defaultBranchId,
             'default_warehouse_id' => $defaultWarehouseId,

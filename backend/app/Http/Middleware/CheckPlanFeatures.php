@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\PlanFeatureResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,11 +16,14 @@ class CheckPlanFeatures
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()?->isSuperAdmin()) {
+        $user = $request->user();
+        $tenantId = $request->tenant_id ? (int) $request->tenant_id : null;
+
+        if ($user && PlanFeatureResolver::userBypassesPlanFeatures($user, $tenantId)) {
             return $next($request);
         }
 
-        $tenant = $request->tenant_id ? \App\Models\Tenant::find($request->tenant_id) : null;
+        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
         if (! $tenant) {
             return $next($request);
         }
@@ -31,8 +35,9 @@ class CheckPlanFeatures
             return $next($request);
         }
 
-        $planFeatures = is_array($sub->plan->features) ? $sub->plan->features : [];
-        if (empty($planFeatures)) {
+        $raw = is_array($sub->plan->features) ? $sub->plan->features : [];
+        $planFeatures = PlanFeatureResolver::expand($raw);
+        if ($planFeatures === []) {
             return $next($request);
         }
 
@@ -42,8 +47,7 @@ class CheckPlanFeatures
 
         foreach ($pathToFeatures as $segment => $requiredFeatures) {
             if (str_contains($pathWithoutApi, $segment)) {
-                $allowed = array_intersect($requiredFeatures, $planFeatures);
-                if (empty($allowed)) {
+                if (! PlanFeatureResolver::allows($planFeatures, $requiredFeatures)) {
                     return response()->json([
                         'message' => 'هذه الميزة غير متوفرة في باقتك. يرجى التواصل مع الإدارة للترقية.',
                         'subscription_expired' => false,

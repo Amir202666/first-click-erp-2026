@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { api } from '../api/client'
 import { applyUiFontScaleIfChanged, readCachedUiFontScale } from '../utils/uiFontScaleStorage'
+import { expandPlanFeatures, planAllowsAny, planAllowsFeature } from '../utils/planFeatures'
+import { isPlatformSuperAdmin as checkPlatformSuperAdmin } from '../utils/platformSuperAdmin'
 
 interface User {
   id: number
@@ -17,6 +19,7 @@ interface Tenant {
 interface MeData {
   role: string | null
   role_slug?: string
+  is_super_admin?: boolean
   permissions: string[]
   default_branch_id?: number | null
   default_warehouse_id?: number | null
@@ -40,6 +43,8 @@ interface AuthContextType {
   can: (permission: string) => boolean
   canAccessFeature: (feature: string) => boolean
   canAccessPath: (path: string) => boolean
+  /** مالك المنصة (إدارة الاشتراكات) — ليس مدير الشركة */
+  isPlatformSuperAdmin: boolean
   isAuthenticated: boolean
   isLoading: boolean
   login: (company: string, username: string, password: string) => Promise<void>
@@ -79,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setSubscriptionExpired(false)
     api.get<{
-      role?: string; role_slug?: string; permissions?: string[];
+      role?: string; role_slug?: string; is_super_admin?: boolean; permissions?: string[];
       default_branch_id?: number | null; default_warehouse_id?: number | null;
       restrict_to_branch_warehouse?: boolean;
       tenant_user_id?: number | null;
@@ -88,9 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       pricing_group_ids?: number[];
     }>('/me', { headers: { 'X-Tenant-ID': String(currentTenant.id) } })
       .then(({ data }) => {
+        const rawPlanFeatures = Array.isArray(data.plan_features) ? data.plan_features : []
         setMeData({
           role: data.role ?? null,
           role_slug: data.role_slug,
+          is_super_admin: !!data.is_super_admin,
           permissions: data.permissions ?? [],
           default_branch_id: data.default_branch_id ?? null,
           default_warehouse_id: data.default_warehouse_id ?? null,
@@ -99,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           subscription_ends_at: data.subscription_ends_at ?? null,
           subscription_status: data.subscription_status ?? null,
           subscription_expired: data.subscription_expired ?? false,
-          plan_features: Array.isArray(data.plan_features) ? data.plan_features : [],
+          plan_features: expandPlanFeatures(rawPlanFeatures),
           pricing_group_ids: Array.isArray(data.pricing_group_ids) ? data.pricing_group_ids : [],
         })
         setSubscriptionExpired(!!data.subscription_expired)
@@ -178,9 +185,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSubscriptionExpired(false)
   }
 
+  function hasFullPermissions(): boolean {
+    return !!meData?.permissions?.includes('*')
+  }
+
   function can(permission: string): boolean {
     if (!meData) return true
-    return meData.permissions.includes('*') || meData.permissions.includes(permission)
+    return hasFullPermissions() || meData.permissions.includes(permission)
+  }
+
+  function effectivePlanFeatures(): string[] {
+    return meData?.plan_features ?? []
   }
 
   const pathToFeatures: Record<string, string[]> = {
@@ -248,18 +263,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function canAccessFeature(feature: string): boolean {
-    if (!meData?.plan_features?.length) return true
-    return meData.plan_features.includes(feature)
+    if (hasFullPermissions() || meData?.is_super_admin || meData?.role_slug === 'super_admin') {
+      return true
+    }
+    return planAllowsFeature(effectivePlanFeatures(), feature)
   }
 
   function canAccessPath(path: string): boolean {
-    if (!meData?.plan_features?.length) return true
+    if (hasFullPermissions() || meData?.is_super_admin || meData?.role_slug === 'super_admin') {
+      return true
+    }
+    const expanded = effectivePlanFeatures()
+    if (!expanded.length) return true
     const normalized = path.replace(/^\/+/, '').split('/').slice(0, 4).join('/')
     const entries = Object.entries(pathToFeatures).sort((a, b) => b[0].length - a[0].length)
     for (const [prefix, features] of entries) {
       const p = prefix.replace(/^\/+/, '')
       if (normalized === p || normalized.startsWith(p + '/')) {
-        return features.some((f) => meData!.plan_features!.includes(f))
+        return planAllowsAny(expanded, features)
       }
     }
     return true
@@ -277,6 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         can,
         canAccessFeature,
         canAccessPath,
+        isPlatformSuperAdmin: checkPlatformSuperAdmin(meData),
         isAuthenticated: !!user,
         isLoading,
         login,

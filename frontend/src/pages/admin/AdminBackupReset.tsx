@@ -24,13 +24,10 @@ function moduleSummary(modules: string[], isAr: boolean): string {
 }
 
 export default function AdminBackupReset() {
-  const { meData } = useAuth()
+  const { isPlatformSuperAdmin: isSuperAdmin } = useAuth()
   const { lang } = useLanguage()
   const isAr = lang === 'ar'
   const queryClient = useQueryClient()
-
-  const isSuperAdmin =
-    meData?.role_slug === 'super_admin' || meData?.permissions?.includes('*')
 
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardTenantId, setWizardTenantId] = useState<number | null>(null)

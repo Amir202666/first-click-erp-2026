@@ -110,7 +110,7 @@ const PAGE_GROUPS: { key: string; labelAr: string; labelEn: string; pages: PageN
 ]
 
 export default function AdminPlans() {
-  const { meData } = useAuth()
+  const { isPlatformSuperAdmin: isSuperAdmin } = useAuth()
   const { lang } = useLanguage()
   const queryClient = useQueryClient()
   const isAr = lang === 'ar'
@@ -123,8 +123,6 @@ export default function AdminPlans() {
     features: [] as string[], // مصفوفة page_id المختارة
     description: '',
   })
-
-  const isSuperAdmin = meData?.role_slug === 'super_admin' || meData?.permissions?.includes('*')
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'plans'],
