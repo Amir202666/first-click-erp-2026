@@ -1,12 +1,14 @@
 {
-    "version": 3,
+    "version": 4,
     "tenant_slug": "first-company",
-    "exported_at": "2026-06-01T13:09:27+00:00",
+    "exported_at": "2026-06-01T14:23:58+00:00",
     "counts": {
         "currencies": 2,
         "branches": 3,
         "cost_centers": 1,
-        "payment_methods": 3
+        "payment_methods": 3,
+        "item_units": 3,
+        "item_categories": 2
     },
     "currencies": [
         {
@@ -94,6 +96,58 @@
             "type": "cash",
             "linked_account_code": "1111",
             "is_active": true
+        }
+    ],
+    "item_units": [
+        {
+            "name": "قطعة",
+            "name_en": null,
+            "symbol": "pc",
+            "is_active": true
+        },
+        {
+            "name": "كرتون",
+            "name_en": null,
+            "symbol": "box",
+            "is_active": true
+        },
+        {
+            "name": "كيلو",
+            "name_en": null,
+            "symbol": "kg",
+            "is_active": true
+        }
+    ],
+    "item_categories": [
+        {
+            "code": "CAT-001",
+            "name": "الكترونيات",
+            "name_en": null,
+            "description": null,
+            "is_active": true,
+            "applies_to_all_branches": true,
+            "show_in_pos": true,
+            "show_in_restaurant_pos": false,
+            "parent_code": null,
+            "branch_codes": [],
+            "inventory_account_code": "1131",
+            "cost_of_sales_account_code": "511",
+            "sales_account_code": "411"
+        },
+        {
+            "code": "CAT-002",
+            "name": "مواد غذائية",
+            "name_en": null,
+            "description": null,
+            "is_active": true,
+            "applies_to_all_branches": true,
+            "show_in_pos": true,
+            "show_in_restaurant_pos": true,
+            "parent_code": null,
+            "branch_codes": [],
+            "inventory_account_code": "1131",
+            "cost_of_sales_account_code": "511",
+            "sales_account_code": "411"
         }
     ]
 }

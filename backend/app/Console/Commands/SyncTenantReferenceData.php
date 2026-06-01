@@ -6,6 +6,8 @@ use App\Models\Account;
 use App\Models\Branch;
 use App\Models\CostCenter;
 use App\Models\Currency;
+use App\Models\ItemCategory;
+use App\Models\ItemUnit;
 use App\Models\PaymentMethod;
 use App\Models\Tenant;
 use App\Support\ReferenceDataNormalizer;
@@ -15,7 +17,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * تصدير/استيراد بيانات مرجعية (عملات، فروع، مراكز تكلفة، طرق دفع) بين المحلي والسيرفر.
+ * تصدير/استيراد بيانات مرجعية بين المحلي والسيرفر.
  */
 class SyncTenantReferenceData extends Command
 {
@@ -25,7 +27,7 @@ class SyncTenantReferenceData extends Command
                             {--file= : مسار ملف JSON}
                             {--no-prune : لا تحذف السجلات القديمة غير الموجودة في ملف التصدير}';
 
-    protected $description = 'مزامنة العملات والفروع ومراكز التكلفة وطرق الدفع بين المحلي والإنتاج';
+    protected $description = 'مزامنة البيانات المرجعية (عملات، فروع، مراكز تكلفة، طرق دفع، وحدات، فئات أصناف)';
 
     public function handle(): int
     {
@@ -102,8 +104,35 @@ class SyncTenantReferenceData extends Command
             ];
         })->values()->all();
 
+        $itemUnits = ItemUnit::where('tenant_id', $tenant->id)->orderBy('name')->get()->map(fn ($u) => $u->only([
+            'name', 'name_en', 'symbol', 'is_active',
+        ]))->values()->all();
+
+        $itemCategories = ItemCategory::where('tenant_id', $tenant->id)->orderBy('code')->get()->map(function ($cat) {
+            $parentCode = $cat->parent_id
+                ? ItemCategory::where('id', $cat->parent_id)->value('code')
+                : null;
+            $branchCodes = $cat->applies_to_all_branches
+                ? []
+                : $cat->branches()->pluck('code')->all();
+
+            return array_merge($cat->only([
+                'code', 'name', 'name_en', 'description', 'is_active',
+                'applies_to_all_branches', 'show_in_pos', 'show_in_restaurant_pos',
+            ]), [
+                'parent_code' => $parentCode,
+                'branch_codes' => $branchCodes,
+                'inventory_account_code' => $cat->inventory_account_id
+                    ? Account::where('id', $cat->inventory_account_id)->value('code') : null,
+                'cost_of_sales_account_code' => $cat->cost_of_sales_account_id
+                    ? Account::where('id', $cat->cost_of_sales_account_id)->value('code') : null,
+                'sales_account_code' => $cat->sales_account_id
+                    ? Account::where('id', $cat->sales_account_id)->value('code') : null,
+            ]);
+        })->values()->all();
+
         $payload = [
-            'version' => 3,
+            'version' => 4,
             'tenant_slug' => $tenant->slug,
             'exported_at' => now()->toIso8601String(),
             'counts' => [
@@ -111,11 +140,15 @@ class SyncTenantReferenceData extends Command
                 'branches' => count($branches),
                 'cost_centers' => count($costCenters),
                 'payment_methods' => count($paymentMethods),
+                'item_units' => count($itemUnits),
+                'item_categories' => count($itemCategories),
             ],
             'currencies' => $currencies,
             'branches' => $branches,
             'cost_centers' => $costCenters,
             'payment_methods' => $paymentMethods,
+            'item_units' => $itemUnits,
+            'item_categories' => $itemCategories,
         ];
 
         $file = $this->option('file')
@@ -134,6 +167,8 @@ class SyncTenantReferenceData extends Command
             ['فروع', count($branches)],
             ['مراكز تكلفة', count($costCenters)],
             ['طرق دفع', count($paymentMethods)],
+            ['وحدات قياس', count($itemUnits)],
+            ['فئات أصناف', count($itemCategories)],
         ]);
 
         return self::SUCCESS;
@@ -323,6 +358,106 @@ class SyncTenantReferenceData extends Command
             if ($prune && $paymentNames !== []) {
                 PaymentMethod::where('tenant_id', $tid)->whereNotIn('name', $paymentNames)->delete();
             }
+
+            $unitNames = [];
+            foreach ($payload['item_units'] ?? [] as $row) {
+                $name = trim((string) ($row['name'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+                $unitNames[] = $name;
+                ItemUnit::updateOrCreate(
+                    ['tenant_id' => $tid, 'name' => $name],
+                    [
+                        'name_en' => $row['name_en'] ?? null,
+                        'symbol' => $row['symbol'] ?? null,
+                        'is_active' => (bool) ($row['is_active'] ?? true),
+                    ]
+                );
+            }
+            if ($prune && $unitNames !== []) {
+                ItemUnit::where('tenant_id', $tid)
+                    ->whereNotIn('name', $unitNames)
+                    ->whereDoesntHave('items')
+                    ->delete();
+            }
+
+            $categoryCodes = [];
+            $catRowsByCode = [];
+            foreach ($payload['item_categories'] ?? [] as $row) {
+                $code = trim((string) ($row['code'] ?? ''));
+                if ($code === '') {
+                    continue;
+                }
+                $categoryCodes[] = $code;
+                $catRowsByCode[$code] = $row;
+            }
+
+            usort($categoryCodes, function ($a, $b) use ($catRowsByCode) {
+                $pa = $catRowsByCode[$a]['parent_code'] ?? null;
+                $pb = $catRowsByCode[$b]['parent_code'] ?? null;
+                if ($pa === $pb) {
+                    return strcmp($a, $b);
+                }
+                if ($pa === null || $pa === '') {
+                    return -1;
+                }
+                if ($pb === null || $pb === '') {
+                    return 1;
+                }
+
+                return strcmp($a, $b);
+            });
+
+            foreach ($categoryCodes as $code) {
+                $row = $catRowsByCode[$code];
+                $parentId = null;
+                $parentCode = $row['parent_code'] ?? null;
+                if ($parentCode) {
+                    $parentId = ItemCategory::where('tenant_id', $tid)->where('code', $parentCode)->value('id');
+                }
+
+                $inventoryAccountId = $this->resolveAccountId($tid, $row['inventory_account_code'] ?? null);
+                $costAccountId = $this->resolveAccountId($tid, $row['cost_of_sales_account_code'] ?? null);
+                $salesAccountId = $this->resolveAccountId($tid, $row['sales_account_code'] ?? null);
+
+                $appliesAll = (bool) ($row['applies_to_all_branches'] ?? true);
+
+                $category = ItemCategory::updateOrCreate(
+                    ['tenant_id' => $tid, 'code' => $code],
+                    [
+                        'parent_id' => $parentId,
+                        'name' => $row['name'] ?? $code,
+                        'name_en' => $row['name_en'] ?? null,
+                        'description' => $row['description'] ?? null,
+                        'is_active' => (bool) ($row['is_active'] ?? true),
+                        'applies_to_all_branches' => $appliesAll,
+                        'show_in_pos' => (bool) ($row['show_in_pos'] ?? true),
+                        'show_in_restaurant_pos' => (bool) ($row['show_in_restaurant_pos'] ?? true),
+                        'inventory_account_id' => $inventoryAccountId,
+                        'cost_of_sales_account_id' => $costAccountId,
+                        'sales_account_id' => $salesAccountId,
+                    ]
+                );
+
+                if ($appliesAll) {
+                    $category->branches()->sync([]);
+                } else {
+                    $branchIds = Branch::where('tenant_id', $tid)
+                        ->whereIn('code', $row['branch_codes'] ?? [])
+                        ->pluck('id')
+                        ->all();
+                    $category->branches()->sync($branchIds);
+                }
+            }
+
+            if ($prune && $categoryCodes !== []) {
+                ItemCategory::where('tenant_id', $tid)
+                    ->whereNotIn('code', $categoryCodes)
+                    ->whereDoesntHave('items')
+                    ->whereDoesntHave('children')
+                    ->delete();
+            }
         });
 
         $this->info("تم الاستيراد للشركة: {$slug}");
@@ -331,9 +466,20 @@ class SyncTenantReferenceData extends Command
             ['فروع', count($payload['branches'] ?? [])],
             ['مراكز تكلفة', count($payload['cost_centers'] ?? [])],
             ['طرق دفع', count($payload['payment_methods'] ?? [])],
+            ['وحدات قياس', count($payload['item_units'] ?? [])],
+            ['فئات أصناف', count($payload['item_categories'] ?? [])],
         ]);
 
         return self::SUCCESS;
+    }
+
+    private function resolveAccountId(int $tenantId, mixed $code): ?int
+    {
+        if ($code === null || $code === '') {
+            return null;
+        }
+
+        return Account::where('tenant_id', $tenantId)->where('code', (string) $code)->value('id');
     }
 
     /** دمج عملات مكررة (KD + د.ك + KWD …) قبل/بعد الاستيراد. */
