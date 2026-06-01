@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Seeders\OwnerSeeder;
+use Database\Seeders\SuperAdminSeeder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -61,5 +63,23 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return (bool) $this->is_super_admin;
+    }
+
+    /** يفعّل is_super_admin لحسابات مالك المنصة المعروفة إن نُسيت على السيرفر */
+    public function ensurePlatformOwnerFlag(): self
+    {
+        if ($this->is_super_admin) {
+            return $this;
+        }
+
+        $ownerUsernames = [OwnerSeeder::OWNER_USERNAME, SuperAdminSeeder::USERNAME];
+        $ownerEmails = ['owner@firstclick-erp.com', SuperAdminSeeder::EMAIL];
+
+        if (in_array($this->username, $ownerUsernames, true)
+            || in_array($this->email, $ownerEmails, true)) {
+            $this->forceFill(['is_super_admin' => true])->save();
+        }
+
+        return $this;
     }
 }

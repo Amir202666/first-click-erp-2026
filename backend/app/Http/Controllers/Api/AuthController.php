@@ -71,6 +71,8 @@ class AuthController extends Controller
             ]);
         }
 
+        $user->ensurePlatformOwnerFlag();
+
         if (! $user->isSuperAdmin()) {
             $tenantUser = $user->tenants()->where('tenants.id', $tenant->id)->first();
             if (! $tenantUser || ! $tenantUser->pivot->is_active) {
@@ -97,6 +99,8 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'username' => $user->username,
+                'is_super_admin' => $user->isSuperAdmin(),
             ],
             'tenant' => [
                 'id' => $tenant->id,
@@ -157,17 +161,21 @@ class AuthController extends Controller
 
     public function user(Request $request): JsonResponse
     {
+        $user = $request->user()->ensurePlatformOwnerFlag();
+
         return response()->json([
-            'id' => $request->user()->id,
-            'name' => $request->user()->name,
-            'email' => $request->user()->email,
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'username' => $user->username,
+            'is_super_admin' => $user->isSuperAdmin(),
         ]);
     }
 
     /** بيانات المستخدم مع صلاحياته للشريك الحالي (يتطلب X-Tenant-ID) */
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $request->user()->ensurePlatformOwnerFlag();
         $tenant = $request->tenant_id ? \App\Models\Tenant::find($request->tenant_id) : null;
         $role = null;
         $roleSlug = null;
@@ -178,6 +186,7 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'username' => $user->username,
                 'role' => 'super_admin',
                 'role_slug' => 'super_admin',
                 'is_super_admin' => true,
@@ -247,6 +256,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'username' => $user->username,
             'role' => $role ?? $roleSlug,
             'role_slug' => $roleSlug,
             'is_super_admin' => $user->isSuperAdmin(),

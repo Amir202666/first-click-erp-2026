@@ -4,6 +4,12 @@ export type PlatformSuperAdminMe = {
   is_super_admin?: boolean
 } | null | undefined
 
+const PLATFORM_OWNER_USERNAMES = ['firstclick-erp', 'firstclick-admin']
+
 export function isPlatformSuperAdmin(me: PlatformSuperAdminMe): boolean {
-  return me?.role_slug === 'super_admin' || !!me?.is_super_admin
+  if (me?.role_slug === 'super_admin' || !!me?.is_super_admin) {
+    return true
+  }
+  const username = (me as { username?: string } | null | undefined)?.username
+  return !!username && PLATFORM_OWNER_USERNAMES.includes(username)
 }

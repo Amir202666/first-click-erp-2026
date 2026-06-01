@@ -318,34 +318,6 @@ const navEntries: NavEntry[] = [
     ],
   },
   {
-    labelKey: 'nav.userManagement',
-    icon: Shield,
-    basePaths: ['/tenant-users', '/roles', '/audit-log'],
-    children: [
-      { path: '/tenant-users', labelKey: 'nav.users', icon: UserCog },
-      { path: '/roles', labelKey: 'nav.roles', icon: Shield },
-      { path: '/audit-log', labelKey: 'nav.auditLog', icon: ScrollText },
-    ],
-  },
-  {
-    labelKey: 'nav.hr',
-    icon: Users,
-    basePaths: ['/hr'],
-    children: [
-      { path: '/hr/employees', labelKey: 'nav.hrEmployees', icon: Users },
-      { path: '/hr/attendance', labelKey: 'nav.hrAttendance', icon: CalendarClock },
-      { path: '/hr/payroll', labelKey: 'nav.hrPayroll', icon: Wallet },
-      { path: '/hr/requests', labelKey: 'nav.hrRequests', icon: ClipboardList },
-      { path: '/hr/administrations', labelKey: 'nav.hrAdministrations', icon: Building2 },
-      { path: '/hr/departments', labelKey: 'nav.hrDepartments', icon: FolderTree },
-      { path: '/hr/job-titles', labelKey: 'nav.hrJobTitles', icon: BriefcaseBusiness },
-      { path: '/hr/leave-types', labelKey: 'nav.hrLeaveTypes', icon: CalendarClock },
-      { path: '/hr/allowances', labelKey: 'nav.hrAllowances', icon: BadgePercent },
-      { path: '/hr/deductions', labelKey: 'nav.hrDeductions', icon: BadgeMinus },
-      { path: '/hr/settings', labelKey: 'nav.hrSettings', icon: Settings },
-    ],
-  },
-  {
     labelKey: 'nav.financialStatements',
     icon: TrendingUp,
     basePaths: ['/reports/income-statement', '/reports/balance-sheet'],
@@ -378,6 +350,34 @@ const navEntries: NavEntry[] = [
       { path: '/admin/subscriptions', labelKey: 'nav.subscriptions', icon: CreditCard },
       { path: '/admin/plans', labelKey: 'nav.plans', icon: Package },
       { path: '/admin/backup-reset', labelKey: 'nav.backupReset', icon: Database },
+    ],
+  },
+  {
+    labelKey: 'nav.userManagement',
+    icon: Shield,
+    basePaths: ['/tenant-users', '/roles', '/audit-log'],
+    children: [
+      { path: '/tenant-users', labelKey: 'nav.users', icon: UserCog },
+      { path: '/roles', labelKey: 'nav.roles', icon: Shield },
+      { path: '/audit-log', labelKey: 'nav.auditLog', icon: ScrollText },
+    ],
+  },
+  {
+    labelKey: 'nav.hr',
+    icon: Users,
+    basePaths: ['/hr'],
+    children: [
+      { path: '/hr/employees', labelKey: 'nav.hrEmployees', icon: Users },
+      { path: '/hr/attendance', labelKey: 'nav.hrAttendance', icon: CalendarClock },
+      { path: '/hr/payroll', labelKey: 'nav.hrPayroll', icon: Wallet },
+      { path: '/hr/requests', labelKey: 'nav.hrRequests', icon: ClipboardList },
+      { path: '/hr/administrations', labelKey: 'nav.hrAdministrations', icon: Building2 },
+      { path: '/hr/departments', labelKey: 'nav.hrDepartments', icon: FolderTree },
+      { path: '/hr/job-titles', labelKey: 'nav.hrJobTitles', icon: BriefcaseBusiness },
+      { path: '/hr/leave-types', labelKey: 'nav.hrLeaveTypes', icon: CalendarClock },
+      { path: '/hr/allowances', labelKey: 'nav.hrAllowances', icon: BadgePercent },
+      { path: '/hr/deductions', labelKey: 'nav.hrDeductions', icon: BadgeMinus },
+      { path: '/hr/settings', labelKey: 'nav.hrSettings', icon: Settings },
     ],
   },
 ]
@@ -723,12 +723,12 @@ export default function Layout({ children }: LayoutProps) {
           </button>
         </div>
 
-        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2.5 pt-2 pb-28 scroll-pb-28 space-y-0.5">
+        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2.5 pt-2 pb-4 space-y-0.5">
           {navEntries.map((entry) => {
             if (isGroup(entry)) {
               if (entry.labelKey === 'nav.admin' && !isSuperAdmin) return null
               const visibleChildren = entry.children.filter((child) => {
-                if (!canAccessPath(child.path)) return false
+                // القائمة الجانبية: الصلاحيات فقط — قيود الباقة على الـ API
                 if (entry.labelKey === 'nav.hr') {
                   if (child.path.startsWith('/hr/payroll')) return can('hr.payroll.view')
                   return can('hr.view')
@@ -816,8 +816,7 @@ export default function Layout({ children }: LayoutProps) {
               </Link>
             )
           })}
-          {/* مساحة فارغة أسفل آخر عنصر (الإدارة) لسهولة التمرير */}
-          <div className="min-h-[7rem] shrink-0 pointer-events-none" aria-hidden="true" />
+          <div className="min-h-2 shrink-0 pointer-events-none" aria-hidden="true" />
         </nav>
       </aside>
       )}
