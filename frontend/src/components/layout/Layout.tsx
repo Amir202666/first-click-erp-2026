@@ -719,10 +719,10 @@ export default function Layout({ children }: LayoutProps) {
       {!isPosPage && (
       <aside
         dir={isRtl ? 'rtl' : 'ltr'}
-        className={`no-print
+        className={`no-print fc-app-sidebar
           max-lg:fixed max-lg:z-50 max-lg:inset-y-0
           lg:static lg:z-auto lg:transform-none
-          h-full shrink-0
+          h-full min-h-0 max-h-full shrink-0 overflow-hidden
           ${isRtl ? 'max-lg:right-0' : 'max-lg:left-0'}
           flex flex-col
           transform transition-[transform,opacity] duration-300 ease-in-out
@@ -766,7 +766,7 @@ export default function Layout({ children }: LayoutProps) {
           </button>
         </div>
 
-        <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2.5 pt-2 pb-4 space-y-0.5">
+        <nav className="fc-sidebar-nav flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2.5 pt-2 pb-1 space-y-0.5">
           {sidebarNavEntries.map((entry) => {
             if (isGroup(entry)) {
               if (entry.labelKey === 'nav.admin' && !isSuperAdmin) return null
@@ -812,11 +812,11 @@ export default function Layout({ children }: LayoutProps) {
                   </button>
 
                   <div
-                    className={`overflow-hidden ${
-                      expanded ? 'max-h-[70vh] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
+                    className={`overflow-hidden transition-[max-height,opacity] duration-200 ${
+                      expanded ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0 pointer-events-none'
                     }`}
                   >
-                    <div className="ps-3 max-h-[70vh] overflow-y-auto overflow-x-hidden scrollbar-hide space-y-0.5 py-0.5">
+                    <div className="ps-3 space-y-0.5 py-0.5">
                       {(() => {
                         return visibleChildren.map((child) => {
                           const ChildIcon = child.icon
@@ -859,7 +859,7 @@ export default function Layout({ children }: LayoutProps) {
               </Link>
             )
           })}
-          <div className="min-h-2 shrink-0 pointer-events-none" aria-hidden="true" />
+          <div className="fc-sidebar-nav-end-spacer shrink-0 pointer-events-none" aria-hidden="true" />
         </nav>
       </aside>
       )}

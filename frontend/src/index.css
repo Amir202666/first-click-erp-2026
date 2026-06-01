@@ -995,6 +995,30 @@ html[dir='ltr'] .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
   text-align: start;
 }
 
+/* الشريط الجانبي — تمرير واحد للقائمة كاملة (بدون تمرير داخلي يقطع الوصول لآخر عنصر) */
+.fc-app-sidebar {
+  min-height: 0;
+}
+
+.fc-sidebar-nav {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-padding-bottom: 1.25rem;
+  scrollbar-gutter: stable;
+}
+
+.fc-sidebar-nav-end-spacer {
+  height: 3.5rem;
+  min-height: 3.5rem;
+}
+
+@media (min-width: 1024px) {
+  .fc-sidebar-nav-end-spacer {
+    height: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
 .app-shell-layout-with-sidebar {
   display: flex;
   flex-direction: row;
