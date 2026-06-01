@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -12,7 +12,29 @@ import {
   type SubscriptionPlanOption,
 } from '../../api/admin'
 import PageSizeSelect from '../../components/ui/PageSizeSelect'
-import { Building2, Pencil, X, Check, Loader2, ShieldAlert, Plus, Power, PowerOff, RefreshCw, Mail, ArrowRight, ArrowLeft } from 'lucide-react'
+import {
+  Building2,
+  Pencil,
+  X,
+  Check,
+  Loader2,
+  ShieldAlert,
+  Plus,
+  Power,
+  PowerOff,
+  RefreshCw,
+  Mail,
+  ArrowRight,
+  ArrowLeft,
+  Search,
+  Users,
+  Banknote,
+  AlertTriangle,
+  TrendingUp,
+  Calendar,
+  CreditCard,
+  Inbox,
+} from 'lucide-react'
 import SubscriptionPlanPicker from '../../components/subscription/SubscriptionPlanPicker'
 import { formatDisplayDate } from '../../utils/date'
 import { formatAmount } from '../../utils/currency'
@@ -26,22 +48,122 @@ const STATUS_OPTIONS: { value: '' | 'active' | 'expired' | 'trial'; labelAr: str
   { value: 'trial', labelAr: 'تجريبي', labelEn: 'Trial' },
 ]
 
+function companyInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return (name.trim().slice(0, 2) || '??').toUpperCase()
+}
+
+function avatarColorFromName(name: string): string {
+  const palette = [
+    'bg-violet-500',
+    'bg-blue-500',
+    'bg-emerald-500',
+    'bg-amber-500',
+    'bg-rose-500',
+    'bg-cyan-500',
+    'bg-indigo-500',
+  ]
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) % palette.length
+  return palette[h]
+}
+
+function planBadgeClass(slug: string | null | undefined): string {
+  const map: Record<string, string> = {
+    basic: 'bg-slate-100 text-slate-700 ring-slate-200',
+    advanced: 'bg-blue-50 text-blue-800 ring-blue-200',
+    integrated: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+    professional: 'bg-violet-50 text-violet-800 ring-violet-200',
+    medium: 'bg-slate-100 text-slate-600 ring-slate-200',
+  }
+  return map[slug ?? ''] ?? 'bg-slate-100 text-slate-700 ring-slate-200'
+}
+
 function StatusBadge({ status, isAr }: { status: string; isAr: boolean }) {
   const labels: Record<string, string> = {
     active: isAr ? 'نشط' : 'Active',
     expired: isAr ? 'منتهي' : 'Expired',
     trial: isAr ? 'تجريبي' : 'Trial',
+    suspended: isAr ? 'معلق' : 'Suspended',
+    cancelled: isAr ? 'ملغى' : 'Cancelled',
   }
   const colors: Record<string, string> = {
-    active: 'bg-emerald-100 text-emerald-800',
-    expired: 'bg-red-100 text-red-800',
-    trial: 'bg-amber-100 text-amber-800',
+    active: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+    expired: 'bg-red-100 text-red-800 ring-red-200',
+    trial: 'bg-amber-100 text-amber-900 ring-amber-200',
+    suspended: 'bg-amber-100 text-amber-900 ring-amber-200',
+    cancelled: 'bg-slate-100 text-slate-600 ring-slate-200',
   }
-  const c = colors[status] ?? 'bg-slate-100 text-slate-700'
+  const c = colors[status] ?? 'bg-slate-100 text-slate-700 ring-slate-200'
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${c}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${c}`}>
       {labels[status] ?? status}
     </span>
+  )
+}
+
+function isExpirySoonOrPast(endsAt: string | null | undefined): 'past' | 'soon' | 'ok' {
+  if (!endsAt) return 'ok'
+  const end = new Date(endsAt)
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  end.setHours(0, 0, 0, 0)
+  if (end < now) return 'past'
+  const days = (end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  if (days <= 30) return 'soon'
+  return 'ok'
+}
+
+type MetricCardProps = {
+  label: string
+  value: ReactNode
+  icon: ReactNode
+  borderAccent: string
+  iconWrap: string
+  subtleBg?: string
+}
+
+function MetricCard({ label, value, icon, borderAccent, iconWrap, subtleBg = '' }: MetricCardProps) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${subtleBg}`}
+    >
+      <div className={`absolute top-0 bottom-0 w-1 start-0 ${borderAccent}`} aria-hidden />
+      <div className="flex items-start justify-between gap-3 ps-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-slate-500 mb-1 leading-snug">{label}</p>
+          <div className="text-2xl font-bold text-slate-900 tabular-nums tracking-tight">{value}</div>
+        </div>
+        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconWrap}`}>{icon}</div>
+      </div>
+    </div>
+  )
+}
+
+function ActionIconBtn({
+  onClick,
+  disabled,
+  title,
+  className,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  title: string
+  className: string
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`p-2 rounded-lg transition-all duration-150 disabled:opacity-40 ${className}`}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -176,7 +298,6 @@ export default function AdminSubscriptions() {
   const title = isAr ? 'إدارة الاشتراكات' : 'Subscription Management'
   const locale = isAr ? 'ar-u-nu-latn' : 'en-US'
   const colCompany = isAr ? 'الشركة' : 'Company'
-  const colCode = isAr ? 'كود الشركة' : 'Company code'
   const colEmail = isAr ? 'البريد الإلكتروني' : 'Email'
   const colPlan = isAr ? 'نوع الباقة' : 'Plan'
   const colTotalSales = isAr ? "إجمالي مبيعات الشركة (للمراقبة)" : 'Total sales (monitoring)'
@@ -265,216 +386,341 @@ export default function AdminSubscriptions() {
     }
   }
 
+  const openAddCompany = () => {
+    setCreateTenantError('')
+    setAddCompanyStep('plan')
+    setNewCompany((c) => ({ ...c, subscription_plan_id: '' }))
+    setShowAddCompany(true)
+  }
+
+  const filterSelectClass =
+    'h-10 appearance-none rounded-lg border border-slate-200 bg-white ps-3 pe-8 text-sm text-slate-800 shadow-sm transition-colors hover:border-slate-300 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 min-w-[130px]'
+
   return (
-    <div className="p-3 md:p-4 max-w-[98%] mx-auto" dir={isAr ? 'rtl' : 'ltr'}>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary-600" />
-              {title}
-            </h1>
+    <div className="p-3 md:p-5 max-w-[98%] mx-auto space-y-5" dir={isAr ? 'rtl' : 'ltr'}>
+      {/* Page header */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
+              <CreditCard className="w-5 h-5" />
+            </span>
+            {title}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 ps-12 sm:ps-0">
+            {isAr ? 'متابعة الشركات والاشتراكات والتحصيل' : 'Monitor companies, plans, and billing'}
+          </p>
+        </div>
+      </div>
+
+      {/* Metric cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <MetricCard
+          label={cardActive}
+          value={summary.active_count ?? 0}
+          borderAccent="bg-emerald-500"
+          iconWrap="bg-emerald-100 text-emerald-600"
+          subtleBg="bg-emerald-50/30"
+          icon={<Users className="w-5 h-5" />}
+        />
+        <MetricCard
+          label={cardExpected}
+          value={formatAmount(summary.expected_collection_this_month ?? 0, { decimal_places: 2 }, locale)}
+          borderAccent="bg-blue-500"
+          iconWrap="bg-blue-100 text-blue-600"
+          subtleBg="bg-blue-50/30"
+          icon={<Banknote className="w-5 h-5" />}
+        />
+        <MetricCard
+          label={cardDelinquent}
+          value={<span className="text-red-600">{summary.delinquent_count ?? 0}</span>}
+          borderAccent="bg-red-500"
+          iconWrap="bg-red-100 text-red-600"
+          subtleBg="bg-red-50/30"
+          icon={<AlertTriangle className="w-5 h-5" />}
+        />
+        <MetricCard
+          label={cardNewToday}
+          value={<span className="text-violet-700">{summary.new_today_count ?? 0}</span>}
+          borderAccent="bg-violet-500"
+          iconWrap="bg-violet-100 text-violet-600"
+          subtleBg="bg-violet-50/30"
+          icon={<TrendingUp className="w-5 h-5" />}
+        />
+      </div>
+
+      {/* Filters bar */}
+      <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-1">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search
+                className="absolute top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none start-3"
+                aria-hidden
+              />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchCode}
+                onChange={(e) => {
+                  setSearchCode(e.target.value)
+                  setPage(1)
+                }}
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50/80 ps-10 pe-3 text-sm text-slate-800 placeholder:text-slate-400 transition-colors focus:bg-white focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                dir="ltr"
+              />
+            </div>
+            <select
+              className={filterSelectClass}
+              value={planFilter}
+              onChange={(e) => {
+                setPlanFilter(e.target.value ? Number(e.target.value) : '')
+                setPage(1)
+              }}
+              aria-label={filterPlanLabel}
+            >
+              <option value="">
+                {filterPlanLabel}: {isAr ? 'الكل' : 'All'}
+              </option>
+              {plans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className={filterSelectClass}
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as '' | 'active' | 'expired' | 'trial')
+                setPage(1)
+              }}
+              aria-label={filterStatusLabel}
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value || 'all'} value={opt.value}>
+                  {filterStatusLabel}: {isAr ? opt.labelAr : opt.labelEn}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end">
+            <PageSizeSelect value={perPage} onChange={(v) => { setPerPage(v); setPage(1) }} />
             <button
               type="button"
-              onClick={() => {
-                setCreateTenantError('')
-                setAddCompanyStep('plan')
-                setNewCompany((c) => ({ ...c, subscription_plan_id: '' }))
-                setShowAddCompany(true)
-              }}
-              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
+              onClick={openAddCompany}
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-teal-600 text-white text-sm font-semibold shadow-sm shadow-teal-900/15 hover:bg-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 transition-colors"
             >
               <Plus className="w-4 h-4" />
               {addCompanyLabel}
             </button>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={searchCode}
-              onChange={(e) => { setSearchCode(e.target.value); setPage(1) }}
-              className="h-10 border border-slate-300 rounded-lg bg-white px-3 text-sm focus:ring-1 focus:ring-inset focus:ring-primary-500 focus:border-primary-500 outline-none min-w-[180px]"
-              dir="ltr"
-            />
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-600 whitespace-nowrap">{filterStatusLabel}</label>
-              <select
-                className="h-10 border border-slate-300 rounded-lg bg-white px-3 text-sm focus:ring-1 focus:ring-inset focus:ring-primary-500 focus:border-primary-500 outline-none min-w-[120px]"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value as '' | 'active' | 'expired' | 'trial')
-                  setPage(1)
-                }}
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value || 'all'} value={opt.value}>
-                    {isAr ? opt.labelAr : opt.labelEn}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-600 whitespace-nowrap">{filterPlanLabel}</label>
-              <select
-                className="h-10 border border-slate-300 rounded-lg bg-white px-3 text-sm focus:ring-1 focus:ring-inset focus:ring-primary-500 outline-none min-w-[120px]"
-                value={planFilter}
-                onChange={(e) => { setPlanFilter(e.target.value ? Number(e.target.value) : ''); setPage(1) }}
-              >
-                <option value="">{isAr ? 'الكل' : 'All'}</option>
-                {plans.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-            <PageSizeSelect value={perPage} onChange={(v) => { setPerPage(v); setPage(1) }} />
-          </div>
         </div>
+      </div>
 
-        {/* Analytics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs text-slate-500 mb-1">{cardActive}</p>
-            <p className="text-xl font-bold text-slate-900">{summary.active_count ?? 0}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs text-slate-500 mb-1">{cardExpected}</p>
-            <p className="text-xl font-bold text-slate-900">{formatAmount(summary.expected_collection_this_month ?? 0, { decimal_places: 2 }, locale)}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs text-slate-500 mb-1">{cardDelinquent}</p>
-            <p className="text-xl font-bold text-red-600">{summary.delinquent_count ?? 0}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <p className="text-xs text-slate-500 mb-1">{cardNewToday}</p>
-            <p className="text-xl font-bold text-emerald-600">{summary.new_today_count ?? 0}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <SortableTh label={colCompany} sortKey="name" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <SortableTh label={colCode} sortKey="slug" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <SortableTh label={colEmail} sortKey="email" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <SortableTh label={colPlan} sortKey="plan_name" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <SortableTh label={colTotalSales} sortKey="total_sales" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <SortableTh label={colLastSeen} sortKey="last_seen_at" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <SortableTh label={colEndsAt} sortKey="subscription_ends_at" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <SortableTh label={colStatus} sortKey="subscription_status" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <th className="text-start py-2.5 px-3 font-medium text-slate-700 w-36">{colActions}</th>
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto max-h-[calc(100vh-22rem)]">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
+              <tr>
+                <SortableTh label={colCompany} sortKey="name" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
+                <SortableTh label={colEmail} sortKey="email" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
+                <SortableTh label={colPlan} sortKey="plan_name" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
+                <SortableTh label={colTotalSales} sortKey="total_sales" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700 hidden lg:table-cell" />
+                <SortableTh label={colLastSeen} sortKey="last_seen_at" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700 hidden md:table-cell" />
+                <SortableTh label={colEndsAt} sortKey="subscription_ends_at" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
+                <SortableTh label={colStatus} sortKey="subscription_status" sortState={sort} onToggle={toggleSort} className="text-start py-3 px-3 font-semibold text-slate-700" />
+                <th className="text-start py-3 px-3 font-semibold text-slate-700 w-40">{colActions}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center text-slate-500">
+                    <Loader2 className="w-9 h-9 animate-spin mx-auto mb-3 text-teal-600" />
+                    {isAr ? 'جاري التحميل...' : 'Loading...'}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-500">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-primary-500" />
-                      {isAr ? 'جاري التحميل...' : 'Loading...'}
-                    </td>
-                  </tr>
-                ) : sortedRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-500">
-                      {isAr ? 'لا توجد بيانات' : 'No data'}
-                    </td>
-                  </tr>
-                ) : (
-                  sortedRows.map((row) => (
-                    <tr key={row.id} className={`border-b border-slate-100 hover:bg-slate-50/50 ${!row.is_active ? 'opacity-70 bg-slate-50/50' : ''}`}>
-                      <td className="py-2.5 px-3 text-slate-800 font-medium">
-                        {row.name}
-                        {!row.is_active && (
-                          <span className="mr-2 text-xs text-amber-700 font-normal">({isAr ? 'معطّل' : 'Disabled'})</span>
+              ) : sortedRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-0">
+                    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4">
+                        <Inbox className="w-10 h-10" />
+                      </div>
+                      <h3 className="text-base font-semibold text-slate-800 mb-1">
+                        {isAr ? 'لا توجد اشتراكات' : 'No subscriptions yet'}
+                      </h3>
+                      <p className="text-sm text-slate-500 max-w-sm mb-6">
+                        {isAr
+                          ? 'ابدأ بإضافة شركة جديدة وربطها بباقة اشتراك.'
+                          : 'Get started by adding a new company and assigning a plan.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={openAddCompany}
+                        className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-500 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        {addCompanyLabel}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                sortedRows.map((row) => {
+                  const expiryState = isExpirySoonOrPast(row.subscription_ends_at)
+                  const email = row.company_email ?? row.manager_username ?? ''
+                  return (
+                    <tr
+                      key={row.id}
+                      className={`border-b border-slate-100 transition-colors hover:bg-slate-50/80 ${
+                        !row.is_active ? 'opacity-75 bg-slate-50/40' : ''
+                      }`}
+                    >
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-3 min-w-[180px]">
+                          <div
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm ${avatarColorFromName(row.name)}`}
+                          >
+                            {companyInitials(row.name)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-900 truncate">
+                              {row.name}
+                              {!row.is_active && (
+                                <span className="ms-1.5 text-[10px] font-normal text-amber-700">
+                                  ({isAr ? 'معطّل' : 'Off'})
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-xs text-slate-500 font-mono truncate" dir="ltr">
+                              {row.slug}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        {email ? (
+                          <a
+                            href={String(email).includes('@') ? `mailto:${email}` : undefined}
+                            className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-teal-700 transition-colors max-w-[200px]"
+                            dir="ltr"
+                          >
+                            <Mail className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                            <span className="truncate">{email}</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-700 font-mono text-xs">{row.slug}</td>
-                      <td className="py-2.5 px-3 text-slate-700 text-xs">{row.company_email ?? row.manager_username ?? '—'}</td>
-                      <td className="py-2.5 px-3 text-slate-700">{row.plan_name}</td>
-                      <td className="py-2.5 px-3 text-slate-700 tabular-nums">{row.total_sales != null ? formatAmount(row.total_sales, { decimal_places: 2 }, locale) : '—'}</td>
-                      <td className="py-2.5 px-3 text-slate-700">{row.last_seen_at ? formatDisplayDate(row.last_seen_at) : '—'}</td>
-                      <td className="py-2.5 px-3 text-slate-700">
-                        {row.subscription_ends_at ? formatDisplayDate(row.subscription_ends_at) : '—'}
+                      <td className="py-3 px-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${planBadgeClass(row.plan_slug)}`}
+                        >
+                          {row.plan_name || '—'}
+                        </span>
                       </td>
-                      <td className="py-2.5 px-3">
+                      <td className="py-3 px-3 text-slate-700 tabular-nums hidden lg:table-cell">
+                        {row.total_sales != null ? formatAmount(row.total_sales, { decimal_places: 2 }, locale) : '—'}
+                      </td>
+                      <td className="py-3 px-3 text-slate-600 text-xs hidden md:table-cell">
+                        {row.last_seen_at ? formatDisplayDate(row.last_seen_at) : '—'}
+                      </td>
+                      <td className="py-3 px-3">
+                        {row.subscription_ends_at ? (
+                          <span
+                            className={`inline-flex items-center gap-1 text-xs font-medium ${
+                              expiryState === 'past' || expiryState === 'soon'
+                                ? 'text-red-600'
+                                : 'text-slate-700'
+                            }`}
+                          >
+                            <Calendar className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                            {formatDisplayDate(row.subscription_ends_at)}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
                         <StatusBadge status={row.subscription_status} isAr={isAr} />
                       </td>
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => handleQuickRenew(row)}
-                            disabled={updateMut.isPending}
-                            className="p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 transition-colors"
-                            title={quickRenewLabel}
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handlePaymentReminder(row)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                            title={paymentReminderLabel}
-                          >
-                            <Mail className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleActiveMut.mutate(row.id)}
-                            disabled={toggleActiveMut.isPending}
-                            className={`p-1.5 rounded-lg transition-colors ${row.is_active ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
-                            title={row.is_active ? disableLabel : enableLabel}
-                          >
-                            {row.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
-                          </button>
-                          <button
-                            type="button"
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-0.5">
+                          <ActionIconBtn
                             onClick={() => openEdit(row)}
-                            className="p-1.5 rounded-lg text-slate-600 hover:bg-primary-50 hover:text-primary-600 transition-colors"
                             title={isAr ? 'تعديل' : 'Edit'}
+                            className="text-slate-600 hover:bg-primary-50 hover:text-primary-600"
                           >
                             <Pencil className="w-4 h-4" />
-                          </button>
+                          </ActionIconBtn>
+                          <ActionIconBtn
+                            onClick={() => handlePaymentReminder(row)}
+                            title={paymentReminderLabel}
+                            className="text-slate-600 hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </ActionIconBtn>
+                          <ActionIconBtn
+                            onClick={() => handleQuickRenew(row)}
+                            disabled={updateMut.isPending}
+                            title={quickRenewLabel}
+                            className="text-teal-600 hover:bg-teal-50"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </ActionIconBtn>
+                          <ActionIconBtn
+                            onClick={() => toggleActiveMut.mutate(row.id)}
+                            disabled={toggleActiveMut.isPending}
+                            title={row.is_active ? disableLabel : enableLabel}
+                            className={
+                              row.is_active
+                                ? 'text-amber-600 hover:bg-amber-50'
+                                : 'text-emerald-600 hover:bg-emerald-50'
+                            }
+                          >
+                            {row.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                          </ActionIconBtn>
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {lastPage > 1 && (
-            <div className="flex items-center justify-between py-2 px-3 border-t border-slate-200 bg-slate-50/50">
-              <span className="text-xs text-slate-600">
-                {isAr ? `الإجمالي: ${total}` : `Total: ${total}`}
-              </span>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  className="h-8 px-2 rounded border border-slate-300 bg-white text-sm disabled:opacity-50"
-                >
-                  {isAr ? 'السابق' : 'Previous'}
-                </button>
-                <span className="h-8 px-2 flex items-center text-sm text-slate-600">
-                  {page} / {lastPage}
-                </span>
-                <button
-                  type="button"
-                  disabled={page >= lastPage}
-                  onClick={() => setPage((p) => p + 1)}
-                  className="h-8 px-2 rounded border border-slate-300 bg-white text-sm disabled:opacity-50"
-                >
-                  {isAr ? 'التالي' : 'Next'}
-                </button>
-              </div>
-            </div>
-          )}
+                  )
+                })
+              )}
+            </tbody>
+          </table>
         </div>
+
+        {lastPage > 1 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 py-3 px-4 border-t border-slate-200 bg-slate-50/80">
+            <span className="text-xs font-medium text-slate-600">
+              {isAr ? `الإجمالي: ${total}` : `Total: ${total}`}
+            </span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+                className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+              >
+                {isAr ? 'السابق' : 'Previous'}
+              </button>
+              <span className="h-8 px-3 flex items-center text-sm font-medium text-slate-600 tabular-nums">
+                {page} / {lastPage}
+              </span>
+              <button
+                type="button"
+                disabled={page >= lastPage}
+                onClick={() => setPage((p) => p + 1)}
+                className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+              >
+                {isAr ? 'التالي' : 'Next'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add company modal — خطوة الباقات ثم بيانات الشركة */}
