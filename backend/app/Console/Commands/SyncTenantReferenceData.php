@@ -452,11 +452,7 @@ class SyncTenantReferenceData extends Command
             }
 
             if ($prune && $categoryCodes !== []) {
-                ItemCategory::where('tenant_id', $tid)
-                    ->whereNotIn('code', $categoryCodes)
-                    ->whereDoesntHave('items')
-                    ->whereDoesntHave('children')
-                    ->delete();
+                $this->pruneItemCategories($tid, $categoryCodes);
             }
         });
 
@@ -480,6 +476,33 @@ class SyncTenantReferenceData extends Command
         }
 
         return Account::where('tenant_id', $tenantId)->where('code', (string) $code)->value('id');
+    }
+
+    /**
+     * حذف فئات غير موجودة في ملف التصدير — استعلام منفصل لتجنب MySQL 1093.
+     *
+     * @param  list<string>  $keepCodes
+     */
+    private function pruneItemCategories(int $tenantId, array $keepCodes): void
+    {
+        $ids = DB::table('item_categories as ic')
+            ->where('ic.tenant_id', $tenantId)
+            ->whereNotIn('ic.code', $keepCodes)
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw('1'))
+                    ->from('items')
+                    ->whereColumn('items.category_id', 'ic.id');
+            })
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw('1'))
+                    ->from('item_categories as ic_child')
+                    ->whereColumn('ic_child.parent_id', 'ic.id');
+            })
+            ->pluck('ic.id');
+
+        if ($ids->isNotEmpty()) {
+            ItemCategory::whereIn('id', $ids)->delete();
+        }
     }
 
     /** دمج عملات مكررة (KD + د.ك + KWD …) قبل/بعد الاستيراد. */
