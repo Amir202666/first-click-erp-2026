@@ -22,6 +22,10 @@ cd "$PROJECT_DIR/backend"
 php artisan admin:grant-super-admin || true
 php artisan admin:grant-super-admin --display-name="مالك النظام" 2>/dev/null || true
 
+echo ""
+echo "Subscription plans (official tiers)..."
+php artisan plans:setup-official || true
+
 if [ -f "$PROJECT_DIR/scripts/sync-data/reference_first-company.json" ]; then
   echo ""
   echo "Importing reference data (currencies, branches, payment methods, units, categories)..."
