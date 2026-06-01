@@ -13,7 +13,6 @@ import {
 } from '../../api/admin'
 import PageSizeSelect from '../../components/ui/PageSizeSelect'
 import {
-  Building2,
   Pencil,
   X,
   Check,
