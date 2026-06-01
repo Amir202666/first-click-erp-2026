@@ -12,7 +12,8 @@ import {
   type SubscriptionPlanOption,
 } from '../../api/admin'
 import PageSizeSelect from '../../components/ui/PageSizeSelect'
-import { Building2, Pencil, X, Check, Loader2, ShieldAlert, Plus, Power, PowerOff, RefreshCw, Mail } from 'lucide-react'
+import { Building2, Pencil, X, Check, Loader2, ShieldAlert, Plus, Power, PowerOff, RefreshCw, Mail, ArrowRight, ArrowLeft } from 'lucide-react'
+import SubscriptionPlanPicker from '../../components/subscription/SubscriptionPlanPicker'
 import { formatDisplayDate } from '../../utils/date'
 import { formatAmount } from '../../utils/currency'
 import { useClientSort, type SortColumn } from '../../hooks/useClientSort'
@@ -65,6 +66,7 @@ export default function AdminSubscriptions() {
     subscription_ends_at: '',
   })
   const [showAddCompany, setShowAddCompany] = useState(false)
+  const [addCompanyStep, setAddCompanyStep] = useState<'plan' | 'details'>('plan')
   const [createTenantError, setCreateTenantError] = useState('')
   const [newCompany, setNewCompany] = useState({
     name: '',
@@ -114,6 +116,7 @@ export default function AdminSubscriptions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions'] })
       setShowAddCompany(false)
+      setAddCompanyStep('plan')
       setCreateTenantError('')
       setNewCompany({
         name: '',
@@ -267,7 +270,12 @@ export default function AdminSubscriptions() {
             </h1>
             <button
               type="button"
-              onClick={() => { setCreateTenantError(''); setShowAddCompany(true) }}
+              onClick={() => {
+                setCreateTenantError('')
+                setAddCompanyStep('plan')
+                setNewCompany((c) => ({ ...c, subscription_plan_id: '' }))
+                setShowAddCompany(true)
+              }}
               className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
             >
               <Plus className="w-4 h-4" />
@@ -463,127 +471,207 @@ export default function AdminSubscriptions() {
         </div>
       </div>
 
-      {/* Add company modal */}
+      {/* Add company modal — خطوة الباقات ثم بيانات الشركة */}
       {showAddCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !createTenantMut.isPending && setShowAddCompany(false)}>
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 w-full max-w-md p-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-semibold text-slate-800">{addCompanyLabel}</h3>
-              <button type="button" onClick={() => !createTenantMut.isPending && setShowAddCompany(false)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40"
+          onClick={() => !createTenantMut.isPending && setShowAddCompany(false)}
+        >
+          <div
+            className={`bg-white rounded-xl shadow-lg border border-slate-200 w-full p-4 sm:p-5 max-h-[94vh] overflow-y-auto ${
+              addCompanyStep === 'plan' ? 'max-w-6xl' : 'max-w-md'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+            dir={isAr ? 'rtl' : 'ltr'}
+          >
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <div>
+                <h3 className="text-base font-semibold text-slate-800">{addCompanyLabel}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {addCompanyStep === 'plan'
+                    ? isAr
+                      ? 'الخطوة 1 من 2 — اختر الباقة المناسبة'
+                      : 'Step 1 of 2 — Choose a plan'
+                    : isAr
+                      ? 'الخطوة 2 من 2 — بيانات الشركة والمدير'
+                      : 'Step 2 of 2 — Company & manager details'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !createTenantMut.isPending && setShowAddCompany(false)}
+                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 shrink-0"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            {createTenantError && (
-              <div className="mb-3 p-2 rounded-lg bg-red-50 text-red-700 text-xs">
-                {createTenantError}
-              </div>
+
+            {createTenantError && addCompanyStep === 'details' && (
+              <div className="mb-3 p-2 rounded-lg bg-red-50 text-red-700 text-xs">{createTenantError}</div>
             )}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'اسم الشركة' : 'Company name'}</label>
-                <input
-                  type="text"
-                  className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
-                  value={newCompany.name}
-                  onChange={(e) => setNewCompany((c) => ({ ...c, name: e.target.value }))}
-                  placeholder={isAr ? 'اسم الشركة' : 'Company name'}
+
+            {addCompanyStep === 'plan' ? (
+              <>
+                <SubscriptionPlanPicker
+                  selectedPlanId={newCompany.subscription_plan_id}
+                  onSelect={(id) => setNewCompany((c) => ({ ...c, subscription_plan_id: id }))}
+                  isAr={isAr}
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'معرف الشركة المختصر' : 'Company ID (slug)'}</label>
-                <input
-                  type="text"
-                  className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm font-mono"
-                  value={newCompany.company_slug}
-                  onChange={(e) => setNewCompany((c) => ({ ...c, company_slug: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') }))}
-                  placeholder={isAr ? 'مثال: my-company' : 'e.g. my-company'}
-                  dir="ltr"
-                />
-                <p className="text-[10px] text-slate-500 mt-0.5">{isAr ? 'أحرف إنجليزية، أرقام، شرطة فقط. يُستخدم في تسجيل الدخول.' : 'Letters, numbers, hyphen only. Used for login.'}</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'اسم مستخدم المدير' : 'Manager username'}</label>
-                <input
-                  type="text"
-                  className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
-                  value={newCompany.manager_username}
-                  onChange={(e) => setNewCompany((c) => ({ ...c, manager_username: e.target.value }))}
-                  placeholder={isAr ? 'مثال: amir2026 أو admin@company.com' : 'e.g. amir2026 or admin@company.com'}
-                  dir="ltr"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'كلمة مرور المدير' : 'Manager password'}</label>
-                <input
-                  type="password"
-                  className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
-                  value={newCompany.manager_password}
-                  onChange={(e) => setNewCompany((c) => ({ ...c, manager_password: e.target.value }))}
-                  placeholder="••••••••"
-                  minLength={8}
-                />
-                <p className="text-[10px] text-slate-500 mt-0.5">{isAr ? '8 أحرف على الأقل' : 'At least 8 characters'}</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'اسم المدير (اختياري)' : 'Manager name (opt.)'}</label>
-                <input
-                  type="text"
-                  className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
-                  value={newCompany.manager_name}
-                  onChange={(e) => setNewCompany((c) => ({ ...c, manager_name: e.target.value }))}
-                  placeholder="—"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'الباقة' : 'Plan'}</label>
-                  <select
-                    className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm bg-white"
-                    value={newCompany.subscription_plan_id}
-                    onChange={(e) => setNewCompany((c) => ({ ...c, subscription_plan_id: e.target.value ? Number(e.target.value) : '' }))}
+                <div className="flex justify-end gap-2 mt-5 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => !createTenantMut.isPending && setShowAddCompany(false)}
+                    className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium"
                   >
-                    <option value="">—</option>
-                    {plans.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+                    {cancelLabel}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!newCompany.subscription_plan_id}
+                    onClick={() => setAddCompanyStep('details')}
+                    className="h-9 px-4 rounded-lg bg-primary-600 text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isAr ? 'التالي' : 'Next'}
+                    {isAr ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'بدء الاشتراك' : 'Start date'}</label>
-                  <input
-                    type="date"
-                    className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
-                    value={newCompany.subscription_starts_at}
-                    onChange={(e) => setNewCompany((c) => ({ ...c, subscription_starts_at: e.target.value }))}
-                  />
+              </>
+            ) : (
+              <>
+                {newCompany.subscription_plan_id && (
+                  <button
+                    type="button"
+                    onClick={() => setAddCompanyStep('plan')}
+                    className="mb-3 text-xs font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                  >
+                    {isAr ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
+                    {isAr ? 'تغيير الباقة' : 'Change plan'}
+                  </button>
+                )}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'اسم الشركة' : 'Company name'}</label>
+                    <input
+                      type="text"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                      value={newCompany.name}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, name: e.target.value }))}
+                      placeholder={isAr ? 'اسم الشركة' : 'Company name'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'معرف الشركة المختصر' : 'Company ID (slug)'}</label>
+                    <input
+                      type="text"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm font-mono"
+                      value={newCompany.company_slug}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, company_slug: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') }))}
+                      placeholder={isAr ? 'مثال: my-company' : 'e.g. my-company'}
+                      dir="ltr"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {isAr ? 'أحرف إنجليزية، أرقام، شرطة فقط. يُستخدم في تسجيل الدخول.' : 'Letters, numbers, hyphen only. Used for login.'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'اسم مستخدم المدير' : 'Manager username'}</label>
+                    <input
+                      type="text"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                      value={newCompany.manager_username}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, manager_username: e.target.value }))}
+                      placeholder={isAr ? 'مثال: amir2026 أو admin@company.com' : 'e.g. amir2026 or admin@company.com'}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'كلمة مرور المدير' : 'Manager password'}</label>
+                    <input
+                      type="password"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                      value={newCompany.manager_password}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, manager_password: e.target.value }))}
+                      placeholder="••••••••"
+                      minLength={8}
+                    />
+                    <p className="text-[10px] text-slate-500 mt-0.5">{isAr ? '8 أحرف على الأقل' : 'At least 8 characters'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'اسم المدير (اختياري)' : 'Manager name (opt.)'}</label>
+                    <input
+                      type="text"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                      value={newCompany.manager_name}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, manager_name: e.target.value }))}
+                      placeholder="—"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-0.5">{isAr ? 'بدء الاشتراك' : 'Start date'}</label>
+                    <input
+                      type="date"
+                      className="w-full h-9 border border-slate-300 rounded-lg px-2.5 text-sm"
+                      value={newCompany.subscription_starts_at}
+                      onChange={(e) => setNewCompany((c) => ({ ...c, subscription_starts_at: e.target.value }))}
+                    />
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button type="button" onClick={() => !createTenantMut.isPending && setShowAddCompany(false)} className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium">
-                {cancelLabel}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!newCompany.name.trim() || !newCompany.company_slug.trim() || !newCompany.manager_username.trim() || !newCompany.manager_password || newCompany.manager_password.length < 8 || !newCompany.subscription_plan_id) return
-                  createTenantMut.mutate({
-                    name: newCompany.name.trim(),
-                    company_slug: newCompany.company_slug.trim().toLowerCase(),
-                    manager_username: newCompany.manager_username.trim(),
-                    manager_password: newCompany.manager_password,
-                    manager_name: newCompany.manager_name.trim() || undefined,
-                    subscription_plan_id: Number(newCompany.subscription_plan_id),
-                    subscription_starts_at: newCompany.subscription_starts_at,
-                  })
-                }}
-                disabled={createTenantMut.isPending || !newCompany.name.trim() || !newCompany.company_slug.trim() || !newCompany.manager_username.trim() || !newCompany.manager_password || newCompany.manager_password.length < 8 || !newCompany.subscription_plan_id}
-                className="h-9 px-3 rounded-lg bg-primary-600 text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50"
-              >
-                {createTenantMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                {saveLabel}
-              </button>
-            </div>
+                <div className="flex justify-between gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setAddCompanyStep('plan')}
+                    className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium"
+                  >
+                    {isAr ? 'رجوع' : 'Back'}
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => !createTenantMut.isPending && setShowAddCompany(false)}
+                      className="h-9 px-3 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium"
+                    >
+                      {cancelLabel}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          !newCompany.name.trim() ||
+                          !newCompany.company_slug.trim() ||
+                          !newCompany.manager_username.trim() ||
+                          !newCompany.manager_password ||
+                          newCompany.manager_password.length < 8 ||
+                          !newCompany.subscription_plan_id
+                        )
+                          return
+                        createTenantMut.mutate({
+                          name: newCompany.name.trim(),
+                          company_slug: newCompany.company_slug.trim().toLowerCase(),
+                          manager_username: newCompany.manager_username.trim(),
+                          manager_password: newCompany.manager_password,
+                          manager_name: newCompany.manager_name.trim() || undefined,
+                          subscription_plan_id: Number(newCompany.subscription_plan_id),
+                          subscription_starts_at: newCompany.subscription_starts_at,
+                        })
+                      }}
+                      disabled={
+                        createTenantMut.isPending ||
+                        !newCompany.name.trim() ||
+                        !newCompany.company_slug.trim() ||
+                        !newCompany.manager_username.trim() ||
+                        !newCompany.manager_password ||
+                        newCompany.manager_password.length < 8 ||
+                        !newCompany.subscription_plan_id
+                      }
+                      className="h-9 px-3 rounded-lg bg-primary-600 text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {createTenantMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      {saveLabel}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

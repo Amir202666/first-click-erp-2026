@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\AdminSubscriptionController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\SubscriptionPlanController;
 use App\Http\Controllers\Api\BomController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CostCenterController;
@@ -98,6 +99,7 @@ Route::prefix('v1')->middleware(['throttle:1000,1', 'api.key'])->group(function 
 // ──── Auth (Public) ────
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::get('/subscription-plans', [SubscriptionPlanController::class, 'index']);
 
 // ──── Public restaurant menu (QR — بدون auth) ────
 Route::prefix('public/menu')->group(function () {
