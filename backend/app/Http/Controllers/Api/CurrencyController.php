@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
 use App\Services\ExchangeRateService;
+use App\Support\ReferenceDataNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -39,9 +40,23 @@ class CurrencyController extends Controller
         ]);
 
         $validated['tenant_id'] = $request->tenant_id;
+        $validated['code'] = ReferenceDataNormalizer::normalizeCurrencyCode($validated['code']);
+        if (isset($validated['base_currency'])) {
+            $validated['base_currency'] = ReferenceDataNormalizer::normalizeCurrencyCode($validated['base_currency']);
+        }
 
         if (! empty($validated['is_default'])) {
             Currency::where('tenant_id', $request->tenant_id)->update(['is_default' => false]);
+        }
+
+        $existing = Currency::where('tenant_id', $request->tenant_id)
+            ->whereIn('code', ReferenceDataNormalizer::currencyCodeVariants($validated['code']))
+            ->first();
+
+        if ($existing) {
+            $existing->update($validated);
+
+            return response()->json($existing);
         }
 
         $currency = Currency::create($validated);
@@ -63,6 +78,13 @@ class CurrencyController extends Controller
             'is_default' => 'sometimes|boolean',
             'is_active' => 'sometimes|boolean',
         ]);
+
+        if (isset($validated['code'])) {
+            $validated['code'] = ReferenceDataNormalizer::normalizeCurrencyCode($validated['code']);
+        }
+        if (isset($validated['base_currency'])) {
+            $validated['base_currency'] = ReferenceDataNormalizer::normalizeCurrencyCode($validated['base_currency']);
+        }
 
         if (! empty($validated['is_default'])) {
             Currency::where('tenant_id', $request->tenant_id)

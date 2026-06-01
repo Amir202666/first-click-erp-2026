@@ -8,6 +8,7 @@ use App\Models\CostCenter;
 use App\Models\Currency;
 use App\Models\PaymentMethod;
 use App\Models\Tenant;
+use App\Support\ReferenceDataNormalizer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -21,7 +22,7 @@ class SyncTenantReferenceData extends Command
                             {action : export أو import}
                             {--slug=first-company : معرف الشركة}
                             {--file= : مسار ملف JSON}
-                            {--prune : عند الاستيراد — حذف السجلات غير الموجودة في الملف (بحذر)}';
+                            {--no-prune : لا تحذف السجلات القديمة غير الموجودة في ملف التصدير}';
 
     protected $description = 'مزامنة العملات والفروع ومراكز التكلفة وطرق الدفع بين المحلي والإنتاج';
 
@@ -61,10 +62,14 @@ class SyncTenantReferenceData extends Command
             return self::FAILURE;
         }
 
-        $currencies = Currency::where('tenant_id', $tenant->id)->orderBy('code')->get()->map(fn ($c) => $c->only([
-            'code', 'name', 'name_en', 'symbol', 'decimal_places', 'exchange_rate', 'base_currency',
-            'rate_date', 'is_active', 'is_default',
-        ]))->values()->all();
+        $currencies = ReferenceDataNormalizer::dedupeCurrencyRows(
+            Currency::where('tenant_id', $tenant->id)->orderBy('code')->get()->map(fn ($c) => array_merge($c->only([
+                'code', 'name', 'name_en', 'symbol', 'decimal_places', 'exchange_rate', 'base_currency',
+                'rate_date', 'is_active', 'is_default',
+            ]), [
+                'code' => ReferenceDataNormalizer::normalizeCurrencyCode($c->code),
+            ]))->values()->all()
+        );
 
         $branches = Branch::where('tenant_id', $tenant->id)->orderBy('code')->get()->map(fn ($b) => $b->only([
             'code', 'name', 'name_en', 'address', 'phone', 'manager_name', 'is_active',
@@ -97,7 +102,7 @@ class SyncTenantReferenceData extends Command
         })->values()->all();
 
         $payload = [
-            'version' => 2,
+            'version' => 3,
             'tenant_slug' => $tenant->slug,
             'exported_at' => now()->toIso8601String(),
             'counts' => [
@@ -158,33 +163,64 @@ class SyncTenantReferenceData extends Command
         }
 
         $tid = $tenant->id;
-        $prune = (bool) $this->option('prune');
+        // استيراد مرجعي = تحديث فقط: احذف ما ليس في الملف (يمكن تعطيله بـ --no-prune)
+        $prune = ! $this->option('no-prune');
 
-        DB::transaction(function () use ($payload, $tid, $prune) {
+        $currencyRows = ReferenceDataNormalizer::dedupeCurrencyRows($payload['currencies'] ?? []);
+
+        DB::transaction(function () use ($payload, $tid, $prune, $currencyRows) {
+            $this->mergeDuplicateCurrencies($tid);
+
             $currencyCodes = [];
-            foreach ($payload['currencies'] ?? [] as $row) {
-                $code = strtoupper((string) ($row['code'] ?? ''));
+            foreach ($currencyRows as $row) {
+                $code = ReferenceDataNormalizer::normalizeCurrencyCode((string) ($row['code'] ?? ''));
                 if ($code === '') {
                     continue;
                 }
                 $currencyCodes[] = $code;
-                Currency::updateOrCreate(
-                    ['tenant_id' => $tid, 'code' => $code],
-                    [
-                        'name' => $row['name'] ?? $code,
-                        'name_en' => $row['name_en'] ?? null,
-                        'symbol' => $row['symbol'] ?? $code,
-                        'decimal_places' => (int) ($row['decimal_places'] ?? 2),
-                        'exchange_rate' => $row['exchange_rate'] ?? 1,
-                        'base_currency' => $row['base_currency'] ?? 'SAR',
-                        'rate_date' => $row['rate_date'] ?? null,
-                        'is_active' => (bool) ($row['is_active'] ?? true),
-                        'is_default' => (bool) ($row['is_default'] ?? false),
-                    ]
-                );
+
+                $existing = Currency::where('tenant_id', $tid)
+                    ->whereIn('code', ReferenceDataNormalizer::currencyCodeVariants($code))
+                    ->orderByDesc('is_default')
+                    ->orderBy('id')
+                    ->first();
+
+                $attributes = [
+                    'code' => $code,
+                    'name' => $row['name'] ?? $code,
+                    'name_en' => $row['name_en'] ?? null,
+                    'symbol' => $row['symbol'] ?? $code,
+                    'decimal_places' => (int) ($row['decimal_places'] ?? 2),
+                    'exchange_rate' => $row['exchange_rate'] ?? 1,
+                    'base_currency' => ReferenceDataNormalizer::normalizeCurrencyCode((string) ($row['base_currency'] ?? 'SAR')),
+                    'rate_date' => $row['rate_date'] ?? null,
+                    'is_active' => (bool) ($row['is_active'] ?? true),
+                    'is_default' => (bool) ($row['is_default'] ?? false),
+                ];
+
+                if ($existing) {
+                    $existing->update($attributes);
+                } else {
+                    Currency::create(array_merge($attributes, ['tenant_id' => $tid]));
+                }
             }
+
+            $this->mergeDuplicateCurrencies($tid);
+            $this->ensureSingleDefaultCurrency($tid);
+
             if ($prune && $currencyCodes !== []) {
-                Currency::where('tenant_id', $tid)->whereNotIn('code', $currencyCodes)->delete();
+                $keepIds = Currency::where('tenant_id', $tid)
+                    ->get()
+                    ->filter(fn ($c) => in_array(
+                        ReferenceDataNormalizer::normalizeCurrencyCode($c->code),
+                        $currencyCodes,
+                        true
+                    ))
+                    ->pluck('id')
+                    ->all();
+                if ($keepIds !== []) {
+                    Currency::where('tenant_id', $tid)->whereNotIn('id', $keepIds)->delete();
+                }
             }
 
             $branchCodes = [];
@@ -290,12 +326,67 @@ class SyncTenantReferenceData extends Command
 
         $this->info("تم الاستيراد للشركة: {$slug}");
         $this->table(['النوع', 'المستورد'], [
-            ['عملات', count($payload['currencies'] ?? [])],
+            ['عملات', count($currencyRows)],
             ['فروع', count($payload['branches'] ?? [])],
             ['مراكز تكلفة', count($payload['cost_centers'] ?? [])],
             ['طرق دفع', count($payload['payment_methods'] ?? [])],
         ]);
 
         return self::SUCCESS;
+    }
+
+    /** دمج عملات مكررة (KD + د.ك + KWD …) قبل/بعد الاستيراد. */
+    private function mergeDuplicateCurrencies(int $tenantId): void
+    {
+        $groups = [];
+        foreach (Currency::where('tenant_id', $tenantId)->orderBy('id')->get() as $currency) {
+            $canonical = ReferenceDataNormalizer::normalizeCurrencyCode($currency->code);
+            $groups[$canonical][] = $currency;
+        }
+
+        foreach ($groups as $canonical => $items) {
+            if (count($items) <= 1) {
+                $only = $items[0];
+                if ($only->code !== $canonical) {
+                    $only->update(['code' => $canonical]);
+                }
+
+                continue;
+            }
+
+            usort($items, function (Currency $a, Currency $b) use ($canonical) {
+                $score = fn (Currency $c) => ($c->is_default ? 100 : 0)
+                    + ($c->code === $canonical ? 10 : 0)
+                    - (int) $c->id;
+                return $score($b) <=> $score($a);
+            });
+
+            $keeper = $items[0];
+            if ($keeper->code !== $canonical) {
+                $keeper->update(['code' => $canonical]);
+            }
+
+            foreach (array_slice($items, 1) as $duplicate) {
+                foreach (['hr_allowances', 'hr_deductions'] as $table) {
+                    if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                        DB::table($table)->where('currency_id', $duplicate->id)->update(['currency_id' => $keeper->id]);
+                    }
+                }
+                $duplicate->delete();
+            }
+        }
+    }
+
+    private function ensureSingleDefaultCurrency(int $tenantId): void
+    {
+        $defaults = Currency::where('tenant_id', $tenantId)->where('is_default', true)->orderBy('id')->get();
+        if ($defaults->count() <= 1) {
+            return;
+        }
+
+        $keeper = $defaults->first();
+        Currency::where('tenant_id', $tenantId)
+            ->where('id', '!=', $keeper->id)
+            ->update(['is_default' => false]);
     }
 }
