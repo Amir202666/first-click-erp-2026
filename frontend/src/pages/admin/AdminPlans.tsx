@@ -6,108 +6,25 @@ import { fetchAdminPlans, createAdminPlan, updateAdminPlan, type AdminPlanRow } 
 import { CreditCard, Pencil, Plus, X, Check, Loader2, ShieldAlert } from 'lucide-react'
 import { useClientSort, type SortColumn } from '../../hooks/useClientSort'
 import SortableTh from '../../components/ui/SortableTh'
+import { PLAN_ALL_FEATURES } from '../../utils/planFeatures'
+import {
+  formatPlanPrice,
+  PLAN_CURRENCY_OPTIONS,
+  PLAN_MODULE_OPTIONS,
+} from '../../utils/planDisplay'
 
-type PageNode = { id: string; labelAr: string; labelEn: string }
-
-const PAGE_GROUPS: { key: string; labelAr: string; labelEn: string; pages: PageNode[] }[] = [
-  {
-    key: 'accounting',
-    labelAr: 'المحاسبة العامة',
-    labelEn: 'General Accounting',
-    pages: [
-      { id: 'accounts', labelAr: 'دليل الحسابات', labelEn: 'Chart of accounts' },
-      { id: 'journal-entries', labelAr: 'القيود اليومية', labelEn: 'Journal entries' },
-      { id: 'receipt-vouchers', labelAr: 'سندات القبض', labelEn: 'Receipt vouchers' },
-      { id: 'payment-vouchers', labelAr: 'سندات الصرف', labelEn: 'Payment vouchers' },
-      { id: 'cost-centers', labelAr: 'مراكز التكلفة', labelEn: 'Cost centers' },
-      { id: 'payment-methods', labelAr: 'طرق الدفع', labelEn: 'Payment methods' },
-      { id: 'currencies', labelAr: 'العملات', labelEn: 'Currencies' },
-      { id: 'branches', labelAr: 'الفروع', labelEn: 'Branches' },
-      { id: 'settings-accounting', labelAr: 'الإعدادات المحاسبية', labelEn: 'Accounting settings' },
-    ],
-  },
-  {
-    key: 'sales',
-    labelAr: 'المبيعات',
-    labelEn: 'Sales',
-    pages: [
-      { id: 'customers', labelAr: 'العملاء', labelEn: 'Customers' },
-      { id: 'customer-balances', labelAr: 'أرصدة العملاء', labelEn: 'Customer balances' },
-      { id: 'customer-aging', labelAr: 'أعمار ديون العملاء', labelEn: 'Customer aging' },
-      { id: 'customer-analysis', labelAr: 'تقييم وتحليل العملاء', labelEn: 'Customer evaluation & analysis' },
-      { id: 'invoices-sales', labelAr: 'فواتير المبيعات', labelEn: 'Sales invoices' },
-      { id: 'invoices-pos', labelAr: 'فواتير نقطة البيع', labelEn: 'POS invoices' },
-      { id: 'quotations', labelAr: 'عروض الأسعار', labelEn: 'Quotations' },
-      { id: 'reports-item-sales', labelAr: 'تقرير مبيعات الأصناف', labelEn: 'Item sales report' },
-      { id: 'reports-best-selling', labelAr: 'الأكثر مبيعاً', labelEn: 'Best selling' },
-    ],
-  },
-  {
-    key: 'purchases',
-    labelAr: 'المشتريات',
-    labelEn: 'Purchases',
-    pages: [
-      { id: 'vendors', labelAr: 'الموردون', labelEn: 'Vendors' },
-      { id: 'vendor-balances', labelAr: 'أرصدة الموردين', labelEn: 'Vendor balances' },
-      { id: 'purchase-requests', labelAr: 'طلبات الشراء', labelEn: 'Purchase requests' },
-      { id: 'invoices-purchases', labelAr: 'فواتير المشتريات', labelEn: 'Purchase invoices' },
-      { id: 'reports-item-purchases', labelAr: 'تقرير مشتريات الأصناف', labelEn: 'Item purchases report' },
-    ],
-  },
-  {
-    key: 'inventory',
-    labelAr: 'المخزون',
-    labelEn: 'Inventory',
-    pages: [
-      { id: 'items', labelAr: 'الأصناف', labelEn: 'Items' },
-      { id: 'item-units', labelAr: 'وحدات القياس', labelEn: 'Item units' },
-      { id: 'item-categories', labelAr: 'فئات الأصناف', labelEn: 'Item categories' },
-      { id: 'item-brands', labelAr: 'العلامات التجارية', labelEn: 'Item brands' },
-      { id: 'warehouses', labelAr: 'المخازن', labelEn: 'Warehouses' },
-      { id: 'inventory-transfers', labelAr: 'تحويلات المخزون', labelEn: 'Inventory transfers' },
-      { id: 'stock-movements', labelAr: 'حركة المخزون', labelEn: 'Stock movements' },
-      { id: 'opening-stock', labelAr: 'رصيد أول المدة', labelEn: 'Opening stock' },
-      { id: 'inventory-low-stock', labelAr: 'تنبيهات النواقص', labelEn: 'Low stock alerts' },
-      { id: 'inventory-report', labelAr: 'تقرير الجرد', labelEn: 'Inventory report' },
-      { id: 'reports-serial-numbers-inventory', labelAr: 'جرد الأرقام التسلسلية', labelEn: 'Serial numbers inventory' },
-    ],
-  },
-  {
-    key: 'pos',
-    labelAr: 'نقطة البيع (POS)',
-    labelEn: 'Point of Sale (POS)',
-    pages: [
-      { id: 'pos-screen', labelAr: 'شاشة نقطة البيع', labelEn: 'POS screen' },
-      { id: 'pos-invoices', labelAr: 'تقارير فواتير نقطة البيع', labelEn: 'POS invoices list' },
-    ],
-  },
-  {
-    key: 'manufacturing',
-    labelAr: 'التصنيع',
-    labelEn: 'Manufacturing',
-    pages: [
-      { id: 'manufacturing', labelAr: 'قائمة المواد (BOM) وأوامر الإنتاج', labelEn: 'BOM & Production orders' },
-    ],
-  },
-  {
-    key: 'reports',
-    labelAr: 'التقارير المالية',
-    labelEn: 'Financial Reports',
-    pages: [
-      { id: 'reports-trial-balance', labelAr: 'ميزان المراجعة', labelEn: 'Trial balance' },
-      { id: 'reports-income-statement', labelAr: 'قائمة الدخل', labelEn: 'Income statement' },
-      { id: 'reports-balance-sheet', labelAr: 'الميزانية العمومية', labelEn: 'Balance sheet' },
-      { id: 'reports-expenses', labelAr: 'تقرير المصاريف', labelEn: 'Expenses report' },
-      { id: 'reports-tax-declaration', labelAr: 'التقارير الضريبية', labelEn: 'Tax declaration' },
-      { id: 'reports-account-statement', labelAr: 'كشف حساب', labelEn: 'Account statement' },
-      { id: 'reports-customer-balances', labelAr: 'أرصدة العملاء', labelEn: 'Customer balances' },
-      { id: 'reports-vendor-balances', labelAr: 'أرصدة الموردين', labelEn: 'Vendor balances' },
-      { id: 'reports-customer-aging', labelAr: 'أعمار الديون', labelEn: 'Customer aging' },
-      { id: 'reports-customer-analysis', labelAr: 'تقييم العملاء', labelEn: 'Customer analysis' },
-      { id: 'reports-account-last-movements', labelAr: 'آخر حركات الحساب', labelEn: 'Account last movements' },
-    ],
-  },
-]
+const emptyForm = () => ({
+  name: '',
+  price: '' as number | '',
+  currency: 'SAR',
+  max_users: '' as number | '',
+  duration_days: '' as number | '',
+  billing_cycle_months: 1,
+  features: [] as string[],
+  description: '',
+  is_active: true,
+  sort_order: '' as number | '',
+})
 
 export default function AdminPlans() {
   const { isPlatformSuperAdmin: isSuperAdmin } = useAuth()
@@ -116,13 +33,7 @@ export default function AdminPlans() {
   const isAr = lang === 'ar'
   const [showForm, setShowForm] = useState(false)
   const [editingPlan, setEditingPlan] = useState<AdminPlanRow | null>(null)
-  const [form, setForm] = useState({
-    name: '',
-    duration_days: '' as number | '',
-    billing_cycle_months: 12,
-    features: [] as string[], // مصفوفة page_id المختارة
-    description: '',
-  })
+  const [form, setForm] = useState(emptyForm)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'plans'],
@@ -130,22 +41,28 @@ export default function AdminPlans() {
     enabled: !!isSuperAdmin,
   })
 
+  const invalidatePlans = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'subscription-plans'] })
+    queryClient.invalidateQueries({ queryKey: ['subscription-plans'] })
+  }
+
   const createMut = useMutation({
     mutationFn: createAdminPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'subscription-plans'] })
+      invalidatePlans()
       setShowForm(false)
-      setForm({ name: '', duration_days: '', billing_cycle_months: 12, features: [], description: '' })
+      setForm(emptyForm())
     },
   })
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateAdminPlan>[1] }) => updateAdminPlan(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'subscription-plans'] })
+      invalidatePlans()
       setEditingPlan(null)
+      setShowForm(false)
+      setForm(emptyForm())
     },
   })
 
@@ -153,81 +70,72 @@ export default function AdminPlans() {
     setEditingPlan(plan)
     setForm({
       name: plan.name,
+      price: plan.price ?? '',
+      currency: plan.currency || 'SAR',
+      max_users: plan.max_users ?? '',
       duration_days: plan.duration_days || '',
-      billing_cycle_months: plan.billing_cycle_months || 12,
+      billing_cycle_months: plan.billing_cycle_months || 1,
       features: plan.features ?? [],
       description: plan.description ?? '',
+      is_active: plan.is_active,
+      sort_order: plan.sort_order ?? '',
     })
   }
 
-  const togglePage = (pageId: string) => {
-    setForm((f) => ({
-      ...f,
-      features: f.features.includes(pageId)
-        ? f.features.filter((x) => x !== pageId)
-        : [...f.features, pageId],
-    }))
-  }
+  const hasAllFeatures = form.features.includes(PLAN_ALL_FEATURES)
 
-  const getGroupState = (group: (typeof PAGE_GROUPS)[number]) => {
-    const ids = group.pages.map((p) => p.id)
-    const selectedCount = ids.filter((id) => form.features.includes(id)).length
-    const all = selectedCount === ids.length && ids.length > 0
-    const some = selectedCount > 0 && selectedCount < ids.length
-    return { all, some, ids }
-  }
-
-  const toggleGroup = (group: (typeof PAGE_GROUPS)[number]) => {
-    const { all, ids } = getGroupState(group)
+  const toggleModule = (moduleId: string) => {
     setForm((f) => {
-      if (all) {
-        // إلغاء جميع الصفحات في هذا القسم فقط
-        return { ...f, features: f.features.filter((id) => !ids.includes(id)) }
+      if (moduleId === PLAN_ALL_FEATURES) {
+        return { ...f, features: f.features.includes(PLAN_ALL_FEATURES) ? [] : [PLAN_ALL_FEATURES] }
       }
-      // إضافة جميع الصفحات في هذا القسم (مع الاحتفاظ بالصفحات الأخرى من أقسام أخرى)
-      const merged = new Set([...f.features, ...ids])
-      return { ...f, features: Array.from(merged) }
+      const withoutAll = f.features.filter((x) => x !== PLAN_ALL_FEATURES)
+      const next = withoutAll.includes(moduleId)
+        ? withoutAll.filter((x) => x !== moduleId)
+        : [...withoutAll, moduleId]
+      return { ...f, features: next }
     })
   }
+
+  const buildPayload = () => ({
+    name: form.name.trim(),
+    price: form.price === '' ? 0 : Number(form.price),
+    currency: form.currency,
+    max_users: form.max_users === '' ? null : Number(form.max_users),
+    duration_days: form.duration_days === '' ? undefined : Number(form.duration_days),
+    billing_cycle_months: form.billing_cycle_months,
+    features: form.features,
+    description: form.description.trim() || undefined,
+    is_active: form.is_active,
+    sort_order: form.sort_order === '' ? undefined : Number(form.sort_order),
+  })
 
   const handleSave = () => {
+    const payload = buildPayload()
     if (editingPlan) {
-      updateMut.mutate({
-        id: editingPlan.id,
-        data: {
-          name: form.name,
-          duration_days: form.duration_days || undefined,
-          billing_cycle_months: form.billing_cycle_months,
-          features: form.features,
-          description: form.description || undefined,
-        },
-      })
+      updateMut.mutate({ id: editingPlan.id, data: payload })
     } else {
-      createMut.mutate({
-        name: form.name,
-        duration_days: form.duration_days || undefined,
-        billing_cycle_months: form.billing_cycle_months,
-        features: form.features,
-        description: form.description || undefined,
-      })
+      createMut.mutate(payload)
     }
   }
 
   const title = isAr ? 'إدارة الباقات' : 'Manage Plans'
   const addPlanLabel = isAr ? 'إضافة باقة' : 'Add plan'
   const colName = isAr ? 'الاسم' : 'Name'
-  const colDuration = isAr ? 'المدة (يوم)' : 'Duration (days)'
+  const colPrice = isAr ? 'السعر' : 'Price'
+  const colUsers = isAr ? 'المستخدمون' : 'Users'
   const colFeatures = isAr ? 'الميزات' : 'Features'
+  const colActive = isAr ? 'نشطة' : 'Active'
   const colActions = isAr ? 'إجراءات' : 'Actions'
 
   const plansRaw = data?.data ?? []
-  type PlanSortKey = 'name' | 'duration_days' | 'features_count' | 'description'
+  type PlanSortKey = 'name' | 'price' | 'sort_order' | 'features_count'
   const planSortColumns = useMemo((): SortColumn<AdminPlanRow, PlanSortKey>[] => {
     return [
       { key: 'name', type: 'string', getValue: (p) => p.name ?? '' },
-      { key: 'duration_days', type: 'number', getValue: (p) => Number(p.duration_days ?? 0) },
+      { key: 'price', type: 'number', getValue: (p) => Number(p.price ?? 0) },
+      { key: 'sort_order', type: 'number', getValue: (p) => Number(p.sort_order ?? 0) },
       { key: 'features_count', type: 'number', getValue: (p) => p.features?.length ?? 0 },
-      { key: 'description', type: 'string', getValue: (p) => p.description ?? '' },
     ]
   }, [])
   const planLocale = isAr ? 'ar-u-nu-latn' : 'en-US'
@@ -251,15 +159,22 @@ export default function AdminPlans() {
     <div className="p-3 md:p-4 max-w-[98%] mx-auto" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-primary-600" />
-            {title}
-          </h1>
+          <div>
+            <h1 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-primary-600" />
+              {title}
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              {isAr
+                ? 'عدّل السعر والعملة والوصف والميزات — تظهر التغييرات فوراً في بطاقات اختيار الباقة.'
+                : 'Edit price, currency, description, and features — changes appear in plan selection cards immediately.'}
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => {
               setEditingPlan(null)
-              setForm({ name: '', duration_days: '', billing_cycle_months: 12, features: [], description: '' })
+              setForm(emptyForm())
               setShowForm(true)
             }}
             className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
@@ -275,35 +190,61 @@ export default function AdminPlans() {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <SortableTh label={colName} sortKey="name" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
-                  <SortableTh label={colDuration} sortKey="duration_days" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
+                  <SortableTh label={colPrice} sortKey="price" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
+                  <th className="text-start py-2.5 px-3 font-medium text-slate-700">{colUsers}</th>
                   <SortableTh label={colFeatures} sortKey="features_count" sortState={sort} onToggle={toggleSort} className="text-start py-0 px-0 font-medium text-slate-700" />
+                  <th className="text-start py-2.5 px-3 font-medium text-slate-700">{colActive}</th>
                   <th className="text-start py-2.5 px-3 font-medium text-slate-700 w-24">{colActions}</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-slate-500">
+                    <td colSpan={6} className="py-12 text-center text-slate-500">
                       <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-primary-500" />
                       {isAr ? 'جاري التحميل...' : 'Loading...'}
                     </td>
                   </tr>
                 ) : sortedPlans.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-slate-500">{isAr ? 'لا توجد باقات' : 'No plans'}</td>
+                    <td colSpan={6} className="py-12 text-center text-slate-500">{isAr ? 'لا توجد باقات' : 'No plans'}</td>
                   </tr>
                 ) : (
                   sortedPlans.map((plan) => (
-                    <tr key={plan.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                      <td className="py-2.5 px-3 text-slate-800 font-medium">{plan.name}</td>
-                      <td className="py-2.5 px-3 text-slate-700">{plan.duration_days}</td>
+                    <tr key={plan.id} className={`border-b border-slate-100 hover:bg-slate-50/50 ${!plan.is_active ? 'opacity-60' : ''}`}>
+                      <td className="py-2.5 px-3">
+                        <div className="font-medium text-slate-800">{plan.name}</div>
+                        <div className="text-[10px] text-slate-400 font-mono" dir="ltr">{plan.slug}</div>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        {formatPlanPrice(plan.price, plan.currency, plan.billing_cycle_months, isAr)}
+                      </td>
                       <td className="py-2.5 px-3 text-slate-700">
-                        {(plan.features ?? []).length ? (plan.features ?? []).join(', ') : '—'}
+                        {plan.max_users == null ? (isAr ? '∞' : '∞') : plan.max_users}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 max-w-[200px] truncate" title={(plan.features ?? []).join(', ')}>
+                        {(plan.features ?? []).includes(PLAN_ALL_FEATURES)
+                          ? isAr
+                            ? 'كل الميزات'
+                            : 'All features'
+                          : (plan.features ?? []).join(', ') || '—'}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                            plan.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {plan.is_active ? (isAr ? 'نعم' : 'Yes') : isAr ? 'لا' : 'No'}
+                        </span>
                       </td>
                       <td className="py-2.5 px-3">
                         <button
                           type="button"
-                          onClick={() => { setShowForm(true); openEdit(plan) }}
+                          onClick={() => {
+                            setShowForm(true)
+                            openEdit(plan)
+                          }}
                           className="p-1.5 rounded-lg text-slate-600 hover:bg-primary-50 hover:text-primary-600"
                           title={isAr ? 'تعديل' : 'Edit'}
                         >
@@ -319,94 +260,214 @@ export default function AdminPlans() {
         </div>
       </div>
 
-      {/* Add/Edit modal */}
       {(showForm || editingPlan) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !createMut.isPending && !updateMut.isPending && (setShowForm(false), setEditingPlan(null))}>
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 w-full max-w-md p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+          onClick={() => !createMut.isPending && !updateMut.isPending && (setShowForm(false), setEditingPlan(null))}
+        >
+          <div
+            className="bg-white rounded-xl shadow-lg border border-slate-200 w-full max-w-2xl p-5 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-slate-800">{editingPlan ? (isAr ? 'تعديل الباقة' : 'Edit plan') : addPlanLabel}</h3>
-              <button type="button" onClick={() => !createMut.isPending && !updateMut.isPending && (setShowForm(false), setEditingPlan(null))} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100">
+              <h3 className="text-base font-semibold text-slate-800">
+                {editingPlan ? (isAr ? 'تعديل الباقة' : 'Edit plan') : addPlanLabel}
+              </h3>
+              <button
+                type="button"
+                onClick={() => !createMut.isPending && !updateMut.isPending && (setShowForm(false), setEditingPlan(null))}
+                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
+
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'اسم الباقة' : 'Plan name'}</label>
-                <input
-                  type="text"
-                  className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder={isAr ? 'مثال: أساسي، متقدم' : 'e.g. Basic, Advanced'}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'المدة بالأيام' : 'Duration (days)'}</label>
-                <input
-                  type="number"
-                  min={1}
-                  className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm"
-                  value={form.duration_days === '' ? '' : form.duration_days}
-                  onChange={(e) => setForm((f) => ({ ...f, duration_days: e.target.value === '' ? '' : parseInt(e.target.value, 10) || 0 }))}
-                  placeholder="365"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  {isAr ? 'الميزات والصفحات المتاحة' : 'Available features & pages'}
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {PAGE_GROUPS.map((group) => {
-                    const { all, some, ids } = getGroupState(group)
-                    const pages = group.pages
-                    return (
-                      <div key={group.key} className="border border-slate-200 rounded-lg p-3 bg-slate-50/40">
-                        <label className="flex items-center gap-2 cursor-pointer mb-2">
-                          <input
-                            type="checkbox"
-                            checked={all}
-                            onChange={() => toggleGroup(group)}
-                            className={`rounded border-slate-300 text-primary-600 ${
-                              some && !all ? 'outline outline-[3px] outline-primary-300/60' : ''
-                            }`}
-                          />
-                          <span className="text-sm font-medium text-slate-800">
-                            {isAr ? group.labelAr : group.labelEn}
-                          </span>
-                        </label>
-                        <div className="space-y-1 ps-5">
-                          {pages.map((page) => (
-                            <label
-                              key={page.id}
-                              className="flex items-center gap-2 cursor-pointer text-xs text-slate-700"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={form.features.includes(page.id)}
-                                onChange={() => togglePage(page.id)}
-                                className="rounded border-slate-300 text-primary-600"
-                              />
-                              <span>{isAr ? page.labelAr : page.labelEn}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'اسم الباقة' : 'Plan name'}</label>
+                  <input
+                    type="text"
+                    className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm"
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+                {editingPlan && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'المعرّف (slug)' : 'Slug'}</label>
+                    <input
+                      type="text"
+                      readOnly
+                      className="w-full h-10 border border-slate-200 rounded-lg px-3 text-sm bg-slate-50 font-mono text-slate-500"
+                      value={editingPlan.slug}
+                      dir="ltr"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'السعر' : 'Price'}</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm"
+                    value={form.price === '' ? '' : form.price}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, price: e.target.value === '' ? '' : parseFloat(e.target.value) || 0 }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'العملة' : 'Currency'}</label>
+                  <select
+                    className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm bg-white"
+                    value={form.currency}
+                    onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
+                  >
+                    {PLAN_CURRENCY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {isAr ? 'دورة الفوترة (أشهر)' : 'Billing cycle (months)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={120}
+                    className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm"
+                    value={form.billing_cycle_months}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, billing_cycle_months: parseInt(e.target.value, 10) || 1 }))
+                    }
+                  />
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {isAr ? '1 = شهري، 12 = سنوي' : '1 = monthly, 12 = yearly'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {isAr ? 'أقصى عدد مستخدمين' : 'Max users'}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm"
+                    value={form.max_users === '' ? '' : form.max_users}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        max_users: e.target.value === '' ? '' : parseInt(e.target.value, 10) || 1,
+                      }))
+                    }
+                    placeholder={isAr ? 'فارغ = غير محدود' : 'Empty = unlimited'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'ترتيب العرض' : 'Sort order'}</label>
+                  <input
+                    type="number"
+                    min={0}
+                    className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm"
+                    value={form.sort_order === '' ? '' : form.sort_order}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        sort_order: e.target.value === '' ? '' : parseInt(e.target.value, 10) || 0,
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {isAr ? 'مدة الاشتراك (أيام)' : 'Subscription duration (days)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm"
+                    value={form.duration_days === '' ? '' : form.duration_days}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        duration_days: e.target.value === '' ? '' : parseInt(e.target.value, 10) || 0,
+                      }))
+                    }
+                    placeholder={isAr ? 'اختياري — يُحسب من الأشهر إن تُرك فارغاً' : 'Optional — derived from months if empty'}
+                  />
                 </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'الوصف (اختياري)' : 'Description (optional)'}</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{isAr ? 'الوصف' : 'Description'}</label>
                 <textarea
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm min-h-[80px]"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm min-h-[72px]"
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder={isAr ? 'وصف الباقة' : 'Plan description'}
+                  placeholder={isAr ? 'يظهر تحت السعر في بطاقة الباقة' : 'Shown under price on the plan card'}
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  {isAr ? 'ميزات الباقة' : 'Plan features'}
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer mb-3 p-3 rounded-lg border border-primary-200 bg-primary-50/50">
+                  <input
+                    type="checkbox"
+                    checked={hasAllFeatures}
+                    onChange={() => toggleModule(PLAN_ALL_FEATURES)}
+                    className="rounded border-slate-300 text-primary-600"
+                  />
+                  <span className="text-sm font-semibold text-primary-900">
+                    {isAr ? 'جميع مميزات النظام (all_features)' : 'All system features (all_features)'}
+                  </span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {PLAN_MODULE_OPTIONS.map((mod) => (
+                    <label
+                      key={mod.id}
+                      className={`flex items-center gap-2 cursor-pointer rounded-lg border px-3 py-2 text-sm ${
+                        hasAllFeatures ? 'opacity-40 pointer-events-none' : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={hasAllFeatures}
+                        checked={form.features.includes(mod.id)}
+                        onChange={() => toggleModule(mod.id)}
+                        className="rounded border-slate-300 text-primary-600"
+                      />
+                      <span>{isAr ? mod.labelAr : mod.labelEn}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {editingPlan && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))}
+                    className="rounded border-slate-300 text-primary-600"
+                  />
+                  <span className="text-sm text-slate-700">{isAr ? 'باقة نشطة (تظهر عند التسجيل)' : 'Active (visible when signing up)'}</span>
+                </label>
+              )}
             </div>
+
             <div className="flex justify-end gap-2 mt-6">
-              <button type="button" onClick={() => !createMut.isPending && !updateMut.isPending && (setShowForm(false), setEditingPlan(null))} className="h-10 px-4 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium">
+              <button
+                type="button"
+                onClick={() => !createMut.isPending && !updateMut.isPending && (setShowForm(false), setEditingPlan(null))}
+                className="h-10 px-4 rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium"
+              >
                 {isAr ? 'إلغاء' : 'Cancel'}
               </button>
               <button
@@ -415,7 +476,11 @@ export default function AdminPlans() {
                 disabled={(createMut.isPending || updateMut.isPending) || !form.name.trim()}
                 className="h-10 px-4 rounded-lg bg-primary-600 text-white text-sm font-medium flex items-center gap-2 disabled:opacity-50"
               >
-                {(createMut.isPending || updateMut.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {(createMut.isPending || updateMut.isPending) ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
                 {isAr ? 'حفظ' : 'Save'}
               </button>
             </div>

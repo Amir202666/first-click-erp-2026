@@ -21,8 +21,11 @@ class AdminPlanController extends Controller
             'name' => $p->name,
             'slug' => $p->slug,
             'description' => $p->description,
+            'price' => (float) $p->price,
+            'currency' => $p->currency ?? 'SAR',
+            'max_users' => $p->max_users,
             'duration_days' => $p->duration_days,
-            'billing_cycle_months' => $p->billing_cycle_months,
+            'billing_cycle_months' => (int) ($p->billing_cycle_months ?? 1),
             'features' => $p->features ?? [],
             'is_active' => (bool) $p->is_active,
             'sort_order' => (int) $p->sort_order,
@@ -35,11 +38,15 @@ class AdminPlanController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'price' => 'nullable|numeric|min:0',
+            'currency' => 'nullable|string|size:3',
+            'max_users' => 'nullable|integer|min:1',
             'duration_days' => 'nullable|integer|min:1',
-            'billing_cycle_months' => 'nullable|integer|min:1',
+            'billing_cycle_months' => 'nullable|integer|min:1|max:120',
             'features' => 'nullable|array',
             'features.*' => 'string|max:100',
             'description' => 'nullable|string|max:500',
+            'sort_order' => 'nullable|integer|min:0',
         ]);
 
         $name = $request->name;
@@ -52,13 +59,14 @@ class AdminPlanController extends Controller
             'name' => $name,
             'slug' => $slug,
             'description' => $request->description,
-            'price' => 0,
-            'currency' => 'SAR',
-            'billing_cycle_months' => $request->billing_cycle_months ?? 12,
+            'price' => $request->input('price', 0),
+            'currency' => strtoupper($request->input('currency', 'SAR')),
+            'max_users' => $request->max_users,
+            'billing_cycle_months' => $request->billing_cycle_months ?? 1,
             'duration_days' => $request->duration_days,
             'features' => $request->features ?? [],
             'is_active' => true,
-            'sort_order' => (int) (SubscriptionPlan::max('sort_order') ?? 0) + 1,
+            'sort_order' => $request->sort_order ?? (int) (SubscriptionPlan::max('sort_order') ?? 0) + 1,
         ]);
 
         return response()->json([
@@ -82,23 +90,38 @@ class AdminPlanController extends Controller
 
         $request->validate([
             'name' => 'sometimes|string|max:255',
+            'price' => 'nullable|numeric|min:0',
+            'currency' => 'nullable|string|size:3',
+            'max_users' => 'nullable|integer|min:1',
             'duration_days' => 'nullable|integer|min:1',
-            'billing_cycle_months' => 'nullable|integer|min:1',
+            'billing_cycle_months' => 'nullable|integer|min:1|max:120',
             'features' => 'nullable|array',
             'features.*' => 'string|max:100',
             'description' => 'nullable|string|max:500',
             'is_active' => 'sometimes|boolean',
+            'sort_order' => 'nullable|integer|min:0',
         ]);
 
         if ($request->has('name')) {
             $plan->name = $request->name;
-            $plan->slug = Str::slug($request->name);
+        }
+        if ($request->has('price')) {
+            $plan->price = $request->price;
+        }
+        if ($request->has('currency')) {
+            $plan->currency = strtoupper($request->currency);
+        }
+        if (array_key_exists('max_users', $request->all())) {
+            $plan->max_users = $request->max_users;
         }
         if ($request->has('duration_days')) {
             $plan->duration_days = $request->duration_days;
         }
         if ($request->has('billing_cycle_months')) {
             $plan->billing_cycle_months = $request->billing_cycle_months;
+        }
+        if ($request->has('sort_order')) {
+            $plan->sort_order = (int) $request->sort_order;
         }
         if (array_key_exists('features', $request->all())) {
             $plan->features = $request->features ?? [];

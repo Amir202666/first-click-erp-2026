@@ -50,11 +50,27 @@ export interface AdminPlanRow {
   name: string
   slug: string
   description: string | null
+  price: number
+  currency: string
+  max_users: number | null
   duration_days: number
   billing_cycle_months: number
   features: string[]
   is_active: boolean
   sort_order: number
+}
+
+export type AdminPlanPayload = {
+  name: string
+  price?: number
+  currency?: string
+  max_users?: number | null
+  duration_days?: number
+  billing_cycle_months?: number
+  features?: string[]
+  description?: string
+  is_active?: boolean
+  sort_order?: number
 }
 
 export function fetchAdminSubscriptions(params: {
@@ -112,19 +128,10 @@ export function fetchAdminPlans(): Promise<{ data: AdminPlanRow[] }> {
   return api.get<{ data: AdminPlanRow[] }>('/admin/plans').then((r) => r.data)
 }
 
-export function createAdminPlan(data: {
-  name: string
-  duration_days?: number
-  billing_cycle_months?: number
-  features?: string[]
-  description?: string
-}): Promise<{ message: string; data: AdminPlanRow }> {
+export function createAdminPlan(data: AdminPlanPayload): Promise<{ message: string; data: AdminPlanRow }> {
   return api.post<{ message: string; data: AdminPlanRow }>('/admin/plans', data).then((r) => r.data)
 }
 
-export function updateAdminPlan(
-  id: number,
-  data: Partial<{ name: string; duration_days: number; billing_cycle_months: number; features: string[]; description: string; is_active: boolean }>
-): Promise<{ message: string }> {
+export function updateAdminPlan(id: number, data: Partial<AdminPlanPayload>): Promise<{ message: string }> {
   return api.put<{ message: string }>(`/admin/plans/${id}`, data).then((r) => r.data)
 }

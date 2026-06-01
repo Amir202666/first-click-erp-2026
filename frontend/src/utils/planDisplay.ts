@@ -3,6 +3,21 @@ import { CANONICAL_PLAN_FEATURES, expandPlanFeatures, PLAN_ALL_FEATURES } from '
 /** الباقة المميزة في الواجهة */
 export const FEATURED_PLAN_SLUG = 'integrated'
 
+/** عملات شائعة لأسعار الباقات */
+export const PLAN_CURRENCY_OPTIONS = ['SAR', 'EGP', 'USD', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'EUR', 'GBP'] as const
+
+/** وحدات الميزات القابلة للتفعيل في الباقة (متوافقة مع PlanFeatureResolver) */
+export const PLAN_MODULE_OPTIONS: { id: string; labelAr: string; labelEn: string }[] = [
+  { id: 'accounting', labelAr: 'المحاسبة والتقارير', labelEn: 'Accounting & reports' },
+  { id: 'sales', labelAr: 'المبيعات', labelEn: 'Sales' },
+  { id: 'purchases', labelAr: 'المشتريات', labelEn: 'Purchases' },
+  { id: 'inventory', labelAr: 'المخزون', labelEn: 'Inventory' },
+  { id: 'pos', labelAr: 'نقطة البيع', labelEn: 'POS' },
+  { id: 'manufacturing', labelAr: 'التصنيع', labelEn: 'Manufacturing' },
+  { id: 'hr', labelAr: 'الموارد البشرية', labelEn: 'HR' },
+  { id: 'sales_reps', labelAr: 'مناديب المبيعات', labelEn: 'Sales reps' },
+]
+
 /** حدود الفروع للعرض فقط (لا يوجد عمود max_branches في قاعدة البيانات بعد) */
 export const PLAN_BRANCH_LIMITS: Record<string, number | null> = {
   basic: 1,
