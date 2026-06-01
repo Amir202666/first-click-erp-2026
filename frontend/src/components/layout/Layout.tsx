@@ -105,42 +105,51 @@ function isGroup(entry: NavEntry): entry is NavGroup {
   return 'children' in entry
 }
 
-/** إدارة المنصة والمستخدمين وHR في أعلى القائمة — لا تختفي أسفل الشريط */
+/** قوائم الإدارة في أسفل الشريط: HR → المستخدمين → الإعدادات → الإدارة (آخر عنصر) */
+const SIDEBAR_TAIL_KEYS = ['nav.hr', 'nav.userManagement', 'nav.settings', 'nav.admin'] as const
+
 function buildSidebarNavEntries(isSuperAdmin: boolean, hasFullTenantAccess: boolean): NavEntry[] {
   const findGroup = (labelKey: string) =>
     navEntries.find((e): e is NavGroup => isGroup(e) && e.labelKey === labelKey)
 
-  const pinned = new Set<string>()
-  const head: NavEntry[] = []
+  const tailKeys = new Set<string>()
+  const tail: NavEntry[] = []
 
-  const dashboard = navEntries.find((e) => !isGroup(e) && e.path === '/')
-  if (dashboard) head.push(dashboard)
+  if (hasFullTenantAccess) {
+    const hr = findGroup('nav.hr')
+    if (hr) {
+      tail.push(hr)
+      tailKeys.add('nav.hr')
+    }
+    const users = findGroup('nav.userManagement')
+    if (users) {
+      tail.push(users)
+      tailKeys.add('nav.userManagement')
+    }
+  }
+
+  const settings = findGroup('nav.settings')
+  if (settings) {
+    tail.push(settings)
+    tailKeys.add('nav.settings')
+  }
 
   if (isSuperAdmin) {
     const admin = findGroup('nav.admin')
     if (admin) {
-      head.push(admin)
-      pinned.add('nav.admin')
+      tail.push(admin)
+      tailKeys.add('nav.admin')
     }
   }
 
-  if (hasFullTenantAccess) {
-    for (const key of ['nav.userManagement', 'nav.hr'] as const) {
-      const group = findGroup(key)
-      if (group) {
-        head.push(group)
-        pinned.add(key)
-      }
-    }
-  }
-
-  const rest = navEntries.filter((entry) => {
+  const dashboard = navEntries.find((e) => !isGroup(e) && e.path === '/')
+  const middle = navEntries.filter((entry) => {
     if (!isGroup(entry)) return entry.path !== '/'
     if (entry.labelKey === 'nav.admin' && !isSuperAdmin) return false
-    return !pinned.has(entry.labelKey)
+    return !tailKeys.has(entry.labelKey)
   })
 
-  return [...head, ...rest]
+  return [...(dashboard ? [dashboard] : []), ...middle, ...tail]
 }
 
 const navEntries: NavEntry[] = [
