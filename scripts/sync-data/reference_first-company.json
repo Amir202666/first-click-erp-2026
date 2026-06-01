@@ -1,60 +1,64 @@
 {
-    "version": 1,
+    "version": 2,
     "tenant_slug": "first-company",
-    "exported_at": "2026-05-31T13:50:30+00:00",
+    "exported_at": "2026-06-01T12:47:46+00:00",
     "counts": {
-        "currencies": 2,
-        "branches": 4,
-        "cost_centers": 3
+        "currencies": 3,
+        "branches": 3,
+        "cost_centers": 1,
+        "payment_methods": 3
     },
     "currencies": [
-        {
-            "code": "KD",
-            "name": "دينار كويتي",
-            "name_en": "Kuwait Dinar",
-            "symbol": null,
-            "decimal_places": 3,
-            "exchange_rate": "1.00000000",
-            "base_currency": "SAR",
-            "rate_date": "2026-05-30T00:00:00.000000Z",
-            "is_active": true,
-            "is_default": true
-        },
         {
             "code": "SAR",
             "name": "ريال سعودي",
             "name_en": null,
             "symbol": "ر.س",
             "decimal_places": 2,
-            "exchange_rate": "0.08247205",
+            "exchange_rate": "1.00000000",
             "base_currency": "SAR",
-            "rate_date": "2026-05-30T00:00:00.000000Z",
+            "rate_date": null,
+            "is_active": true,
+            "is_default": false
+        },
+        {
+            "code": "د.ك",
+            "name": "دينار كويتي",
+            "name_en": null,
+            "symbol": "1",
+            "decimal_places": 3,
+            "exchange_rate": "1.00000000",
+            "base_currency": "SAR",
+            "rate_date": "2026-05-05T00:00:00.000000Z",
+            "is_active": true,
+            "is_default": true
+        },
+        {
+            "code": "ر.س",
+            "name": "ريال سعودي",
+            "name_en": null,
+            "symbol": "2",
+            "decimal_places": 2,
+            "exchange_rate": "12.02500000",
+            "base_currency": "SAR",
+            "rate_date": null,
             "is_active": true,
             "is_default": false
         }
     ],
     "branches": [
         {
-            "code": "2",
-            "name": "فرع مدينة نصر",
-            "name_en": "Nacer City Branche",
-            "address": null,
-            "phone": null,
-            "manager_name": null,
-            "is_active": true
-        },
-        {
-            "code": "3",
-            "name": "فرع الريض",
+            "code": "1",
+            "name": "فرع الشويخ",
             "name_en": null,
-            "address": null,
-            "phone": null,
+            "address": "الشويخ - قطعه 10",
+            "phone": "5213151124",
             "manager_name": null,
             "is_active": true
         },
         {
-            "code": "4",
-            "name": "فرع تجريبي",
+            "code": "2",
+            "name": "فرع حولي",
             "name_en": null,
             "address": null,
             "phone": null,
@@ -74,27 +78,34 @@
     "cost_centers": [
         {
             "code": "1",
-            "name": "مركز تكلفة 11",
+            "name": "مركز تكلفه 1",
             "name_en": null,
             "description": null,
             "is_active": true,
             "parent_code": null
+        }
+    ],
+    "payment_methods": [
+        {
+            "name": "انستا باي",
+            "name_en": null,
+            "type": "bank",
+            "linked_account_code": "1113",
+            "is_active": true
         },
         {
-            "code": "2",
-            "name": "مركز تكلفة 12",
+            "name": "بنك",
             "name_en": null,
-            "description": null,
-            "is_active": true,
-            "parent_code": null
+            "type": "bank",
+            "linked_account_code": "1112",
+            "is_active": true
         },
         {
-            "code": "3",
-            "name": "مركز تكلفة تجريبي",
+            "name": "نقدي",
             "name_en": null,
-            "description": null,
-            "is_active": true,
-            "parent_code": null
+            "type": "cash",
+            "linked_account_code": "1111",
+            "is_active": true
         }
     ]
 }

@@ -26,8 +26,8 @@ if not exist "scripts\sync-data" mkdir "scripts\sync-data"
 copy /Y "backend\storage\app\exports\%LATEST%" "scripts\sync-data\reference_%SLUG%.json" >nul
 echo Copied to scripts\sync-data\reference_%SLUG%.json
 
-git add "scripts/sync-data/reference_%SLUG%.json" deploy/import-reference.sh deploy/publish-online.sh
-git commit -m "chore: sync reference master data for %SLUG%"
+git add "scripts/sync-data/reference_%SLUG%.json" deploy/import-reference.sh deploy/publish-online.sh backend/app/Console/Commands/SyncTenantReferenceData.php
+git commit -m "chore: sync reference data (incl. payment methods) for %SLUG%"
 git push origin main
 if errorlevel 1 (
   echo ERROR: git push failed

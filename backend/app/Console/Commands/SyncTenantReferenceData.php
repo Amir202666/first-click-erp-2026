@@ -2,16 +2,18 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Account;
 use App\Models\Branch;
 use App\Models\CostCenter;
 use App\Models\Currency;
+use App\Models\PaymentMethod;
 use App\Models\Tenant;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 
 /**
- * تصدير/استيراد بيانات مرجعية (عملات، فروع، مراكز تكلفة) بين المحلي والسيرفر.
+ * تصدير/استيراد بيانات مرجعية (عملات، فروع، مراكز تكلفة، طرق دفع) بين المحلي والسيرفر.
  */
 class SyncTenantReferenceData extends Command
 {
@@ -21,7 +23,7 @@ class SyncTenantReferenceData extends Command
                             {--file= : مسار ملف JSON}
                             {--prune : عند الاستيراد — حذف السجلات غير الموجودة في الملف (بحذر)}';
 
-    protected $description = 'مزامنة العملات والفروع ومراكز التكلفة بين المحلي والإنتاج';
+    protected $description = 'مزامنة العملات والفروع ومراكز التكلفة وطرق الدفع بين المحلي والإنتاج';
 
     public function handle(): int
     {
@@ -79,18 +81,35 @@ class SyncTenantReferenceData extends Command
             ]), ['parent_code' => $parentCode]);
         })->values()->all();
 
+        $paymentMethods = PaymentMethod::where('tenant_id', $tenant->id)->orderBy('name')->get()->map(function ($pm) {
+            $linkedAccountCode = null;
+            if ($pm->linked_account_id) {
+                $linkedAccountCode = Account::where('id', $pm->linked_account_id)->value('code');
+            }
+
+            return [
+                'name' => $pm->name,
+                'name_en' => $pm->name_en,
+                'type' => $pm->type,
+                'linked_account_code' => $linkedAccountCode,
+                'is_active' => $pm->is_active,
+            ];
+        })->values()->all();
+
         $payload = [
-            'version' => 1,
+            'version' => 2,
             'tenant_slug' => $tenant->slug,
             'exported_at' => now()->toIso8601String(),
             'counts' => [
                 'currencies' => count($currencies),
                 'branches' => count($branches),
                 'cost_centers' => count($costCenters),
+                'payment_methods' => count($paymentMethods),
             ],
             'currencies' => $currencies,
             'branches' => $branches,
             'cost_centers' => $costCenters,
+            'payment_methods' => $paymentMethods,
         ];
 
         $file = $this->option('file')
@@ -108,6 +127,7 @@ class SyncTenantReferenceData extends Command
             ['عملات', count($currencies)],
             ['فروع', count($branches)],
             ['مراكز تكلفة', count($costCenters)],
+            ['طرق دفع', count($paymentMethods)],
         ]);
 
         return self::SUCCESS;
@@ -239,6 +259,33 @@ class SyncTenantReferenceData extends Command
             if ($prune && $ccCodes !== []) {
                 CostCenter::where('tenant_id', $tid)->whereNotIn('code', $ccCodes)->delete();
             }
+
+            $paymentNames = [];
+            foreach ($payload['payment_methods'] ?? [] as $row) {
+                $name = trim((string) ($row['name'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+                $paymentNames[] = $name;
+                $linkedAccountId = null;
+                $accountCode = $row['linked_account_code'] ?? null;
+                if ($accountCode) {
+                    $linkedAccountId = Account::where('tenant_id', $tid)->where('code', (string) $accountCode)->value('id');
+                }
+                PaymentMethod::withTrashed()->updateOrCreate(
+                    ['tenant_id' => $tid, 'name' => $name],
+                    [
+                        'name_en' => $row['name_en'] ?? null,
+                        'type' => (string) ($row['type'] ?? 'other'),
+                        'linked_account_id' => $linkedAccountId,
+                        'is_active' => (bool) ($row['is_active'] ?? true),
+                        'deleted_at' => null,
+                    ]
+                );
+            }
+            if ($prune && $paymentNames !== []) {
+                PaymentMethod::where('tenant_id', $tid)->whereNotIn('name', $paymentNames)->delete();
+            }
         });
 
         $this->info("تم الاستيراد للشركة: {$slug}");
@@ -246,6 +293,7 @@ class SyncTenantReferenceData extends Command
             ['عملات', count($payload['currencies'] ?? [])],
             ['فروع', count($payload['branches'] ?? [])],
             ['مراكز تكلفة', count($payload['cost_centers'] ?? [])],
+            ['طرق دفع', count($payload['payment_methods'] ?? [])],
         ]);
 
         return self::SUCCESS;

@@ -57,8 +57,11 @@ if errorlevel 1 (
   echo OK: الكود على GitHub
 )
 
-if exist "scripts\sync-data\reference_first-company.json" (
-  call scripts\push-reference-to-github.bat first-company
+echo.
+echo --- بيانات مرجعية (عملات، فروع، مراكز تكلفة، طرق دفع) ---
+call scripts\push-reference-to-github.bat first-company
+if errorlevel 1 (
+  echo تحذير: فشل رفع البيانات المرجعية — راجع الأمر أعلاه.
 )
 
 echo.

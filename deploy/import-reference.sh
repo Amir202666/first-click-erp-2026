@@ -1,5 +1,5 @@
 #!/bin/bash
-# استيراد العملات + الفروع + مراكز التكلفة من ملف مرفوع مع Git
+# استيراد العملات + الفروع + مراكز التكلفة + طرق الدفع من ملف مرفوع مع Git
 # bash /var/www/erp/deploy/import-reference.sh
 # bash /var/www/erp/deploy/import-reference.sh --import-only   (بدون git pull)
 set -euo pipefail

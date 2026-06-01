@@ -6,7 +6,7 @@ set "SLUG=first-company"
 if not "%~1"=="" set "SLUG=%~1"
 
 echo ========================================
-echo   Export currencies, branches, cost centers
+echo   Export currencies, branches, cost centers, payment methods
 echo   Company slug: %SLUG%
 echo ========================================
 echo.
