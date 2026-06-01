@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, type ReactNode } from 'react'
+import { useState, useMemo, useEffect, useRef, useLayoutEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -33,6 +34,7 @@ import {
   Calendar,
   CreditCard,
   Inbox,
+  MoreVertical,
 } from 'lucide-react'
 import SubscriptionPlanPicker from '../../components/subscription/SubscriptionPlanPicker'
 import { formatDisplayDate } from '../../utils/date'
@@ -140,32 +142,6 @@ function MetricCard({ label, value, icon, borderAccent, iconWrap, subtleBg = '' 
   )
 }
 
-function ActionIconBtn({
-  onClick,
-  disabled,
-  title,
-  className,
-  children,
-}: {
-  onClick: () => void
-  disabled?: boolean
-  title: string
-  className: string
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`p-2 rounded-lg transition-all duration-150 disabled:opacity-40 ${className}`}
-    >
-      {children}
-    </button>
-  )
-}
-
 export default function AdminSubscriptions() {
   const { isPlatformSuperAdmin: isSuperAdmin } = useAuth()
   const { lang } = useLanguage()
@@ -189,6 +165,12 @@ export default function AdminSubscriptions() {
   const [showAddCompany, setShowAddCompany] = useState(false)
   const [addCompanyStep, setAddCompanyStep] = useState<'plan' | 'details'>('plan')
   const [createTenantError, setCreateTenantError] = useState('')
+  const [openActionsId, setOpenActionsId] = useState<number | null>(null)
+  const [actionsDropdownRect, setActionsDropdownRect] = useState<{ top: number; left: number; width: number } | null>(
+    null
+  )
+  const actionsMenuRef = useRef<HTMLDivElement>(null)
+  const actionsBtnRef = useRef<HTMLButtonElement | null>(null)
   const emptyNewCompany = () => ({
     name: '',
     name_en: '',
@@ -234,6 +216,44 @@ export default function AdminSubscriptions() {
       void queryClient.refetchQueries({ queryKey: ['subscription-plans', 'public'] })
     }
   }, [showAddCompany, addCompanyStep, queryClient])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node
+      if (actionsMenuRef.current?.contains(target)) return
+      if (actionsBtnRef.current?.contains(target)) return
+      setOpenActionsId(null)
+    }
+    if (openActionsId !== null) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openActionsId])
+
+  useLayoutEffect(() => {
+    if (openActionsId === null) {
+      setActionsDropdownRect(null)
+      return
+    }
+    const el = actionsBtnRef.current
+    if (!el) {
+      setActionsDropdownRect(null)
+      return
+    }
+    const update = () => {
+      const r = el.getBoundingClientRect()
+      const minW = 200
+      const left = isAr ? Math.max(8, r.right - Math.max(r.width, minW)) : r.left
+      setActionsDropdownRect({ top: r.bottom + 6, left, width: Math.max(r.width, minW) })
+    }
+    update()
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [openActionsId, isAr])
 
   const updateMut = useMutation({
     mutationFn: ({ tenantId, payload }: { tenantId: number; payload: Parameters<typeof updateAdminSubscription>[1] }) =>
@@ -379,6 +399,12 @@ export default function AdminSubscriptions() {
       window.location.href = `mailto:${email}?subject=${encodeURIComponent(isAr ? 'تذكير بدفع الاشتراك' : 'Subscription payment reminder')}`
     }
   }
+
+  const actionsMenuRow = openActionsId != null ? sortedRows.find((r) => r.id === openActionsId) : null
+
+  const menuItemClass = `w-full px-3 py-2.5 text-sm flex items-center gap-2 transition-colors disabled:opacity-50 ${
+    isAr ? 'flex-row-reverse text-end' : 'text-start'
+  }`
 
   const openAddCompany = () => {
     setCreateTenantError('')
@@ -637,42 +663,21 @@ export default function AdminSubscriptions() {
                       <td className="py-3 px-3">
                         <StatusBadge status={row.subscription_status} isAr={isAr} />
                       </td>
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-0.5">
-                          <ActionIconBtn
-                            onClick={() => openEdit(row)}
-                            title={isAr ? 'تعديل' : 'Edit'}
-                            className="text-slate-600 hover:bg-primary-50 hover:text-primary-600"
+                      <td className="py-3 px-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative inline-block">
+                          <button
+                            type="button"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                            ref={openActionsId === row.id ? (el) => { actionsBtnRef.current = el } : undefined}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenActionsId((cur) => (cur === row.id ? null : row.id))
+                            }}
+                            aria-label={colActions}
+                            aria-expanded={openActionsId === row.id}
                           >
-                            <Pencil className="w-4 h-4" />
-                          </ActionIconBtn>
-                          <ActionIconBtn
-                            onClick={() => handlePaymentReminder(row)}
-                            title={paymentReminderLabel}
-                            className="text-slate-600 hover:bg-blue-50 hover:text-blue-600"
-                          >
-                            <Mail className="w-4 h-4" />
-                          </ActionIconBtn>
-                          <ActionIconBtn
-                            onClick={() => handleQuickRenew(row)}
-                            disabled={updateMut.isPending}
-                            title={quickRenewLabel}
-                            className="text-teal-600 hover:bg-teal-50"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </ActionIconBtn>
-                          <ActionIconBtn
-                            onClick={() => toggleActiveMut.mutate(row.id)}
-                            disabled={toggleActiveMut.isPending}
-                            title={row.is_active ? disableLabel : enableLabel}
-                            className={
-                              row.is_active
-                                ? 'text-amber-600 hover:bg-amber-50'
-                                : 'text-emerald-600 hover:bg-emerald-50'
-                            }
-                          >
-                            {row.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
-                          </ActionIconBtn>
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -712,6 +717,87 @@ export default function AdminSubscriptions() {
           </div>
         )}
       </div>
+
+      {typeof document !== 'undefined' &&
+        openActionsId !== null &&
+        actionsDropdownRect !== null &&
+        actionsMenuRow &&
+        createPortal(
+          <div
+            ref={actionsMenuRef}
+            className="fixed z-[9999] rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden min-w-[200px]"
+            style={{
+              top: actionsDropdownRect.top,
+              left: actionsDropdownRect.left,
+              width: actionsDropdownRect.width,
+            }}
+            dir={isAr ? 'rtl' : 'ltr'}
+          >
+            <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/80">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{colActions}</p>
+            </div>
+            <div className="py-1">
+              <button
+                type="button"
+                className={`${menuItemClass} hover:bg-primary-50 text-slate-700`}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  setOpenActionsId(null)
+                  openEdit(actionsMenuRow)
+                }}
+              >
+                <Pencil className="w-4 h-4 shrink-0 text-primary-600" />
+                {isAr ? 'تعديل' : 'Edit'}
+              </button>
+              <button
+                type="button"
+                className={`${menuItemClass} hover:bg-blue-50 text-slate-700`}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  setOpenActionsId(null)
+                  handlePaymentReminder(actionsMenuRow)
+                }}
+              >
+                <Mail className="w-4 h-4 shrink-0 text-blue-600" />
+                {paymentReminderLabel}
+              </button>
+              <button
+                type="button"
+                disabled={updateMut.isPending}
+                className={`${menuItemClass} hover:bg-teal-50 text-slate-700`}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  setOpenActionsId(null)
+                  handleQuickRenew(actionsMenuRow)
+                }}
+              >
+                <RefreshCw className="w-4 h-4 shrink-0 text-teal-600" />
+                {quickRenewLabel}
+              </button>
+              <div className="my-1 border-t border-slate-100" />
+              <button
+                type="button"
+                disabled={toggleActiveMut.isPending}
+                className={`${menuItemClass} ${
+                  actionsMenuRow.is_active ? 'hover:bg-amber-50 text-amber-800' : 'hover:bg-emerald-50 text-emerald-800'
+                }`}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  setOpenActionsId(null)
+                  toggleActiveMut.mutate(actionsMenuRow.id)
+                }}
+              >
+                {actionsMenuRow.is_active ? (
+                  <PowerOff className="w-4 h-4 shrink-0" />
+                ) : (
+                  <Power className="w-4 h-4 shrink-0" />
+                )}
+                {actionsMenuRow.is_active ? disableLabel : enableLabel}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Add company modal — خطوة الباقات ثم بيانات الشركة */}
       {showAddCompany && (
