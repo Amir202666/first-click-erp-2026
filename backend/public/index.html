@@ -11,11 +11,16 @@
       (function () {
         try {
           var shellV = localStorage.getItem('fc_shell_version');
-          if (shellV !== '3') {
-            localStorage.setItem('fc_shell_version', '3');
+          if (shellV !== '10') {
+            localStorage.setItem('fc_shell_version', '10');
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(function (regs) {
                 regs.forEach(function (r) { r.unregister(); });
+              });
+            }
+            if ('caches' in window) {
+              caches.keys().then(function (keys) {
+                keys.forEach(function (k) { caches.delete(k); });
               });
             }
           }
@@ -25,6 +30,9 @@
           if (lang === 'en') {
             document.documentElement.lang = 'en';
             document.documentElement.dir = 'ltr';
+          } else {
+            document.documentElement.lang = 'ar';
+            document.documentElement.dir = 'rtl';
           }
         } catch (e) { /* ignore */ }
         try {
@@ -62,25 +70,47 @@
       }
       body, #root { height: 100%; min-height: 100%; margin: 0; min-width: 0; }
       #root { display: flex; flex-direction: column; }
-      .app-shell-layout-with-sidebar,
-      .app-shell-print-layout.flex {
-        display: flex;
-        flex-direction: row;
+      .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos),
+      .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
+        display: grid;
+        direction: ltr;
         align-items: stretch;
         width: 100%;
         height: 100%;
         min-width: 0;
         min-height: 0;
       }
-      html[dir="rtl"] .app-shell-print-layout.flex {
-        flex-direction: row-reverse;
+      .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) {
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas: 'fc-sidebar fc-main';
+      }
+      .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: 'fc-main fc-sidebar';
+      }
+      .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) > aside,
+      .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) > aside {
+        grid-area: fc-sidebar;
+      }
+      .app-shell-print-layout.fc-shell-ltr:not(.fc-shell-pos) > .app-shell-print-main-column,
+      .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) > .app-shell-print-main-column {
+        grid-area: fc-main;
+        min-width: 0;
+      }
+      .app-shell-print-layout.fc-shell-pos.flex {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-C2xIP4r5.js"></script>
+    <script type="module" crossorigin src="/assets/index-DRtHJpFs.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/query-kvIyjVY9.js">
     <link rel="modulepreload" crossorigin href="/assets/router-BqzgL9q3.js">
     <link rel="modulepreload" crossorigin href="/assets/ui-CNabJTSa.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-Ct9OAlF0.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-DXnfrf4L.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="root"></div>

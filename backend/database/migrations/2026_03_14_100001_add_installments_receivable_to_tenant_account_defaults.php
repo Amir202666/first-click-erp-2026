@@ -15,14 +15,18 @@ return new class extends Migration
             });
         }
 
-        $fkExists = DB::selectOne(
-            "SELECT COUNT(*) AS c FROM information_schema.TABLE_CONSTRAINTS
-             WHERE CONSTRAINT_SCHEMA = DATABASE()
-               AND TABLE_NAME = 'tenant_account_defaults'
-               AND CONSTRAINT_NAME = 'tad_inst_recv_fk'"
-        );
+        $shouldAddFk = DB::getDriverName() === 'sqlite';
+        if (! $shouldAddFk) {
+            $fkExists = DB::selectOne(
+                "SELECT COUNT(*) AS c FROM information_schema.TABLE_CONSTRAINTS
+                 WHERE CONSTRAINT_SCHEMA = DATABASE()
+                   AND TABLE_NAME = 'tenant_account_defaults'
+                   AND CONSTRAINT_NAME = 'tad_inst_recv_fk'"
+            );
+            $shouldAddFk = (int) $fkExists->c === 0;
+        }
 
-        if ((int) $fkExists->c === 0) {
+        if ($shouldAddFk) {
             Schema::table('tenant_account_defaults', function (Blueprint $table) {
                 $table->foreign('installments_receivable_account_id', 'tad_inst_recv_fk')
                     ->references('id')->on('accounts')->nullOnDelete();

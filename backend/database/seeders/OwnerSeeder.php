@@ -96,7 +96,11 @@ class OwnerSeeder extends Seeder
     /** يبقي حساب firstclick-erp وشركة first-company فقط */
     private function purgeExtraAccounts(User $owner, Tenant $tenant): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::disableForeignKeyConstraints();
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        }
 
         if (Schema::hasTable('personal_access_tokens')) {
             DB::table('personal_access_tokens')
@@ -111,6 +115,10 @@ class OwnerSeeder extends Seeder
         User::where('id', '!=', $owner->id)->delete();
         Tenant::withTrashed()->where('id', '!=', $tenant->id)->forceDelete();
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        if (DB::getDriverName() === 'sqlite') {
+            Schema::enableForeignKeyConstraints();
+        } else {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        }
     }
 }

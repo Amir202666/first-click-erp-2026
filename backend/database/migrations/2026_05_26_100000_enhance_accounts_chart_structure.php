@@ -29,12 +29,18 @@ return new class extends Migration
             }
         });
 
-        // فهرس مركّب ببادئة path — تجنّب خطأ MySQL 1071 (utf8mb4 × VARCHAR(1000))
         if (Schema::hasColumn('accounts', 'path') && ! $this->indexExists('accounts', self::PATH_INDEX)) {
-            DB::statement('ALTER TABLE accounts ADD INDEX '.self::PATH_INDEX.' (tenant_id, path(191))');
+            if (DB::getDriverName() === 'sqlite') {
+                Schema::table('accounts', function (Blueprint $table) {
+                    $table->index(['tenant_id', 'path'], self::PATH_INDEX);
+                });
+            } else {
+                // فهرس مركّب ببادئة path — تجنّب خطأ MySQL 1071 (utf8mb4 × VARCHAR(1000))
+                DB::statement('ALTER TABLE accounts ADD INDEX '.self::PATH_INDEX.' (tenant_id, path(191))');
+            }
         }
 
-        if (Schema::hasColumn('accounts', 'code')) {
+        if (Schema::hasColumn('accounts', 'code') && DB::getDriverName() !== 'sqlite') {
             DB::statement('ALTER TABLE accounts MODIFY code VARCHAR(50) NOT NULL');
         }
 
@@ -44,7 +50,13 @@ return new class extends Migration
     public function down(): void
     {
         if ($this->indexExists('accounts', self::PATH_INDEX)) {
-            DB::statement('ALTER TABLE accounts DROP INDEX '.self::PATH_INDEX);
+            if (DB::getDriverName() === 'sqlite') {
+                Schema::table('accounts', function (Blueprint $table) {
+                    $table->dropIndex(self::PATH_INDEX);
+                });
+            } else {
+                DB::statement('ALTER TABLE accounts DROP INDEX '.self::PATH_INDEX);
+            }
         }
 
         Schema::table('accounts', function (Blueprint $table) {
@@ -65,11 +77,23 @@ return new class extends Migration
             }
         });
 
-        DB::statement('ALTER TABLE accounts MODIFY code VARCHAR(20) NOT NULL');
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE accounts MODIFY code VARCHAR(20) NOT NULL');
+        }
     }
 
     private function indexExists(string $table, string $indexName): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            foreach (DB::select('PRAGMA index_list('.DB::getPdo()->quote($table).')') as $idx) {
+                if (($idx->name ?? null) === $indexName) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         $db = DB::getDatabaseName();
 
         return DB::table('information_schema.statistics')
