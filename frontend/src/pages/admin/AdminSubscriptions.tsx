@@ -417,7 +417,7 @@ export default function AdminSubscriptions() {
     'h-10 appearance-none rounded-lg border border-slate-200 bg-white ps-3 pe-8 text-sm text-slate-800 shadow-sm transition-colors hover:border-slate-300 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 min-w-[130px]'
 
   return (
-    <div className="p-3 md:p-5 max-w-[98%] mx-auto space-y-5" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="px-0 py-3 md:py-4 space-y-4 w-full min-w-0 max-w-full" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Page header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
