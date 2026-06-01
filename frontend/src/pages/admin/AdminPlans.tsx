@@ -41,16 +41,18 @@ export default function AdminPlans() {
     enabled: !!isSuperAdmin,
   })
 
-  const invalidatePlans = () => {
-    queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
-    queryClient.invalidateQueries({ queryKey: ['admin', 'subscription-plans'] })
-    queryClient.invalidateQueries({ queryKey: ['subscription-plans'] })
+  const invalidatePlans = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'subscription-plans'] }),
+      queryClient.refetchQueries({ queryKey: ['subscription-plans', 'public'] }),
+    ])
   }
 
   const createMut = useMutation({
     mutationFn: createAdminPlan,
-    onSuccess: () => {
-      invalidatePlans()
+    onSuccess: async () => {
+      await invalidatePlans()
       setShowForm(false)
       setForm(emptyForm())
     },
@@ -58,8 +60,8 @@ export default function AdminPlans() {
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateAdminPlan>[1] }) => updateAdminPlan(id, data),
-    onSuccess: () => {
-      invalidatePlans()
+    onSuccess: async () => {
+      await invalidatePlans()
       setEditingPlan(null)
       setShowForm(false)
       setForm(emptyForm())

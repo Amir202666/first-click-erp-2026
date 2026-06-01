@@ -105,11 +105,11 @@ class AdminPlanController extends Controller
         if ($request->has('name')) {
             $plan->name = $request->name;
         }
-        if ($request->has('price')) {
-            $plan->price = $request->price;
+        if (array_key_exists('price', $request->all())) {
+            $plan->price = $request->input('price', 0);
         }
-        if ($request->has('currency')) {
-            $plan->currency = strtoupper($request->currency);
+        if (array_key_exists('currency', $request->all())) {
+            $plan->currency = strtoupper((string) $request->input('currency', 'SAR'));
         }
         if (array_key_exists('max_users', $request->all())) {
             $plan->max_users = $request->max_users;

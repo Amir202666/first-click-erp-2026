@@ -14,5 +14,10 @@ export interface PublicSubscriptionPlan {
 }
 
 export function fetchSubscriptionPlans(): Promise<{ data: PublicSubscriptionPlan[] }> {
-  return api.get<{ data: PublicSubscriptionPlan[] }>('/subscription-plans').then((r) => r.data)
+  return api
+    .get<{ data: PublicSubscriptionPlan[] }>('/subscription-plans', {
+      params: { _t: Date.now() },
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    })
+    .then((r) => r.data)
 }

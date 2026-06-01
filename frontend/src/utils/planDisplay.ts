@@ -62,8 +62,22 @@ export function formatPlanBranches(slug: string, isAr: boolean): string {
   return isAr ? `حتى ${limit} فروع` : `Up to ${limit} branches`
 }
 
+const CURRENCY_LABELS: Record<string, { ar: string; en: string }> = {
+  SAR: { ar: 'ر.س', en: 'SAR' },
+  EGP: { ar: 'ج.م', en: 'EGP' },
+  USD: { ar: 'USD', en: 'USD' },
+  AED: { ar: 'د.إ', en: 'AED' },
+  KWD: { ar: 'د.ك', en: 'KWD' },
+  QAR: { ar: 'ر.ق', en: 'QAR' },
+  BHD: { ar: 'د.ب', en: 'BHD' },
+  OMR: { ar: 'ر.ع', en: 'OMR' },
+  EUR: { ar: '€', en: 'EUR' },
+  GBP: { ar: '£', en: 'GBP' },
+}
+
 export function formatPlanPrice(price: number, currency: string, billingMonths: number, isAr: boolean): string {
-  const cur = currency || 'SAR'
+  const code = (currency || 'SAR').toUpperCase()
+  const cur = CURRENCY_LABELS[code] ? (isAr ? CURRENCY_LABELS[code].ar : CURRENCY_LABELS[code].en) : code
   const amount = Number.isInteger(price) ? String(price) : price.toFixed(0)
   const per =
     billingMonths <= 1

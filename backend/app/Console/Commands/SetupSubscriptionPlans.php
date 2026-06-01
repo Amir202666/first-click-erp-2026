@@ -88,11 +88,14 @@ class SetupSubscriptionPlans extends Command
         }
 
         foreach ($plans as $plan) {
-            SubscriptionPlan::updateOrCreate(
-                ['slug' => $plan['slug']],
-                $plan
-            );
-            $this->line("  ✓ {$plan['name']} ({$plan['slug']})");
+            $existing = SubscriptionPlan::where('slug', $plan['slug'])->first();
+            if ($existing) {
+                $this->line("  — {$plan['name']} ({$plan['slug']}) موجودة — لم يُعاد ضبط السعر/العملة");
+
+                continue;
+            }
+            SubscriptionPlan::create($plan);
+            $this->line("  ✓ {$plan['name']} ({$plan['slug']}) — تم الإنشاء");
         }
 
         $this->newLine();

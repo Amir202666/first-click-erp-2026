@@ -32,6 +32,9 @@ class SubscriptionPlanController extends Controller
             'sort_order' => (int) $p->sort_order,
         ]);
 
-        return response()->json(['data' => $data]);
+        return response()
+            ->json(['data' => $data])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 }

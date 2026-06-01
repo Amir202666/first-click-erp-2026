@@ -44,7 +44,10 @@ export default function SubscriptionPlanPicker({
     queryKey: ['subscription-plans', 'public'],
     queryFn: fetchSubscriptionPlans,
     enabled: plansProp === undefined,
-    staleTime: 60_000,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 
   const plans = plansProp ?? data?.data ?? []

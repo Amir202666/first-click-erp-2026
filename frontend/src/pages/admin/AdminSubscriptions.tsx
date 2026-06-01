@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -101,6 +101,12 @@ export default function AdminSubscriptions() {
     enabled: !!isSuperAdmin,
   })
   const plans: SubscriptionPlanOption[] = plansData?.data ?? []
+
+  useEffect(() => {
+    if (showAddCompany && addCompanyStep === 'plan') {
+      void queryClient.refetchQueries({ queryKey: ['subscription-plans', 'public'] })
+    }
+  }, [showAddCompany, addCompanyStep, queryClient])
 
   const updateMut = useMutation({
     mutationFn: ({ tenantId, payload }: { tenantId: number; payload: Parameters<typeof updateAdminSubscription>[1] }) =>
