@@ -1,9 +1,9 @@
 {
     "version": 4,
     "tenant_slug": "first-company",
-    "exported_at": "2026-06-01T14:23:58+00:00",
+    "exported_at": "2026-06-01T19:32:49+00:00",
     "counts": {
-        "currencies": 2,
+        "currencies": 3,
         "branches": 3,
         "cost_centers": 1,
         "payment_methods": 3,
@@ -12,16 +12,28 @@
     },
     "currencies": [
         {
+            "code": "EGP",
+            "name": "جنيه مصري",
+            "name_en": null,
+            "symbol": null,
+            "decimal_places": 2,
+            "exchange_rate": "1.00000000",
+            "base_currency": "SAR",
+            "rate_date": "2026-06-01T00:00:00.000000Z",
+            "is_active": true,
+            "is_default": true
+        },
+        {
             "code": "KD",
             "name": "دينار كويتي",
             "name_en": null,
             "symbol": "1",
             "decimal_places": 3,
-            "exchange_rate": "1.00000000",
+            "exchange_rate": "168.83336147",
             "base_currency": "SAR",
-            "rate_date": "2026-05-05T00:00:00.000000Z",
+            "rate_date": "2026-06-01T00:00:00.000000Z",
             "is_active": true,
-            "is_default": true
+            "is_default": false
         },
         {
             "code": "SAR",
@@ -29,9 +41,9 @@
             "name_en": null,
             "symbol": "ر.س",
             "decimal_places": 2,
-            "exchange_rate": "1.00000000",
+            "exchange_rate": "13.92641283",
             "base_currency": "SAR",
-            "rate_date": null,
+            "rate_date": "2026-06-01T00:00:00.000000Z",
             "is_active": true,
             "is_default": false
         }
