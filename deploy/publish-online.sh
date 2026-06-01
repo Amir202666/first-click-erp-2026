@@ -18,7 +18,7 @@ bash "$PROJECT_DIR/deploy.sh"
 
 if [ -f "$PROJECT_DIR/scripts/sync-data/reference_first-company.json" ]; then
   echo ""
-  echo "Importing reference data (currencies, branches, cost centers)..."
+  echo "Importing reference data (currencies, branches, cost centers, payment methods)..."
   bash "$PROJECT_DIR/deploy/import-reference.sh" --import-only
 fi
 
