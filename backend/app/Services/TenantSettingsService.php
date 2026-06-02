@@ -86,6 +86,8 @@ class TenantSettingsService
             'pos_default_printer_enabled',
             'pos_tax_inclusive',
             'allow_negative_sale',
+            'invoice_use_serial_numbers',
+            'invoice_show_serial_in_reports',
             'invoice_variants_sales_enabled',
             'invoice_variants_purchases_enabled',
             /** تاريخ الصلاحية ورقم الباتش في أسطر فواتير المبيعات/المشتريات */

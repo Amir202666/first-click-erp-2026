@@ -18,10 +18,12 @@ import type { Customer, Vendor, Item, Invoice, InvoiceLine, Branch, Warehouse, C
 import { formatAmount } from '../../utils/currency'
 import { invoiceLineDiscountAmountFromApi, invoiceLineNetBeforeTax } from '../../utils/invoiceLineAmounts'
 import { computePaymentMethodMenuRect, type PaymentMethodMenuRect } from '../../utils/paymentMethodMenuPosition'
+import { parseDefaultVatRate } from '../../utils/tenantSettings'
 import { finishedItemIdForSalesManufacturingBom, manufacturingFinishedQtyForBom, invoiceHasAutoManufacturingDoc } from '../../utils/manufacturingFromInvoice'
 import { Plus, Trash2, Search, GripVertical, Paperclip, FolderOpen, ChevronDown } from 'lucide-react'
 import SerialNumberSelect from '../../components/SerialNumberSelect'
 import AddCustomerModal from '../../components/AddCustomerModal'
+import AddVendorModal from '../../components/AddVendorModal'
 
 function beepNotFound() {
   try {
@@ -115,7 +117,9 @@ export default function EditInvoice() {
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement | null>(null)
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
+  const [showAddVendorModal, setShowAddVendorModal] = useState(false)
   const [addedCustomer, setAddedCustomer] = useState<Customer | null>(null)
+  const [addedVendor, setAddedVendor] = useState<Vendor | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => barcodeInputRef.current?.focus(), 150)
@@ -231,9 +235,7 @@ export default function EditInvoice() {
     if (existingIdx >= 0) {
       updateLine(existingIdx, 'quantity', lines[existingIdx].quantity + 1)
     } else {
-      const taxPercent = (item as Item & { default_tax_percent?: number | null }).default_tax_percent != null && Number.isFinite(Number((item as Item & { default_tax_percent?: number }).default_tax_percent))
-        ? Number((item as Item & { default_tax_percent?: number }).default_tax_percent)
-        : defaultVatRate
+      const taxPercent = defaultVatRate
       const newLine: LineForm = {
         item_id: item.id,
         unit_id,
@@ -325,6 +327,7 @@ export default function EditInvoice() {
     queryKey: ['settings', tenantId],
     queryFn: () => fetchSettings(tenantId),
     enabled: !!tenantId,
+    staleTime: 0,
   })
 
   const isAutoOnSale =
@@ -361,7 +364,7 @@ export default function EditInvoice() {
         })()
       : null
 
-  const defaultVatRate = Number((settings as Record<string, unknown>)?.default_vat_rate ?? 15)
+  const defaultVatRate = parseDefaultVatRate(settings as Record<string, unknown> | undefined)
   const invoiceUseSerialNumbers = Boolean((settings as Record<string, unknown>)?.invoice_use_serial_numbers)
   const salesRepEnabledInSettings = (settings as Record<string, unknown> | undefined)?.sales_rep_enabled === true
   const salesRepRequiredInSettings = (settings as Record<string, unknown> | undefined)?.sales_rep_required === true
@@ -432,6 +435,7 @@ export default function EditInvoice() {
     setPaymentMethodMenuOpen(true)
     setPaymentMethodHighlightIdx(selectedPaymentMethodRowIdx)
     updatePaymentMethodMenuPosition()
+    requestAnimationFrame(() => updatePaymentMethodMenuPosition())
   }
 
   function commitPaymentMethodSelection(nextId: number | null) {
@@ -487,7 +491,12 @@ export default function EditInvoice() {
         if (base.some((c) => c.id === addedCustomer.id)) return base
         return [...base, addedCustomer]
       })()
-    : (vendorsData?.data ?? [])
+    : (() => {
+        const base = vendorsData?.data ?? []
+        if (!addedVendor) return base
+        if (base.some((v) => v.id === addedVendor.id)) return base
+        return [...base, addedVendor]
+      })()
   const items = itemsData?.data ?? []
   const showSerialColumn = invoiceUseSerialNumbers && lines.some((line) => line.use_serial_number === true)
 
@@ -610,10 +619,8 @@ export default function EditInvoice() {
     })
   }
 
-  function getDefaultTaxForItem(it: Item & { default_tax_percent?: number | null }) {
-    return it.default_tax_percent != null && Number.isFinite(Number(it.default_tax_percent))
-      ? Number(it.default_tax_percent)
-      : defaultVatRate
+  function getDefaultTaxForItem(_it: Item & { default_tax_percent?: number | null }) {
+    return defaultVatRate
   }
 
   function selectItem(index: number, itemId: number) {
@@ -897,10 +904,12 @@ export default function EditInvoice() {
           dir={isRtl ? 'rtl' : 'ltr'}
           className="fixed z-[9500] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
           style={{
-            top: paymentMethodMenuRect.top,
             left: paymentMethodMenuRect.left,
             width: paymentMethodMenuRect.width,
             maxHeight: paymentMethodMenuRect.maxHeight,
+            ...(paymentMethodMenuRect.top != null
+              ? { top: paymentMethodMenuRect.top, bottom: 'auto' }
+              : { bottom: paymentMethodMenuRect.bottom, top: 'auto' }),
           }}
         >
           <div className="max-h-full overflow-y-auto py-1">
@@ -994,6 +1003,17 @@ export default function EditInvoice() {
                   <Plus size={18} />
                 </button>
               )}
+              {type === 'purchase' && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddVendorModal(true)}
+                  className="h-9 w-9 rounded-md border border-slate-300 bg-white text-primary-600 hover:bg-slate-50 transition-colors flex items-center justify-center shrink-0"
+                  title={lang === 'ar' ? 'إضافة مورد جديد' : 'Add new vendor'}
+                  aria-label={lang === 'ar' ? 'إضافة مورد جديد' : 'Add new vendor'}
+                >
+                  <Plus size={18} />
+                </button>
+              )}
             </div>
           </div>
           {type === 'sales' && canAccessFeature('sales_reps') && salesRepEnabledInSettings && (
@@ -1077,6 +1097,16 @@ export default function EditInvoice() {
         onCreated={(c) => {
           setAddedCustomer(c)
           setPartnerId(c.id)
+        }}
+      />
+
+      <AddVendorModal
+        open={showAddVendorModal}
+        tenantId={tenantId}
+        onClose={() => setShowAddVendorModal(false)}
+        onCreated={(v) => {
+          setAddedVendor(v)
+          setPartnerId(v.id)
         }}
       />
 

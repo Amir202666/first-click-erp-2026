@@ -1,57 +1,41 @@
-/** Position for payment-method dropdown (portal) — avoid clipping near viewport bottom */
+/** Position for payment-method dropdown (portal) — viewport-fixed, anchored to trigger */
 export type PaymentMethodMenuRect = {
-  top: number
   left: number
   width: number
   maxHeight: number
+  /** فتح للأسفل من الزر */
+  top?: number
+  /** فتح للأعلى من الزر — يُستخدم bottom بدل top لتثبيت الحافة السفلية للقائمة عند الزر */
+  bottom?: number
 }
 
-export function computePaymentMethodMenuRect(trigger: DOMRect): PaymentMethodMenuRect {
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 800
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
-  const margin = 8
-  const gap = 6
-  const maxCap = 360
-
-  const spaceBelow = Math.max(0, vh - trigger.bottom - gap - margin)
-  const spaceAbove = Math.max(0, trigger.top - gap - margin)
-
-  let top: number
-  let maxHeight: number
-
-  const preferBelow = spaceBelow >= spaceAbove
-
-  if (preferBelow) {
-    top = trigger.bottom + gap
-    maxHeight = Math.min(maxCap, spaceBelow)
-    if (maxHeight < 120 && spaceAbove > maxHeight) {
-      maxHeight = Math.min(maxCap, spaceAbove)
-      top = trigger.top - maxHeight - gap
-      if (top < margin) {
-        top = margin
-        maxHeight = Math.min(maxCap, Math.max(0, trigger.top - margin - gap))
-      }
-    }
-  } else {
-    maxHeight = Math.min(maxCap, spaceAbove)
-    top = trigger.top - maxHeight - gap
-    if (top < margin) {
-      top = margin
-      maxHeight = Math.min(maxCap, Math.max(0, trigger.top - margin - gap))
-    }
-  }
-
-  const maxAvail = Math.max(0, vh - margin - top)
-  maxHeight = Math.min(maxHeight, maxCap, maxAvail)
-
-  let left = trigger.left
-  const width = trigger.width
+function clampLeft(triggerLeft: number, width: number, vw: number, margin: number): number {
+  let left = triggerLeft
   if (left + width > vw - margin) {
     left = Math.max(margin, vw - margin - width)
   }
   if (left < margin) {
     left = margin
   }
+  return left
+}
 
-  return { top, left, width, maxHeight }
+export function computePaymentMethodMenuRect(trigger: DOMRect): PaymentMethodMenuRect {
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1200
+  const margin = 8
+  const gap = 4
+  const maxCap = 320
+  const minHeight = 80
+  const width = Math.max(trigger.width, 200)
+
+  const spaceAbove = Math.max(0, trigger.top - gap - margin)
+  const maxHeight = Math.min(maxCap, Math.max(minHeight, spaceAbove))
+
+  return {
+    left: clampLeft(trigger.left, width, vw, margin),
+    width,
+    maxHeight,
+    bottom: vh - trigger.top + gap,
+  }
 }

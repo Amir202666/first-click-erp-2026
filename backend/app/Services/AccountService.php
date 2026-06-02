@@ -64,7 +64,11 @@ class AccountService
                 ]);
             }
 
-            return $account->fresh();
+            $fresh = $account->fresh();
+
+            app(VendorChartSyncService::class)->ensureVendorForAccount($fresh);
+
+            return $fresh;
         });
     }
 

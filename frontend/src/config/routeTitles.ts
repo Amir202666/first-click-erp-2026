@@ -143,6 +143,7 @@ export const ROUTE_TITLE_RULES: RouteTitleRule[] = [
   { path: '/settings', titleKey: 'nav.settings' },
   { path: '/admin/subscriptions', titleKey: 'nav.subscriptions' },
   { path: '/admin/plans', titleKey: 'nav.plans' },
+  { path: '/admin/login-page', titleKey: 'nav.loginPage' },
   { path: '/admin/backup-reset', titleKey: 'nav.backupReset' },
 ]
 

@@ -86,7 +86,17 @@ function getEndOfWeekLocal(d: Date): Date {
   return end
 }
 
-export type ReportPeriodKey = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year'
+export type ReportPeriodKey =
+  | 'all'
+  | 'from_inception'
+  | 'today'
+  | 'yesterday'
+  | 'this_week'
+  | 'last_week'
+  | 'this_month'
+  | 'last_month'
+  | 'this_quarter'
+  | 'this_year'
 
 /**
  * نطاق التاريخ لفلتر التقارير: الكل، اليوم، الأمس، هذا الأسبوع، الأسبوع السابق، هذا الشهر، الشهر السابق، هذه السنة.
@@ -130,8 +140,26 @@ export function getReportPeriodRange(preset: ReportPeriodKey): { from_date: stri
     const last = new Date(y, m, 0)
     return { from_date: toLocalDateString(first), to_date: toLocalDateString(last) }
   }
+  if (preset === 'this_quarter') {
+    const month = now.getMonth()
+    const quarterStartMonth = Math.floor(month / 3) * 3
+    const first = new Date(now.getFullYear(), quarterStartMonth, 1)
+    return { from_date: toLocalDateString(first), to_date }
+  }
+  if (preset === 'from_inception') {
+    return { from_date: '1970-01-01', to_date }
+  }
   // this_year
   return { from_date: `${now.getFullYear()}-01-01`, to_date }
+}
+
+/** اليوم السابق لتاريخ YYYY-MM-DD */
+export function subtractOneDay(ymd: string): string {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd
+  const [y, m, day] = ymd.split('-').map((x) => parseInt(x, 10))
+  const d = new Date(y, m - 1, day)
+  d.setDate(d.getDate() - 1)
+  return toLocalDateString(d)
 }
 
 /**

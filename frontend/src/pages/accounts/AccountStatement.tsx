@@ -87,7 +87,9 @@ const STATEMENT_PERIOD_OPTIONS: { value: ReportPeriodKey | 'custom'; labelAr: st
   { value: 'last_week', labelAr: 'الأسبوع السابق', labelEn: 'Last Week' },
   { value: 'this_month', labelAr: 'هذا الشهر', labelEn: 'This Month' },
   { value: 'last_month', labelAr: 'الشهر السابق', labelEn: 'Last Month' },
+  { value: 'this_quarter', labelAr: 'هذا الربع', labelEn: 'This Quarter' },
   { value: 'this_year', labelAr: 'هذه السنة', labelEn: 'This Year' },
+  { value: 'from_inception', labelAr: 'منذ البداية', labelEn: 'From inception' },
 ]
 
 export default function AccountStatement() {

@@ -37,7 +37,7 @@ export default function ConfirmDialog({
 
   const overlay = (
     <div
-      className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center bg-slate-900/50 backdrop-blur-[2px] p-4 sm:p-6 pointer-events-auto ${overlayZClass ?? 'z-10'}`}
+      className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center bg-slate-900/50 dark:bg-black/60 backdrop-blur-[2px] p-4 sm:p-6 pointer-events-auto ${overlayZClass ?? 'z-10'}`}
       onClick={onCancel}
       role="presentation"
     >
@@ -52,15 +52,17 @@ export default function ConfirmDialog({
           <div className={`w-14 h-14 rounded-app-lg ${iconClass} flex items-center justify-center mx-auto mb-4`}>
             <AlertTriangle size={28} />
           </div>
-          <h3 id="confirm-dialog-title" className="text-lg font-bold text-slate-900 mb-2">{title}</h3>
+          <h3 id="confirm-dialog-title" className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">{title}</h3>
           {highlightMessage ? (
             <div className={`mt-3 rounded-lg border px-3 py-2 text-sm leading-relaxed text-right ${
-              variant === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50 text-slate-800'
+              variant === 'warning'
+                ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+                : 'border-slate-200 bg-slate-50 text-slate-800 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-200'
             }`}>
               {message}
             </div>
           ) : (
-            <p className="text-sm text-slate-600 leading-relaxed">{message}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{message}</p>
           )}
         </div>
         <div className="flex gap-2 mt-6">

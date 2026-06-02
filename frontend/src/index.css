@@ -101,6 +101,18 @@
     font-size: calc(16px * var(--ui-font-scale, 1));
     height: 100%;
     text-size-adjust: 100%;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  html.dark {
+    background-color: var(--fc-page-bg, #0f172a);
+    color: var(--fc-text, #f1f5f9);
+  }
+
+  html.dark body,
+  html.dark #root {
+    background-color: var(--fc-page-bg, #0f172a);
+    color: var(--fc-text, #f1f5f9);
   }
 
   html,
@@ -366,6 +378,162 @@
   .dark .card-app {
     background-color: var(--fc-card-bg);
     border-color: var(--fc-border);
+    color: var(--fc-text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+
+  /* ─── Dark Mode: scrollbar ─── */
+  .dark ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .dark ::-webkit-scrollbar-track {
+    background: #1e293b;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 3px;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+
+  /* ─── Dark Mode: أسطح ومدخلات عامة ─── */
+  .dark .fc-surface {
+    background-color: #1e293b;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+
+  .dark .input-app,
+  .dark input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  .dark select,
+  .dark textarea {
+    background-color: #1e293b;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #64748b;
+  }
+
+  /* ─── Dark Mode: خلفيات ونصوص شائعة (بطاقات، جداول، فلاتر) ─── */
+  .dark .page-bg {
+    background-color: var(--fc-page-bg, #0f172a);
+  }
+
+  .dark .btn-secondary {
+    background-color: var(--fc-card-bg, #1e293b);
+    color: var(--fc-text, #e2e8f0);
+    border-color: var(--fc-border, #475569);
+  }
+  .dark .btn-secondary:hover:not(:disabled) {
+    background-color: var(--fc-table-row-hover, #334155);
+    border-color: #64748b;
+  }
+
+  .dark .bg-white {
+    background-color: var(--fc-card-bg, #1e293b) !important;
+  }
+
+  .dark .bg-slate-50,
+  .dark .bg-slate-100 {
+    background-color: #334155 !important;
+  }
+
+  .dark .border-slate-100,
+  .dark .border-slate-200,
+  .dark .border-slate-300 {
+    border-color: var(--fc-border, #475569) !important;
+  }
+
+  .dark .text-slate-900 {
+    color: #f1f5f9 !important;
+  }
+  .dark .text-slate-800 {
+    color: #e2e8f0 !important;
+  }
+  .dark .text-slate-700 {
+    color: #cbd5e1 !important;
+  }
+  .dark .text-slate-600 {
+    color: #94a3b8 !important;
+  }
+  .dark .text-slate-500 {
+    color: #94a3b8 !important;
+  }
+  .dark .text-slate-400 {
+    color: #64748b !important;
+  }
+
+  .dark .hover\:bg-slate-50:hover,
+  .dark .hover\:bg-slate-100:hover {
+    background-color: var(--fc-table-row-hover, #334155) !important;
+  }
+
+  .dark thead .bg-slate-50,
+  .dark tr.bg-slate-50,
+  .dark tr.bg-slate-50\/80 {
+    background-color: #334155 !important;
+    color: #cbd5e1 !important;
+  }
+
+  .dark tbody tr:hover {
+    background-color: var(--fc-table-row-hover, #334155);
+  }
+
+  .dark .shadow-sm,
+  .dark .shadow-md,
+  .dark .shadow-lg,
+  .dark .shadow-xl {
+    --tw-shadow-color: rgba(0, 0, 0, 0.35);
+  }
+
+  .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--fc-border, #475569);
+  }
+
+  /* حقول بخلفية slate-50 داخل النماذج */
+  .dark .bg-slate-50\/80 {
+    background-color: rgb(30 41 59 / 0.85) !important;
+  }
+
+  .dark .bg-emerald-50,
+  .dark .bg-emerald-50\/80 {
+    background-color: rgb(6 78 59 / 0.35) !important;
+    border-color: rgb(16 185 129 / 0.35) !important;
+  }
+  .dark .bg-emerald-100 {
+    background-color: rgb(6 95 70 / 0.5) !important;
+  }
+  .dark .text-emerald-700,
+  .dark .text-emerald-600 {
+    color: #6ee7b7 !important;
+  }
+
+  .dark .bg-red-50,
+  .dark .bg-red-50\/80 {
+    background-color: rgb(127 29 29 / 0.35) !important;
+    border-color: rgb(239 68 68 / 0.35) !important;
+  }
+  .dark .bg-red-100 {
+    background-color: rgb(153 27 27 / 0.45) !important;
+  }
+  .dark .text-red-700,
+  .dark .text-red-600 {
+    color: #fca5a5 !important;
+  }
+  .dark .hover\:bg-red-50:hover {
+    background-color: rgb(127 29 29 / 0.4) !important;
+  }
+
+  .dark .border-emerald-100 {
+    border-color: rgb(16 185 129 / 0.35) !important;
+  }
+  .dark .border-red-100 {
+    border-color: rgb(239 68 68 / 0.35) !important;
   }
 
   /**

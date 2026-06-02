@@ -100,6 +100,7 @@ Route::prefix('v1')->middleware(['throttle:1000,1', 'api.key'])->group(function 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::get('/subscription-plans', [SubscriptionPlanController::class, 'index']);
+Route::get('/login-page', [\App\Http\Controllers\Api\LoginPageController::class, 'show']);
 
 // ──── Public restaurant menu (QR — بدون auth) ────
 Route::prefix('public/menu')->group(function () {
@@ -124,6 +125,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/plans', [AdminPlanController::class, 'index']);
         Route::post('/plans', [AdminPlanController::class, 'store']);
         Route::put('/plans/{id}', [AdminPlanController::class, 'update']);
+        Route::get('/login-page', [\App\Http\Controllers\Api\AdminLoginPageController::class, 'show']);
+        Route::put('/login-page', [\App\Http\Controllers\Api\AdminLoginPageController::class, 'update']);
 
         Route::get('/tenants', [AdminBackupController::class, 'tenants']);
         Route::post('/backup/full', [AdminBackupController::class, 'backupFull']);

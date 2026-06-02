@@ -26,6 +26,8 @@ import {
   YAxis,
   LabelList,
 } from 'recharts'
+import { useTheme } from '../../contexts/ThemeContext'
+import { getChartTheme } from '../../utils/chartTheme'
 import CommandPalette from '../../components/dashboard/CommandPalette'
 import TablePageSkeleton from '../../components/ui/TablePageSkeleton'
 import {
@@ -73,7 +75,9 @@ const FinancialDonutChart: React.FC<{
   locale: string
   privacyMode: boolean
   formatMoney: (value: number) => string
-}> = ({ totalSales, totalPurchases, totalExpenses, totalReturns, symbol, locale, privacyMode, formatMoney }) => {
+  isDark: boolean
+}> = ({ totalSales, totalPurchases, totalExpenses, totalReturns, symbol, locale, privacyMode, formatMoney, isDark }) => {
+  const chart = getChartTheme(isDark)
   const total = (Number(totalSales) || 0) + (Number(totalPurchases) || 0) + (Number(totalExpenses) || 0) + (Number(totalReturns) || 0)
 
   const segments = useMemo(() => {
@@ -125,18 +129,18 @@ const FinancialDonutChart: React.FC<{
               <p className="text-[10px] font-semibold" style={{ color: active.color }}>
                 {active.name}
               </p>
-              <p className="text-sm font-medium text-gray-900 mt-0.5 tabular-nums">
+              <p className="text-sm font-medium mt-0.5 tabular-nums" style={{ color: chart.centerValue }}>
                 {privacyMode ? '••••' : formatMoney(active.value)}
               </p>
-              <p className="text-[10px] text-gray-400">{active.pct.toLocaleString(locale)}%</p>
+              <p className="text-[10px]" style={{ color: chart.centerLabel }}>{active.pct.toLocaleString(locale)}%</p>
             </>
           ) : (
             <>
-              <p className="text-[10px] text-gray-400">الإجمالي</p>
-              <p className="text-sm font-medium text-gray-900 mt-0.5 tabular-nums">
+              <p className="text-[10px]" style={{ color: chart.centerLabel }}>الإجمالي</p>
+              <p className="text-sm font-medium mt-0.5 tabular-nums" style={{ color: chart.centerValue }}>
                 {privacyMode ? '••••' : formatMoney(total)}
               </p>
-              <p className="text-[10px] text-gray-400">{symbol}</p>
+              <p className="text-[10px]" style={{ color: chart.centerLabel }}>{symbol}</p>
             </>
           )}
         </div>
@@ -146,23 +150,30 @@ const FinancialDonutChart: React.FC<{
         {segments.map((seg, i) => (
           <div
             key={seg.name}
-            className="px-3 py-2 rounded-xl border border-gray-100 cursor-pointer transition-colors hover:bg-gray-50"
-            onMouseEnter={() => setActiveIndex(i)}
-            onMouseLeave={() => setActiveIndex(null)}
+            className="px-3 py-2 rounded-xl border cursor-pointer transition-colors dark:border-slate-600"
+            style={{ borderColor: chart.legendBorder, background: 'transparent' }}
+            onMouseEnter={(e) => {
+              setActiveIndex(i)
+              e.currentTarget.style.background = chart.legendHover
+            }}
+            onMouseLeave={(e) => {
+              setActiveIndex(null)
+              e.currentTarget.style.background = 'transparent'
+            }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: seg.color }} />
-                <span className="text-xs text-gray-700">{seg.name}</span>
+                <span className="text-xs" style={{ color: chart.legendText }}>{seg.name}</span>
               </div>
               <span className="text-xs font-medium tabular-nums" style={{ color: seg.color }}>
                 {privacyMode ? '••••' : formatMoney(seg.value)}
               </span>
             </div>
-            <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden">
+            <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: chart.progressTrack }}>
               <div className="h-full rounded-full transition-all" style={{ width: `${seg.pct}%`, background: seg.color }} />
             </div>
-            <p className="text-[10px] text-gray-400 mt-1 text-left">{seg.pct.toLocaleString(locale)}%</p>
+            <p className="text-[10px] mt-1 text-left" style={{ color: chart.centerLabel }}>{seg.pct.toLocaleString(locale)}%</p>
           </div>
         ))}
       </div>
@@ -174,6 +185,8 @@ const FinancialDonutChart: React.FC<{
 export default function Dashboard() {
   const { currentTenant, can } = useAuth()
   const { t, lang } = useLanguage()
+  const { isDark } = useTheme()
+  const chartTheme = useMemo(() => getChartTheme(isDark), [isDark])
   const navigate = useNavigate()
   const location = useLocation()
   const tenantId = currentTenant?.id ?? 0
@@ -691,6 +704,7 @@ export default function Dashboard() {
                     locale={locale}
                     privacyMode={privacyMode}
                     formatMoney={(v) => formatAmount(v, dashboardCurrency, locale)}
+                    isDark={isDark}
                   />
                 )}
               </div>
@@ -710,17 +724,23 @@ export default function Dashboard() {
                 ) : (
                   <ResponsiveContainer width="100%" height={256}>
                     <AreaChart data={salesYearSeries} margin={{ left: 6, right: 10, top: 8, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
                       <XAxis
                         dataKey="period_label"
-                        tick={{ fontSize: 11 }}
+                        tick={{ fontSize: 11, fill: chartTheme.axis }}
                         tickFormatter={(v) => {
                           const s = String(v ?? '')
                           return s.length >= 7 ? s.slice(5) : s
                         }}
                       />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11, fill: chartTheme.axis }} />
                       <RechartsTooltip
+                        contentStyle={{
+                          background: chartTheme.tooltipBg,
+                          border: `1px solid ${chartTheme.tooltipBorder}`,
+                          borderRadius: 8,
+                          color: chartTheme.tooltipText,
+                        }}
                         labelFormatter={(label) => (label == null ? '' : String(label))}
                         formatter={(value, name) =>
                           privacyMode
@@ -793,8 +813,8 @@ export default function Dashboard() {
                         </linearGradient>
                       ))}
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                    <XAxis type="number" tick={{ fontSize: 11 }} />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartTheme.grid} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: chartTheme.axis }} />
                     <YAxis
                       type="category"
                       dataKey="name"
@@ -811,13 +831,20 @@ export default function Dashboard() {
                         const qty = Number(p?.quantity_sold ?? 0)
                         const revenue = Number(p?.revenue ?? 0)
                         return (
-                          <div className="rounded-xl border border-slate-200 bg-white/95 backdrop-blur px-3 py-2 shadow-sm">
-                            <div className="text-sm font-semibold text-slate-800">{itemName}</div>
-                            <div className="mt-1 text-xs text-slate-600">
+                          <div
+                            className="rounded-xl border px-3 py-2 shadow-sm backdrop-blur"
+                            style={{
+                              background: chartTheme.tooltipBg,
+                              borderColor: chartTheme.tooltipBorder,
+                              color: chartTheme.tooltipText,
+                            }}
+                          >
+                            <div className="text-sm font-semibold">{itemName}</div>
+                            <div className="mt-1 text-xs opacity-80">
                               {lang === 'ar' ? 'الكمية المباعة' : 'Qty sold'}:{' '}
                               <span className="font-semibold">{privacyMode ? '••••' : qty.toFixed(3)}</span>
                             </div>
-                            <div className="text-xs text-slate-600">
+                            <div className="text-xs opacity-80">
                               {lang === 'ar' ? 'إجمالي الإيراد' : 'Total revenue'}:{' '}
                               <span className="font-semibold">{privacyMode ? '••••' : `${fmt(revenue, false)} ${symbol}`}</span>
                             </div>

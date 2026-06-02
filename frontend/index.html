@@ -57,6 +57,22 @@
         } catch (e) {
           document.documentElement.style.setProperty('--ui-font-scale', '1');
         }
+        try {
+          var themeRaw = localStorage.getItem('fc_theme_v2');
+          var isDark = false;
+          if (themeRaw) {
+            var themeCfg = JSON.parse(themeRaw);
+            var mode = themeCfg && themeCfg.mode ? themeCfg.mode : 'light';
+            isDark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          } else if (localStorage.getItem('theme') === 'dark') {
+            isDark = true;
+          }
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.backgroundColor = '#0f172a';
+            document.documentElement.style.color = '#f1f5f9';
+          }
+        } catch (e) { /* ignore */ }
       })();
     </script>
     <style>

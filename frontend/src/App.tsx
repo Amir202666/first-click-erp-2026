@@ -128,6 +128,7 @@ import RenewSubscription from './pages/subscription/RenewSubscription'
 import AdminSubscriptions from './pages/admin/AdminSubscriptions'
 import AdminPlans from './pages/admin/AdminPlans'
 import AdminBackupReset from './pages/admin/AdminBackupReset'
+import AdminLoginPage from './pages/admin/AdminLoginPage'
 import { SuperAdminGuard } from './components/superadmin/SuperAdminGuard'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 import BomList from './pages/manufacturing/BomList'
@@ -408,6 +409,14 @@ function App() {
                       element={
                         <SuperAdminGuard>
                           <AdminBackupReset />
+                        </SuperAdminGuard>
+                      }
+                    />
+                    <Route
+                      path="/admin/login-page"
+                      element={
+                        <SuperAdminGuard>
+                          <AdminLoginPage />
                         </SuperAdminGuard>
                       }
                     />

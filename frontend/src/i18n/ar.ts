@@ -50,7 +50,7 @@ const ar = {
   to: 'إلى',
 
   // App
-  appName: 'First Click',
+  appName: 'FIRST CLICK ERP',
   appSubtitle: 'نظام المحاسبة',
 
   // Auth
@@ -184,6 +184,7 @@ const ar = {
     admin: 'الإدارة',
     subscriptions: 'الاشتراكات',
     plans: 'الباقات',
+    loginPage: 'صفحة تسجيل الدخول',
     backupReset: 'النسخ الاحتياطي والتصفير',
     restaurant: 'المطاعم',
     restaurantPos: 'نقطة بيع المطعم',
@@ -632,6 +633,13 @@ const ar = {
     taxNumber: 'الرقم الضريبي',
     periodFromTo: 'فترة كشف الحساب (من تاريخ — إلى تاريخ)',
     openingBalance: 'الرصيد الافتتاحي',
+    previousBalance: 'الرصيد السابق',
+    previousBalanceBadge: 'رصيد سابق',
+    previousBalanceUntil: 'الرصيد السابق حتى',
+    fromInception: 'منذ البداية',
+    statementSummary: 'ملخص الكشف',
+    periodTotalDebit: 'إجمالي المدين (الفترة)',
+    periodTotalCredit: 'إجمالي الدائن (الفترة)',
     date: 'التاريخ',
     referenceNumber: 'رقم المرجع / المستند',
     operationType: 'نوع العملية',

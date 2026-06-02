@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\TenantAccountDefault;
 use App\Models\Vendor;
 use App\Models\VendorGroup;
+use App\Services\VendorChartSyncService;
 use App\Support\PartySearchTerms;
 use App\Support\SqlHelper;
 use Illuminate\Http\JsonResponse;
@@ -16,8 +17,13 @@ use Illuminate\Support\Facades\DB;
 
 class VendorController extends Controller
 {
+    public function __construct(private VendorChartSyncService $vendorChartSync) {}
+
     public function index(Request $request): JsonResponse
     {
+        // حسابات الموردين في الدليل بدون سجل vendors → إنشاء الربط تلقائياً
+        $this->vendorChartSync->syncMissingVendorsFromChart((int) $request->tenant_id);
+
         $branchId = $request->filled('branch_id') ? (int) $request->branch_id : null;
 
         $vendors = Vendor::where('tenant_id', $request->tenant_id)

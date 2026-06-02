@@ -1341,6 +1341,10 @@ export interface AccountStatementResponse {
   }
   period: { from: string; to: string }
   opening_balance: number
+  /** تاريخ «حتى» للرصيد السابق (اليوم السابق لبداية الفترة) */
+  opening_balance_as_of?: string | null
+  /** يُستخدم مع إعدادات الفترة في الواجهة */
+  show_previous_balance?: boolean
   lines: AccountStatementLine[]
   total_debit: number
   total_credit: number

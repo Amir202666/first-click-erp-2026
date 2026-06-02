@@ -1608,7 +1608,11 @@ class ReportController extends Controller
     public function accountStatement(Request $request): JsonResponse
     {
         $request->validate([
-            'account_id' => 'required|integer|exists:accounts,id',
+            'account_id' => [
+                'required',
+                'integer',
+                Rule::exists('accounts', 'id')->where('tenant_id', (int) $request->tenant_id),
+            ],
             'from_date' => 'required|date',
             'to_date' => 'required|date|after_or_equal:from_date',
             'journal_customer_id' => [
@@ -1645,6 +1649,8 @@ class ReportController extends Controller
             'account' => $data['account'],
             'period' => $data['period'],
             'opening_balance' => $data['opening_balance'],
+            'opening_balance_as_of' => $data['opening_balance_as_of'] ?? null,
+            'show_previous_balance' => $data['show_previous_balance'] ?? true,
             'lines' => $data['lines'],
             'total_debit' => $data['total_debit'],
             'total_credit' => $data['total_credit'],

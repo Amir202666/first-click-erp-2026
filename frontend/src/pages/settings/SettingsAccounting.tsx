@@ -360,7 +360,9 @@ export default function SettingsAccounting() {
     const payload: Partial<TenantSettings> = {}
     ITEM_OPTIONS_KEYS.forEach((key) => {
       const v = form[key]
-      if (v !== undefined) payload[key] = v as boolean
+      if (v !== undefined) {
+        payload[key] = v ? true : false
+      }
     })
     updateMut.mutate(payload)
   }

@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { checkBackendHealth } from '../../api/client'
+import { fetchLoginPagePublic, type LoginPagePublic } from '../../api/loginPage'
+import { useTheme } from '../../contexts/ThemeContext'
+import DarkModeToggle from '../../components/DarkModeToggle'
 import {
   Eye,
   EyeOff,
@@ -18,26 +22,30 @@ import {
   MessageCircle,
 } from 'lucide-react'
 
-const APP_VERSION = '1.0.0'
-
-/** بيانات التواصل — عدّلها عند الحاجة */
-const CONTACT = {
+const FALLBACK_PAGE = (lang: string): LoginPagePublic => ({
+  headline: lang === 'ar' ? 'نظام المحاسبة المتكامل' : 'Integrated Accounting System',
+  tagline:
+    lang === 'ar'
+      ? 'برنامج محاسبي | ذكاء محلي | انتشار عالمي'
+      : 'ACCOUNTING SOFTWARE | LOCAL INTELLIGENCE | GLOBAL REACH',
+  subtitle: lang === 'ar' ? 'أدخل بيانات حسابك للمتابعة' : 'Enter your account details to continue',
+  features:
+    lang === 'ar'
+      ? ['إدارة مالية متكاملة', 'نقاط بيع متعددة', 'تقارير ذكية فورية']
+      : ['Integrated financial management', 'Multi POS', 'Instant smart reports'],
+  contact_title: lang === 'ar' ? 'تواصل معنا' : 'Contact us',
   phone: '+966500000000',
-  phoneDisplay: '+966 50 000 0000',
+  phone_display: '+966 50 000 0000',
   whatsapp: '+966500000000',
   email: 'support@firstclickerp.top',
   website: 'firstclickerp.top',
-} as const
-
-const BRAND_TAGLINE = (lang: string) =>
-  lang === 'ar'
-    ? 'برنامج محاسبي | ذكاء محلي | انتشار عالمي'
-    : 'ACCOUNTING SOFTWARE | LOCAL INTELLIGENCE | GLOBAL REACH'
-
-const FEATURES = (lang: string) =>
-  lang === 'ar'
-    ? ['إدارة مالية متكاملة', 'نقاط بيع متعددة', 'تقارير ذكية فورية']
-    : ['Integrated financial management', 'Multi POS', 'Instant smart reports']
+  show_brand_panel: true,
+  show_contact_section: true,
+  show_demo_hint: true,
+  show_forgot_password_link: true,
+  copyright: 'First Click ERP',
+  app_version: '1.0.0',
+})
 
 const LOGIN_CREDENTIALS = {
   company: 'first-company',
@@ -63,8 +71,18 @@ export default function Login() {
   const { login } = useAuth()
   const { t, lang, toggleLang, isRtl } = useLanguage()
   const navigate = useNavigate()
+  const { isDark } = useTheme()
   const isAr = lang === 'ar'
   const hasError = !!error
+
+  const { data: pageQuery } = useQuery({
+    queryKey: ['login-page', 'public', lang],
+    queryFn: () => fetchLoginPagePublic(lang),
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+  const page = pageQuery?.data ?? FALLBACK_PAGE(lang)
+  const showBrandPanel = page.show_brand_panel
 
   useEffect(() => {
     document.title = `${t.login} | FIRST CLICK ERP`
@@ -79,15 +97,16 @@ export default function Login() {
     const prevHtml = html.style.backgroundColor
     const prevBody = document.body.style.backgroundColor
     const prevRoot = root?.style.backgroundColor ?? ''
-    html.style.backgroundColor = '#f8fafc'
-    document.body.style.backgroundColor = '#f8fafc'
-    if (root) root.style.backgroundColor = '#f8fafc'
+    const bg = isDark ? '#0f172a' : '#f8fafc'
+    html.style.backgroundColor = bg
+    document.body.style.backgroundColor = bg
+    if (root) root.style.backgroundColor = bg
     return () => {
       html.style.backgroundColor = prevHtml
       document.body.style.backgroundColor = prevBody
       if (root) root.style.backgroundColor = prevRoot
     }
-  }, [])
+  }, [isDark])
 
   async function retryApiCheck() {
     setError('')
@@ -151,24 +170,27 @@ export default function Login() {
     }
   }
 
-  const waDigits = CONTACT.whatsapp.replace(/\D/g, '')
+  const waDigits = page.whatsapp.replace(/\D/g, '')
 
   return (
     <div
-      className="min-h-dvh grid grid-cols-1 lg:grid-cols-[2fr_3fr] lg:h-dvh lg:max-h-dvh lg:overflow-hidden"
+      className={`min-h-dvh grid grid-cols-1 ${showBrandPanel ? 'lg:grid-cols-[2fr_3fr] lg:h-dvh lg:max-h-dvh' : ''}`}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
-      <button
-        type="button"
-        onClick={toggleLang}
-        className="fixed top-4 end-4 z-50 flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/95 px-3 py-2 text-sm text-slate-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white"
-      >
-        <Globe size={18} />
-        <span>{isAr ? 'English' : 'عربي'}</span>
-      </button>
+      <div className="fixed top-4 end-4 z-50 flex items-center gap-2">
+        <DarkModeToggle />
+        <button
+          type="button"
+          onClick={toggleLang}
+          className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/95 px-3 py-2 text-sm text-slate-700 shadow-md backdrop-blur-sm transition-colors hover:bg-white dark:border-slate-600 dark:bg-slate-800/95 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <Globe size={18} />
+          <span>{isAr ? 'English' : 'عربي'}</span>
+        </button>
+      </div>
 
       {/* نموذج الدخول — 40% (يمين في RTL) */}
-      <main className="relative flex min-h-dvh flex-col justify-center bg-slate-50 px-5 py-16 sm:px-10 lg:min-h-0 lg:px-12 lg:py-10">
+      <main className="relative flex min-h-dvh flex-col justify-center bg-slate-50 px-5 py-16 text-slate-900 transition-colors duration-300 dark:bg-slate-900 dark:text-slate-100 sm:px-10 lg:min-h-0 lg:overflow-y-auto lg:px-12 lg:py-10">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-start">
             <img
@@ -177,10 +199,8 @@ export default function Login() {
               className="mb-4 h-14 w-14 object-contain lg:hidden"
               decoding="async"
             />
-            <h1 className="text-2xl font-bold text-slate-900">{t.login}</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {isAr ? 'أدخل بيانات حسابك للمتابعة' : 'Enter your account details to continue'}
-            </p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{t.login}</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{page.subtitle}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
@@ -287,16 +307,19 @@ export default function Login() {
               )}
             </button>
 
-            <p className="text-center text-sm">
-              <a
-                href={`mailto:${CONTACT.email}?subject=${encodeURIComponent(isAr ? 'استعادة كلمة المرور' : 'Password reset')}`}
-                className="font-medium text-teal-700 hover:text-teal-800 hover:underline"
-              >
-                {isAr ? 'هل نسيت كلمة المرور؟' : 'Forgot your password?'}
-              </a>
-            </p>
+            {page.show_forgot_password_link && (
+              <p className="text-center text-sm">
+                <a
+                  href={`mailto:${page.email}?subject=${encodeURIComponent(isAr ? 'استعادة كلمة المرور' : 'Password reset')}`}
+                  className="font-medium text-teal-700 hover:text-teal-800 hover:underline"
+                >
+                  {isAr ? 'هل نسيت كلمة المرور؟' : 'Forgot your password?'}
+                </a>
+              </p>
+            )}
 
-            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            {page.show_demo_hint && (
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs font-semibold text-slate-700">
                     {isAr ? 'حساب تجريبي' : 'Demo account'}
@@ -346,19 +369,20 @@ export default function Login() {
                   </div>
                 )}
             </div>
+            )}
 
             <footer className="pt-4 text-center text-[11px] text-slate-400 lg:text-start">
-              <p>© {new Date().getFullYear()} First Click ERP</p>
+              <p>© {new Date().getFullYear()} {page.copyright}</p>
               <p className="mt-0.5" dir="ltr">
-                v{APP_VERSION}
+                v{page.app_version}
               </p>
             </footer>
           </form>
         </div>
       </main>
 
-      {/* لوحة العلامة — 60% (يسار في RTL) — مخفية على الموبايل */}
-      <aside className="relative hidden min-h-dvh flex-col overflow-hidden bg-gradient-to-br from-teal-900 via-teal-800 to-slate-900 text-white lg:flex">
+      {showBrandPanel && (
+      <aside className="relative hidden min-h-0 flex-col bg-gradient-to-br from-teal-900 via-teal-800 to-slate-900 text-white lg:flex lg:h-full lg:overflow-x-hidden lg:overflow-y-auto">
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.12]"
           aria-hidden
@@ -369,17 +393,17 @@ export default function Login() {
           }}
         />
         <div
-          className="pointer-events-none absolute -top-24 -end-24 h-72 w-72 rounded-full bg-teal-400/20 blur-3xl"
+          className="pointer-events-none absolute top-12 end-4 h-48 w-48 rounded-full bg-teal-400/20 blur-3xl"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -bottom-32 -start-16 h-80 w-80 rounded-full bg-cyan-400/15 blur-3xl"
+          className="pointer-events-none absolute bottom-12 start-4 h-48 w-48 rounded-full bg-cyan-400/15 blur-3xl"
           aria-hidden
         />
 
-        <div className="relative z-10 flex flex-1 flex-col px-10 py-12 xl:px-14">
-          <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <div className="mb-8 overflow-hidden rounded-3xl bg-white/95 p-6 shadow-2xl shadow-black/20 ring-1 ring-white/20">
+        <div className="relative z-10 flex h-full min-h-0 flex-col justify-between px-10 pb-8 pt-14 xl:px-14">
+          <section className="flex flex-col items-center text-center">
+            <div className="mb-6 rounded-3xl bg-white/95 p-6 shadow-2xl shadow-black/20 ring-1 ring-white/20">
               <img
                 src="/brand/first-click-erp-logo.svg"
                 alt="FIRST CLICK ERP"
@@ -388,35 +412,49 @@ export default function Login() {
                 fetchPriority="high"
               />
             </div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{t.integratedAccountingSystem}</h2>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-teal-100/90">{BRAND_TAGLINE(lang)}</p>
-            <ul className="mt-8 w-full max-w-xs space-y-3 text-start">
-              {FEATURES(lang).map((item) => (
-                <li key={item} className="flex items-center gap-3 text-sm text-white/95">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{page.headline}</h2>
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-teal-100/90">{page.tagline}</p>
+            <ul
+              className={`mt-10 w-full max-w-md gap-x-4 gap-y-3 px-2 sm:mt-12 sm:gap-x-6 sm:max-w-lg ${
+                page.features.length <= 2
+                  ? 'flex flex-row flex-wrap justify-center gap-x-6'
+                  : page.features.length === 3
+                    ? 'grid grid-cols-3'
+                    : 'grid grid-cols-4'
+              }`}
+            >
+              {page.features.map((item, idx) => (
+                <li key={`${idx}-${item}`} className="flex flex-col items-center gap-1.5 px-0.5 text-white/95">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-500/40 text-teal-100">
                     <Check className="h-4 w-4" strokeWidth={3} />
                   </span>
-                  {item}
+                  <span className="w-full text-center text-[10px] leading-tight sm:text-xs">
+                    {item}
+                  </span>
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
 
-          <div className="mt-auto border-t border-white/15 pt-8">
-            <h3 className="mb-4 text-sm font-bold text-teal-100">{isAr ? 'تواصل معنا' : 'Contact us'}</h3>
+          {page.show_contact_section && (
+          <div className="shrink-0 border-t border-white/15 pt-6">
+            <h3 className="mb-4 text-sm font-bold text-teal-100">{page.contact_title}</h3>
             <ul className="space-y-3 text-sm">
+              {page.phone && (
               <li>
                 <a
-                  href={`tel:${CONTACT.phone}`}
+                  href={`tel:${page.phone}`}
                   className="flex items-center gap-3 text-white/90 transition-colors hover:text-white"
                   dir="ltr"
                 >
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500/30 text-teal-200">
                     <Phone className="h-4 w-4" />
                   </span>
-                  <span>{CONTACT.phoneDisplay}</span>
+                  <span>{page.phone_display}</span>
                 </a>
               </li>
+              )}
+              {page.whatsapp && (
               <li>
                 <a
                   href={`https://wa.me/${waDigits}`}
@@ -428,24 +466,28 @@ export default function Login() {
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500/30 text-teal-200">
                     <MessageCircle className="h-4 w-4" />
                   </span>
-                  <span>WhatsApp · {CONTACT.phoneDisplay}</span>
+                  <span>WhatsApp · {page.phone_display}</span>
                 </a>
               </li>
+              )}
+              {page.email && (
               <li>
                 <a
-                  href={`mailto:${CONTACT.email}`}
+                  href={`mailto:${page.email}`}
                   className="flex items-center gap-3 text-white/90 transition-colors hover:text-white"
                   dir="ltr"
                 >
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500/30 text-teal-200">
                     <Mail className="h-4 w-4" />
                   </span>
-                  <span>{CONTACT.email}</span>
+                  <span>{page.email}</span>
                 </a>
               </li>
+              )}
+              {page.website && (
               <li>
                 <a
-                  href={`https://${CONTACT.website}`}
+                  href={`https://${page.website.replace(/^https?:\/\//, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 text-white/90 transition-colors hover:text-white"
@@ -454,13 +496,16 @@ export default function Login() {
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-500/30 text-teal-200">
                     <Globe className="h-4 w-4" />
                   </span>
-                  <span>{CONTACT.website}</span>
+                  <span>{page.website}</span>
                 </a>
               </li>
+              )}
             </ul>
           </div>
+          )}
         </div>
       </aside>
+      )}
     </div>
   )
 }

@@ -127,13 +127,13 @@ function applyCssTheme(theme: ThemePalette, isDark: boolean, config: ThemeConfig
 
   if (isDark) {
     root.classList.add('dark')
-    root.style.setProperty('--fc-page-bg', '#1e2433')
-    root.style.setProperty('--fc-card-bg', '#252d3d')
-    root.style.setProperty('--fc-border', '#374151')
+    root.style.setProperty('--fc-page-bg', '#0f172a')
+    root.style.setProperty('--fc-card-bg', '#1e293b')
+    root.style.setProperty('--fc-border', '#475569')
     root.style.setProperty('--fc-text', '#f1f5f9')
     root.style.setProperty('--fc-text-muted', '#94a3b8')
-    root.style.setProperty('--fc-input-bg', '#1a2235')
-    root.style.setProperty('--fc-table-row-hover', '#2a3348')
+    root.style.setProperty('--fc-input-bg', '#1e293b')
+    root.style.setProperty('--fc-table-row-hover', '#1e293b')
   } else {
     root.classList.remove('dark')
     root.style.setProperty('--fc-page-bg', '#f8fafc')
@@ -145,12 +145,12 @@ function applyCssTheme(theme: ThemePalette, isDark: boolean, config: ThemeConfig
     root.style.setProperty('--fc-table-row-hover', '#f9fafb')
   }
 
-  root.style.setProperty('--color-page-bg', isDark ? '#1e2433' : '#f8fafc')
-  root.style.setProperty('--color-card-bg', isDark ? '#252d3d' : '#ffffff')
-  root.style.setProperty('--color-border', isDark ? '#374151' : '#e5e7eb')
+  root.style.setProperty('--color-page-bg', isDark ? '#0f172a' : '#f8fafc')
+  root.style.setProperty('--color-card-bg', isDark ? '#1e293b' : '#ffffff')
+  root.style.setProperty('--color-border', isDark ? '#475569' : '#e5e7eb')
   root.style.setProperty('--color-text', isDark ? '#f1f5f9' : '#1f2937')
   root.style.setProperty('--color-text-muted', isDark ? '#94a3b8' : '#6b7280')
-  root.style.setProperty('--color-input-bg', isDark ? '#1a2235' : '#f9fafb')
+  root.style.setProperty('--color-input-bg', isDark ? '#1e293b' : '#f9fafb')
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config))

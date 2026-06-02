@@ -52,7 +52,7 @@ const en: Translations = {
   to: 'To',
 
   // App
-  appName: 'First Click',
+  appName: 'FIRST CLICK ERP',
   appSubtitle: 'Accounting System',
 
   // Auth
@@ -186,6 +186,7 @@ const en: Translations = {
     admin: 'Admin',
     subscriptions: 'Subscriptions',
     plans: 'Plans',
+    loginPage: 'Login page',
     backupReset: 'Backup & reset',
     restaurant: 'Restaurant',
     restaurantPos: 'Restaurant POS',
@@ -635,6 +636,13 @@ const en: Translations = {
     taxNumber: 'Tax Number',
     periodFromTo: 'Statement Period (From — To)',
     openingBalance: 'Opening Balance',
+    previousBalance: 'Previous Balance',
+    previousBalanceBadge: 'Opening',
+    previousBalanceUntil: 'Previous balance as of',
+    fromInception: 'From inception',
+    statementSummary: 'Statement Summary',
+    periodTotalDebit: 'Period total debit',
+    periodTotalCredit: 'Period total credit',
     date: 'Date',
     referenceNumber: 'Ref. / Document No.',
     operationType: 'Operation Type',

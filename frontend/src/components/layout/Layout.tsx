@@ -75,9 +75,11 @@ import {
   Star,
   Printer,
   Database,
+  LogIn,
 } from 'lucide-react'
 import NotificationBell from '../notifications/NotificationBell'
 import ThemePicker from '../ThemePicker'
+import DarkModeToggle from '../DarkModeToggle'
 import { clampUiFontScale, UI_FONT_SCALE_DEFAULT } from '../../constants/uiFontScale'
 import { applyUiFontScaleIfChanged, cacheUiFontScale, readCachedUiFontScale } from '../../utils/uiFontScaleStorage'
 import { getCompanyName, getCompanyLogoUrl } from '../../utils/companyBranding'
@@ -392,10 +394,11 @@ const navEntries: NavEntry[] = [
   {
     labelKey: 'nav.admin',
     icon: Shield,
-    basePaths: ['/admin/subscriptions', '/admin/plans', '/admin/backup-reset'],
+    basePaths: ['/admin/subscriptions', '/admin/plans', '/admin/login-page', '/admin/backup-reset'],
     children: [
       { path: '/admin/subscriptions', labelKey: 'nav.subscriptions', icon: CreditCard },
       { path: '/admin/plans', labelKey: 'nav.plans', icon: Package },
+      { path: '/admin/login-page', labelKey: 'nav.loginPage', icon: LogIn },
       { path: '/admin/backup-reset', labelKey: 'nav.backupReset', icon: Database },
     ],
   },
@@ -745,29 +748,22 @@ export default function Layout({ children }: LayoutProps) {
         style={{ background: 'var(--fc-sidebar-bg)' }}
       >
         <div
-          className="flex items-center justify-between px-4 py-3 shrink-0 border-b"
+          className="relative flex items-center justify-center px-3 py-4 shrink-0 border-b min-h-[3.75rem]"
           style={{ borderColor: 'var(--fc-sidebar-divider)' }}
         >
-          <div className="min-w-0">
-            <h2
-              className="text-xl font-bold truncate"
-              style={{ color: 'var(--fc-sidebar-text)' }}
-            >
-              {t.appName}
-            </h2>
-            <p
-              className="text-sm font-medium mt-0.5"
-              style={{ color: 'var(--fc-sidebar-regular-text)' }}
-            >
-              {t.appSubtitle}
-            </p>
-          </div>
+          <h2
+            className="w-full px-7 text-center text-[0.95rem] leading-tight tracking-[0.14em] sm:text-[1.05rem]"
+            style={{ color: 'var(--fc-sidebar-text)', fontWeight: 700 }}
+            dir="ltr"
+          >
+            FIRST CLICK ERP
+          </h2>
           <button
             onClick={closeSidebar}
             className={
               lightSidebarChrome
-                ? 'lg:hidden p-2 rounded-lg transition-colors text-neutral-600 hover:bg-black/[0.06]'
-                : 'lg:hidden p-2 rounded-lg transition-colors text-white/50 hover:bg-white/10 hover:text-white'
+                ? 'absolute top-1/2 end-2 -translate-y-1/2 lg:hidden p-2 rounded-lg transition-colors text-neutral-600 hover:bg-black/[0.06]'
+                : 'absolute top-1/2 end-2 -translate-y-1/2 lg:hidden p-2 rounded-lg transition-colors text-white/50 hover:bg-white/10 hover:text-white'
             }
             aria-label={t.close}
           >
@@ -919,13 +915,13 @@ export default function Layout({ children }: LayoutProps) {
                 dir={isRtl ? 'rtl' : 'ltr'}
               />
               {navSearchFocused && navSearch.trim() && navSearchResults.length > 0 && (
-                <div className={`absolute top-full mt-1.5 w-full min-w-[240px] bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 max-h-72 overflow-y-auto ${isRtl ? 'right-0 left-auto' : 'left-0 right-auto'}`}>
+                <div className={`absolute top-full mt-1.5 w-full min-w-[240px] bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden z-50 max-h-72 overflow-y-auto ${isRtl ? 'right-0 left-auto' : 'left-0 right-auto'}`}>
                   {navSearchResults.map(({ path, label: itemLabel }) => (
                     <Link
                       key={path}
                       to={path}
                       onClick={() => { setNavSearch(''); setNavSearchFocused(false) }}
-                      className={`block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 ${isRtl ? 'text-right' : 'text-left'}`}
+                      className={`block px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 ${isRtl ? 'text-right' : 'text-left'}`}
                     >
                       {itemLabel}
                     </Link>
@@ -966,16 +962,6 @@ export default function Layout({ children }: LayoutProps) {
                   <ShoppingCart size={15} />
                   <span className="hidden sm:inline">{label('nav.posInvoices')}</span>
                 </Link>
-                {isSuperAdmin && (
-                  <Link
-                    to="/admin/subscriptions"
-                    className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
-                    title={label('nav.admin')}
-                  >
-                    <CreditCard size={15} />
-                    <span className="hidden sm:inline">{label('nav.admin')}</span>
-                  </Link>
-                )}
               </>
             )}
             {/* الإشعارات المركزية — يسار زر الألوان */}
@@ -1011,6 +997,9 @@ export default function Layout({ children }: LayoutProps) {
                   document.body,
                 )}
             </div>
+
+            {/* Dark Mode Toggle */}
+            <DarkModeToggle variant={lightSidebarChrome ? 'default' : 'onDarkHeader'} />
 
             {/* Language Toggle */}
             <button
@@ -1058,26 +1047,26 @@ export default function Layout({ children }: LayoutProps) {
 
               {userMenuOpen && (
                 <div
-                  className={`absolute top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 ${
+                  className={`absolute top-full mt-2 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-600 overflow-hidden z-50 ${
                     isRtl ? 'left-0' : 'right-0'
                   }`}
                 >
                   {/* User info */}
-                  <div className="px-4 py-4 bg-gradient-to-br from-primary-50 to-slate-50 border-b border-slate-200">
+                  <div className="px-4 py-4 bg-gradient-to-br from-primary-50 to-slate-50 dark:from-slate-700 dark:to-slate-800 border-b border-slate-200 dark:border-slate-600">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-white text-lg font-bold shrink-0">
                         {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-slate-800 truncate">{user?.name || '—'}</p>
-                        <p className="text-sm text-slate-500 truncate">{user?.email || '—'}</p>
+                        <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.name || '—'}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{user?.email || '—'}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Tenant selector */}
-                  <div className="px-4 py-3 border-b border-slate-100">
-                    <p className="text-xs text-slate-400 mb-2">{t.currentTenant}</p>
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">{t.currentTenant}</p>
                     {tenants.length > 1 ? (
                       <select
                         value={currentTenant?.id ?? ''}

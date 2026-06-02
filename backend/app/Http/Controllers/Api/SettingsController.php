@@ -16,6 +16,14 @@ use Illuminate\Support\Facades\Storage;
  */
 class SettingsController extends Controller
 {
+    /** مفاتيح واجهة الفواتير — تُعاد دائماً في الاستجابة حتى لو غير محفوظة بعد */
+    private const INVOICE_UI_DEFAULTS = [
+        'invoice_variants_sales_enabled' => false,
+        'invoice_variants_purchases_enabled' => false,
+        'invoice_expiry_dates_enabled' => false,
+        'default_vat_rate' => 15,
+    ];
+
     public function __construct(
         private TenantSettingsService $settings
     ) {}
@@ -29,13 +37,8 @@ class SettingsController extends Controller
         if ($tenantId < 1) {
             return response()->json(['message' => 'معرف العميل مطلوب.'], 422);
         }
-        $all = $this->settings->getAll($tenantId);
-        $out = [];
-        foreach ($all as $key => $raw) {
-            $out[$key] = $this->settings->get($tenantId, $key);
-        }
 
-        return response()->json($out);
+        return response()->json($this->settingsPayload($tenantId));
     }
 
     /**
@@ -100,13 +103,25 @@ class SettingsController extends Controller
             }
         }
         $this->settings->setMany($tenantId, $payload);
+
+        return response()->json($this->settingsPayload($tenantId));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function settingsPayload(int $tenantId): array
+    {
         $all = $this->settings->getAll($tenantId);
         $out = [];
         foreach ($all as $key => $raw) {
             $out[$key] = $this->settings->get($tenantId, $key);
         }
+        foreach (self::INVOICE_UI_DEFAULTS as $key => $default) {
+            $out[$key] = $this->settings->get($tenantId, $key, $default);
+        }
 
-        return response()->json($out);
+        return $out;
     }
 
     /**

@@ -46,9 +46,16 @@ import { formatAmount, formatAmountWithSymbol } from '../../utils/currency'
 import { invoiceLineDiscountAmountFromApi, invoiceLineNetBeforeTax } from '../../utils/invoiceLineAmounts'
 import { computePaymentMethodMenuRect, type PaymentMethodMenuRect } from '../../utils/paymentMethodMenuPosition'
 import { toLocalDateString } from '../../utils/date'
+import {
+  isInvoiceExpiryDatesEnabled,
+  isInvoiceVariantsPurchasesEnabled,
+  isInvoiceVariantsSalesEnabled,
+  parseDefaultVatRate,
+} from '../../utils/tenantSettings'
 import { Plus, Trash2, Search, GripVertical, Paperclip, FolderOpen, ChevronDown } from 'lucide-react'
 import SerialNumberSelect from '../../components/SerialNumberSelect'
 import AddCustomerModal from '../../components/AddCustomerModal'
+import AddVendorModal from '../../components/AddVendorModal'
 import AccountSearchSelect from '../../components/AccountSearchSelect'
 import { DeliveryFeesSection, type DeliveryFeeLine } from '../../components/invoice/DeliveryFeesSection'
 import { PartialPaymentSection, type PartialPaymentState } from '../../components/invoice/PartialPaymentSection'
@@ -159,7 +166,7 @@ const emptyLine: LineForm = {
   quantity: 1,
   unit_price: null,
   discount_amount: 0,
-  tax_percent: 15,
+  tax_percent: 0,
   serial_numbers: [],
   use_serial_number: false,
   expiry_date: '',
@@ -214,7 +221,9 @@ export default function CreateInvoice() {
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement | null>(null)
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
+  const [showAddVendorModal, setShowAddVendorModal] = useState(false)
   const [addedCustomer, setAddedCustomer] = useState<Customer | null>(null)
+  const [addedVendor, setAddedVendor] = useState<Vendor | null>(null)
   const [paymentTiming, setPaymentTiming] = useState<string>('')
   const [editFormLoaded, setEditFormLoaded] = useState(false)
   const [pendingInstallmentSchedule, setPendingInstallmentSchedule] = useState<CreateInstallmentFromInvoicePayload | null>(null)
@@ -595,10 +604,13 @@ export default function CreateInvoice() {
     enabled: !!tenantId && type === 'purchase' && !isReturn,
   })
 
-  const { data: settings } = useQuery({
+  const { data: settings, isSuccess: settingsLoaded } = useQuery({
     queryKey: ['settings', tenantId],
     queryFn: () => fetchSettings(tenantId),
     enabled: !!tenantId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
   const { data: accountDefaults } = useQuery({
     queryKey: ['account-defaults', tenantId],
@@ -619,19 +631,22 @@ export default function CreateInvoice() {
     tax_amount: 0,
     total_amount: 0,
   }), [type, isReturn, defaultPurchaseExpenseAccountId])
-  const defaultVatRate = Number((settings as Record<string, unknown>)?.default_vat_rate ?? 15)
-  const invoiceUseSerialNumbers = Boolean((settings as Record<string, unknown>)?.invoice_use_serial_numbers)
-  const rawExpirySetting = (settings as Record<string, unknown>)?.invoice_expiry_dates_enabled
-  const invoiceExpiryDatesEnabled =
-    rawExpirySetting === undefined || rawExpirySetting === null
-      ? true
-      : rawExpirySetting === true || rawExpirySetting === '1' || rawExpirySetting === 1
-  const salesRepEnabledInSettings = (settings as Record<string, unknown>)?.sales_rep_enabled === true
-  const salesRepRequiredInSettings = (settings as Record<string, unknown>)?.sales_rep_required === true
-  const invoiceVariantsSalesEnabled = (settings as Record<string, unknown>)?.invoice_variants_sales_enabled !== false
-  const invoiceVariantsPurchasesEnabled = (settings as Record<string, unknown>)?.invoice_variants_purchases_enabled !== false
+  const settingsRecord = settings as Record<string, unknown> | undefined
+  const defaultVatRate = parseDefaultVatRate(settingsRecord)
+  const invoiceUseSerialNumbers = Boolean(settingsRecord?.invoice_use_serial_numbers)
+  const invoiceExpiryDatesEnabled = isInvoiceExpiryDatesEnabled(settingsRecord)
+  const salesRepEnabledInSettings = settingsRecord?.sales_rep_enabled === true
+  const salesRepRequiredInSettings = settingsRecord?.sales_rep_required === true
+  const invoiceVariantsSalesEnabled = isInvoiceVariantsSalesEnabled(settingsRecord)
+  const invoiceVariantsPurchasesEnabled = isInvoiceVariantsPurchasesEnabled(settingsRecord)
   const variantsEnabledForInvoice =
     type === 'sales' ? invoiceVariantsSalesEnabled : type === 'purchase' ? invoiceVariantsPurchasesEnabled : false
+
+  /** بعد تحميل الإعدادات: تطبيق نسبة الضريبة الافتراضية على أسطر فاتورة جديدة */
+  useEffect(() => {
+    if (isEditingInvoice || settings == null) return
+    setLines((prev) => prev.map((line) => ({ ...line, tax_percent: defaultVatRate })))
+  }, [defaultVatRate, settings, isEditingInvoice])
 
   const ensureItemVariantsInMap = useCallback(
     async (itemId: number): Promise<ItemVariant[]> => {
@@ -672,11 +687,7 @@ export default function CreateInvoice() {
     if (existingIdx >= 0) {
       updateLine(existingIdx, 'quantity', lines[existingIdx].quantity + 1)
     } else {
-      const taxPercent =
-        (item as Item & { default_tax_percent?: number | null }).default_tax_percent != null &&
-        Number.isFinite(Number((item as Item & { default_tax_percent?: number }).default_tax_percent))
-          ? Number((item as Item & { default_tax_percent?: number }).default_tax_percent)
-          : defaultVatRate
+      const taxPercent = defaultVatRate
       const newLine: LineForm = {
         item_id: item.id,
         item_variant_id: null,
@@ -740,7 +751,7 @@ export default function CreateInvoice() {
         quantity: l.quantity ?? 1,
         unit_price: coerceInvoiceLineUnitPrice(l.unit_price),
         discount_amount: invoiceLineDiscountAmountFromApi(l as InvoiceLine),
-        tax_percent: l.tax_percent ?? 15,
+        tax_percent: l.tax_percent ?? defaultVatRate,
         serial_numbers: [],
         use_serial_number: false,
         expiry_date: (l as InvoiceLine).expiry_date ? String((l as InvoiceLine).expiry_date).slice(0, 10) : '',
@@ -762,7 +773,12 @@ export default function CreateInvoice() {
         if (base.some((c) => c.id === addedCustomer.id)) return base
         return [...base, addedCustomer]
       })()
-    : (vendorsData?.data ?? [])
+    : (() => {
+        const base = vendorsData?.data ?? []
+        if (!addedVendor) return base
+        if (base.some((v) => v.id === addedVendor.id)) return base
+        return [...base, addedVendor]
+      })()
   const items = itemsData?.data ?? []
 
   useEffect(() => {
@@ -897,8 +913,9 @@ export default function CreateInvoice() {
   // - ميزة الأرقام التسلسلية مفعّلة في الإعدادات، و
   // - يوجد على الأقل سطر واحد لصنف مفعّل عليه خيار تتبع الأرقام التسلسلية
   const showSerialColumn = invoiceUseSerialNumbers && lines.some((line) => line.use_serial_number === true)
-  const showVariantColumn = variantsEnabledForInvoice
-  const showExpiryColumns = invoiceExpiryDatesEnabled && (type === 'sales' || type === 'purchase')
+  /** لا نعرض أعمدة المتغير/الصلاحية حتى تُحمَّل الإعدادات من الـ API */
+  const showVariantColumn = settingsLoaded && variantsEnabledForInvoice
+  const showExpiryColumns = settingsLoaded && invoiceExpiryDatesEnabled && (type === 'sales' || type === 'purchase')
   const showPurchaseExpensesSection = type === 'purchase' && !isReturn
   const showStockColumn = type === 'sales' && !isReturn
   const activeCustomer = type === 'sales' && partnerId ? (partners as Customer[]).find((c) => c.id === partnerId) : null
@@ -1168,10 +1185,9 @@ export default function CreateInvoice() {
     })
   }
 
-  function getDefaultTaxForItem(it: Item & { default_tax_percent?: number | null }) {
-    return it.default_tax_percent != null && Number.isFinite(Number(it.default_tax_percent))
-      ? Number(it.default_tax_percent)
-      : defaultVatRate
+  /** ضريبة السطر الافتراضية = نسبة VAT من إعدادات الشركة (تبويب الضرائب) */
+  function getDefaultTaxForItem(_it: Item & { default_tax_percent?: number | null }) {
+    return defaultVatRate
   }
 
   async function selectItem(index: number, itemId: number, optVariantId?: number | null) {
@@ -1635,6 +1651,7 @@ export default function CreateInvoice() {
     setPaymentMethodMenuOpen(true)
     setPaymentMethodHighlightIdx(selectedPaymentMethodRowIdx)
     updatePaymentMethodMenuPosition()
+    requestAnimationFrame(() => updatePaymentMethodMenuPosition())
   }
 
   function commitPaymentMethodSelection(nextId: number | null) {
@@ -2333,10 +2350,12 @@ export default function CreateInvoice() {
           dir={isRtl ? 'rtl' : 'ltr'}
           className="fixed z-[9500] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
           style={{
-            top: paymentMethodMenuRect.top,
             left: paymentMethodMenuRect.left,
             width: paymentMethodMenuRect.width,
             maxHeight: paymentMethodMenuRect.maxHeight,
+            ...(paymentMethodMenuRect.top != null
+              ? { top: paymentMethodMenuRect.top, bottom: 'auto' }
+              : { bottom: paymentMethodMenuRect.bottom, top: 'auto' }),
           }}
         >
           <div className="max-h-full overflow-y-auto py-1">
@@ -2437,6 +2456,17 @@ export default function CreateInvoice() {
                   className="h-9 w-9 rounded-md border border-slate-300 bg-white text-primary-600 hover:bg-slate-50 transition-colors flex items-center justify-center shrink-0"
                   title={lang === 'ar' ? 'إضافة عميل جديد' : 'Add new customer'}
                   aria-label={lang === 'ar' ? 'إضافة عميل جديد' : 'Add new customer'}
+                >
+                  <Plus size={18} />
+                </button>
+              )}
+              {type === 'purchase' && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddVendorModal(true)}
+                  className="h-9 w-9 rounded-md border border-slate-300 bg-white text-primary-600 hover:bg-slate-50 transition-colors flex items-center justify-center shrink-0"
+                  title={lang === 'ar' ? 'إضافة مورد جديد' : 'Add new vendor'}
+                  aria-label={lang === 'ar' ? 'إضافة مورد جديد' : 'Add new vendor'}
                 >
                   <Plus size={18} />
                 </button>
@@ -2627,6 +2657,16 @@ export default function CreateInvoice() {
         onCreated={(c) => {
           setAddedCustomer(c)
           setPartnerId(c.id)
+        }}
+      />
+
+      <AddVendorModal
+        open={showAddVendorModal}
+        tenantId={tenantId}
+        onClose={() => setShowAddVendorModal(false)}
+        onCreated={(v) => {
+          setAddedVendor(v)
+          setPartnerId(v.id)
         }}
       />
 

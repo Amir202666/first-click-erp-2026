@@ -1194,6 +1194,10 @@ class AccountingService
 
         $closingBalance = $openingBalance + $totalDebit - $totalCredit;
 
+        $openingBalanceAsOf = $openingTo;
+        // «منذ البداية» (1970-01-01): لا يُعرض سطر الرصيد السابق في الواجهة
+        $showPreviousBalance = $fromDate !== '1970-01-01';
+
         $customer = $linkedCustomer;
         $vendor = Vendor::where('tenant_id', $tenantId)->where('account_id', $accountId)->first();
 
@@ -1212,6 +1216,8 @@ class AccountingService
             ],
             'period' => ['from' => $fromDate, 'to' => $toDate],
             'opening_balance' => round($openingBalance, 4),
+            'opening_balance_as_of' => $openingBalanceAsOf,
+            'show_previous_balance' => $showPreviousBalance,
             'lines' => $statementLines,
             'total_debit' => round($totalDebit, 4),
             'total_credit' => round($totalCredit, 4),

@@ -11,14 +11,22 @@ echo.
 call scripts\setup-local-env.bat
 if errorlevel 1 exit /b 1
 
+call scripts\xampp-path.cmd
+if not defined XAMPP_ROOT (
+  echo ❌ لم يُعثر على XAMPP — ثبّت XAMPP أو شغّل scripts\fix-xampp-mysql.bat
+  pause
+  exit /b 1
+)
+set "MYSQL=%XAMPP_ROOT%\mysql\bin\mysql.exe"
+
 echo.
-echo [1/4] التحقق من MySQL...
-"C:\xampp\mysql\bin\mysql.exe" -u root -e "SELECT 1;" >nul 2>&1
+echo [1/4] التحقق من MySQL (%XAMPP_ROOT%)...
+"%MYSQL%" -u root -e "SELECT 1;" >nul 2>&1
 if errorlevel 1 (
   echo.
   echo ❌ MySQL غير شغّال!
-  echo    افتح XAMPP Control Panel واضغط Start بجانب MySQL
-  echo    ثم أعد تشغيل هذا الملف.
+  echo    شغّل أولاً: scripts\fix-xampp-mysql.bat
+  echo    أو من XAMPP Control Panel: Start بجانب MySQL
   pause
   exit /b 1
 )
@@ -26,7 +34,7 @@ echo [OK] MySQL يعمل
 
 echo.
 echo [2/4] إنشاء قاعدة البيانات...
-"C:\xampp\mysql\bin\mysql.exe" -u root -e "CREATE DATABASE IF NOT EXISTS firstclick_local CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>nul
+"%MYSQL%" -u root -e "CREATE DATABASE IF NOT EXISTS firstclick_local CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>nul
 
 echo.
 echo [3/4] Laravel setup...

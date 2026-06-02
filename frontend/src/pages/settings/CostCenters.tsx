@@ -1,10 +1,10 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { fetchCostCenterTree, createCostCenter, updateCostCenter, deleteCostCenter } from '../../api/tenant'
 import type { CostCenter } from '../../types'
-import { Plus, Pencil, Trash2, X, ChevronDown, ChevronLeft, Target } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, ChevronDown, ChevronLeft, Target, MoreVertical } from 'lucide-react'
 import Toast, { type ToastType } from '../../components/ui/Toast'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useClientSort } from '../../hooks/useClientSort'
@@ -89,6 +89,18 @@ export default function CostCenters() {
     description: '',
     is_active: true,
   })
+  const [openActionsId, setOpenActionsId] = useState<number | null>(null)
+  const actionsMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (!openActionsId) return
+      const target = e.target as Node
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(target)) setOpenActionsId(null)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [openActionsId])
 
   const { data: tree = [], isLoading } = useQuery<CostCenter[]>({
     queryKey: ['costCenterTree', tenantId],
@@ -237,7 +249,7 @@ export default function CostCenters() {
                 <SortableTh label={t.costCenters.centerName} sortKey="name" sortState={sort} onToggle={toggleSort} widthClassName="w-44" className={`${textAlign} font-medium text-slate-700 dark:text-slate-200`} />
                 <SortableTh label={t.description} sortKey="description" sortState={sort} onToggle={toggleSort} widthClassName="w-[18rem]" className={`${textAlign} font-medium text-slate-700 dark:text-slate-200`} />
                 <SortableTh label={t.status} sortKey="status" sortState={sort} onToggle={toggleSort} widthClassName="w-32" className={`${textAlign} font-medium text-slate-700 dark:text-slate-200`} />
-                <th className={`${textAlign} px-4 py-3 font-medium w-36`}>{t.actions}</th>
+                <th className={`${textAlign} px-4 py-3 font-medium w-16`}>{t.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -254,6 +266,9 @@ export default function CostCenters() {
                     onAddChild={openAddChild}
                     onEdit={openEdit}
                     onDelete={setDeleteTarget}
+                    openActionsId={openActionsId}
+                    setOpenActionsId={setOpenActionsId}
+                    actionsMenuRef={actionsMenuRef}
                     t={t}
                     isRtl={isRtl}
                   />
@@ -348,6 +363,9 @@ function CostCenterRow({
   onAddChild,
   onEdit,
   onDelete,
+  openActionsId,
+  setOpenActionsId,
+  actionsMenuRef,
   t,
   isRtl,
 }: {
@@ -358,6 +376,9 @@ function CostCenterRow({
   onAddChild: (c: CostCenter) => void
   onEdit: (c: CostCenter) => void
   onDelete: (c: CostCenter) => void
+  openActionsId: number | null
+  setOpenActionsId: Dispatch<SetStateAction<number | null>>
+  actionsMenuRef: RefObject<HTMLDivElement | null>
   t: any
   isRtl: boolean
 }) {
@@ -384,28 +405,62 @@ function CostCenterRow({
             {center.is_active ? t.active : t.inactive}
           </span>
         </td>
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-1">
+        <td className="px-4 py-3 align-middle">
+          <div
+            className="relative inline-flex"
+            ref={openActionsId === center.id ? (actionsMenuRef as RefObject<HTMLDivElement>) : undefined}
+          >
             <button
-              onClick={() => onAddChild(center)}
-              className="text-primary-600 hover:text-primary-500 text-xs font-medium px-1.5 py-0.5 rounded hover:bg-primary-50 transition-colors"
+              type="button"
+              onClick={() => setOpenActionsId((prev) => (prev === center.id ? null : center.id))}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              title={t.actions}
+              aria-label={t.actions}
+              aria-expanded={openActionsId === center.id}
             >
-              {t.costCenters.addChild}
+              <MoreVertical size={16} />
             </button>
-            <button
-              onClick={() => onEdit(center)}
-              className="text-primary-600 hover:text-primary-500 p-1 rounded hover:bg-primary-50 transition-colors"
-              title={t.edit}
-            >
-              <Pencil size={15} />
-            </button>
-            <button
-              onClick={() => onDelete(center)}
-              className="text-red-500 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
-              title={t.delete}
-            >
-              <Trash2 size={15} />
-            </button>
+            {openActionsId === center.id && (
+              <div
+                className={`absolute z-50 mt-2 min-w-[10.5rem] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
+                  isRtl ? 'right-0' : 'left-0'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionsId(null)
+                    onAddChild(center)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Plus size={16} className="text-primary-600 shrink-0" />
+                  <span>{t.costCenters.addChild}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionsId(null)
+                    onEdit(center)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Pencil size={16} className="text-primary-600 shrink-0" />
+                  <span>{t.edit}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenActionsId(null)
+                    onDelete(center)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 size={16} className="shrink-0" />
+                  <span>{t.delete}</span>
+                </button>
+              </div>
+            )}
           </div>
         </td>
       </tr>
@@ -419,6 +474,9 @@ function CostCenterRow({
           onAddChild={onAddChild}
           onEdit={onEdit}
           onDelete={onDelete}
+          openActionsId={openActionsId}
+          setOpenActionsId={setOpenActionsId}
+          actionsMenuRef={actionsMenuRef}
           t={t}
           isRtl={isRtl}
         />

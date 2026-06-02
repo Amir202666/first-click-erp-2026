@@ -158,6 +158,20 @@ const blushShades: Record<string, string> = {
 
 export const THEMES: ThemePalette[] = [
   {
+    id: 'first-click',
+    label: 'First Click ⭐',
+    accent: '#14b8a6',
+    accentDark: '#0d9488',
+    accentLight: '#ccfbf1',
+    sidebarBg: '#134e4a',
+    sidebarText: '#2dd4bf',
+    sidebarActiveItem: 'rgba(20,184,166,0.18)',
+    sidebarRegularItem: 'rgba(255,255,255,0.58)',
+    sidebarDivider: 'rgba(255,255,255,0.1)',
+    isLightSidebar: false,
+    shades: tealShades,
+  },
+  {
     id: 'emerald',
     label: 'Emerald ⭐',
     accent: '#10b981',
@@ -247,7 +261,7 @@ export const THEMES: ThemePalette[] = [
     accent: '#14b8a6',
     accentDark: '#0d9488',
     accentLight: '#ccfbf1',
-    sidebarBg: '#0d1f1e',
+    sidebarBg: '#115e59',
     sidebarText: '#2dd4bf',
     sidebarActiveItem: 'rgba(20,184,166,0.15)',
     sidebarRegularItem: 'rgba(255,255,255,0.55)',
@@ -327,7 +341,7 @@ export const THEMES: ThemePalette[] = [
   },
 ]
 
-export const DEFAULT_THEME_ID = 'emerald'
+export const DEFAULT_THEME_ID = 'first-click'
 
 export const THEMES_BY_ID: Record<string, ThemePalette> = Object.fromEntries(
   THEMES.map((t) => [t.id, t]),
@@ -345,6 +359,8 @@ export const LEGACY_FIRSTCLICK_PALETTE: Record<string, string> = {
   rose: 'rose',
   amber: 'amber',
   cyan: 'cyan',
+  teal: 'first-click',
+  'first-click': 'first-click',
 }
 
 /** Legacy `app-theme` string ids → new theme ids */
@@ -353,14 +369,15 @@ export const LEGACY_APP_THEME_ID: Record<string, string> = {
   white: 'lavender',
   blue: 'sky',
   emerald: 'emerald',
-  teal: 'teal',
+  teal: 'first-click',
+  'first-click': 'first-click',
   cyan: 'cyan',
   sky: 'sky',
   mint: 'mint',
   'light-sky': 'sky',
   'light-emerald': 'mint',
   'steel-blue': 'sky',
-  'ocean-teal': 'teal',
+  'ocean-teal': 'first-click',
   mauve: 'lavender',
   'warm-brown': 'amber',
   coral: 'rose',

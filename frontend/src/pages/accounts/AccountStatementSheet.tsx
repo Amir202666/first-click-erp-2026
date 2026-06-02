@@ -13,7 +13,7 @@ import type {
   CostCenter,
 } from '../../types'
 import { formatAmount } from '../../utils/currency'
-import { getReportPeriodRange, type ReportPeriodKey } from '../../utils/date'
+import { formatDisplayDate, getReportPeriodRange, type ReportPeriodKey } from '../../utils/date'
 import { FileText, Printer, FileSpreadsheet, ChevronUp, ChevronDown, ExternalLink, X, Columns3, ArrowLeft } from 'lucide-react'
 import { usePersistedColumnVisibility } from '../../hooks/usePersistedColumnVisibility'
 import ReportFooter from '../../components/ui/ReportFooter'
@@ -54,7 +54,7 @@ const OPERATION_TYPE_DISPLAY_AR: Record<string, string> = {
   return_sales: 'مرتجع مبيعات',
   return_purchase: 'مرتجع مشتريات',
   manual: 'قيد يدوي',
-  opening: 'رصيد افتتاحي',
+  opening: 'رصيد سابق',
   installment_schedule: 'جدول أقساط',
   other: 'أخرى',
 }
@@ -68,7 +68,7 @@ const OPERATION_TYPE_DISPLAY_EN: Record<string, string> = {
   return_sales: 'Sales return',
   return_purchase: 'Purchase return',
   manual: 'Manual journal',
-  opening: 'Opening balance',
+  opening: 'Previous balance',
   installment_schedule: 'Installment schedule',
   other: 'Other',
 }
@@ -171,19 +171,23 @@ const SHEET_PERIOD_OPTIONS: { value: ReportPeriodKey | 'custom'; labelAr: string
   { value: 'last_week', labelAr: 'الأسبوع السابق', labelEn: 'Last Week' },
   { value: 'this_month', labelAr: 'هذا الشهر', labelEn: 'This Month' },
   { value: 'last_month', labelAr: 'الشهر السابق', labelEn: 'Last Month' },
+  { value: 'this_quarter', labelAr: 'هذا الربع', labelEn: 'This Quarter' },
   { value: 'this_year', labelAr: 'هذه السنة', labelEn: 'This Year' },
+  { value: 'from_inception', labelAr: 'منذ البداية', labelEn: 'From inception' },
 ]
 
 function detectStatementSheetPeriod(from: string, to: string): ReportPeriodKey | 'custom' {
   if (!from || !to) return 'custom'
   const keys: ReportPeriodKey[] = [
     'all',
+    'from_inception',
     'today',
     'yesterday',
     'this_week',
     'last_week',
     'this_month',
     'last_month',
+    'this_quarter',
     'this_year',
   ]
   for (const k of keys) {
@@ -193,10 +197,48 @@ function detectStatementSheetPeriod(from: string, to: string): ReportPeriodKey |
   return 'custom'
 }
 
+function isFromInceptionPeriod(fromDate: string): boolean {
+  return fromDate === '1970-01-01'
+}
+
+function isOpeningStatementLine(line: LineType): boolean {
+  return (line as LineType & { operation_code?: string }).operation_code === 'opening'
+}
+
+function shouldShowPreviousBalanceRow(
+  fetched: AccountStatementResponse,
+): boolean {
+  if (isFromInceptionPeriod(fetched.period.from)) return false
+  if (fetched.show_previous_balance === false) return false
+  return fetched.opening_balance !== 0
+}
+
 function formatDateEnglish(s: string): string {
   if (!s) return '—'
   const d = new Date(s)
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function apiErrorMessage(err: unknown, fallback: string): string {
+  const ax = err as {
+    response?: { data?: { message?: string; errors?: Record<string, string[] | string> } }
+    message?: string
+  }
+  const m = ax?.response?.data?.message
+  if (typeof m === 'string' && m.trim()) return m.trim()
+  const errors = ax?.response?.data?.errors
+  if (errors && typeof errors === 'object') {
+    for (const v of Object.values(errors)) {
+      if (Array.isArray(v)) {
+        const first = v.find((x) => typeof x === 'string' && x.trim())
+        if (first) return first.trim()
+      } else if (typeof v === 'string' && v.trim()) {
+        return v.trim()
+      }
+    }
+  }
+  if (typeof ax?.message === 'string' && ax.message.trim()) return ax.message.trim()
+  return fallback
 }
 
 export default function AccountStatementSheet() {
@@ -287,6 +329,7 @@ export default function AccountStatementSheet() {
 
   const [fetched, setFetched] = useState<AccountStatementResponse | null>(null)
   const [statementLoading, setStatementLoading] = useState(false)
+  const [statementError, setStatementError] = useState<string | null>(null)
   const [viewEntryId, setViewEntryId] = useState<number | null>(null)
 
   const [visibleColumns, setVisibleColumns] = usePersistedColumnVisibility(
@@ -309,11 +352,20 @@ export default function AccountStatementSheet() {
   }, [showColumnsMenu])
 
   useEffect(() => {
-    if (!tenantId || !accountIdParam || !dateFromParam || !dateToParam) {
+    if (!accountIdParam || !dateFromParam || !dateToParam) {
       setFetched(null)
+      setStatementError(null)
+      setStatementLoading(false)
       return
     }
+    if (!tenantId) {
+      setFetched(null)
+      setStatementError(null)
+      return
+    }
+    let cancelled = false
     setStatementLoading(true)
+    setStatementError(null)
     fetchAccountStatement(tenantId, {
       account_id: accountIdParam,
       from_date: dateFromParam,
@@ -321,10 +373,27 @@ export default function AccountStatementSheet() {
       ...(journalCustomerIdParam ? { journal_customer_id: journalCustomerIdParam } : {}),
       ...(!includeInstallments ? { include_installments: false } : {}),
     })
-      .then(setFetched)
-      .catch(() => setFetched(null))
-      .finally(() => setStatementLoading(false))
-  }, [tenantId, accountIdParam, dateFromParam, dateToParam, journalCustomerIdParam, includeInstallments])
+      .then((data) => {
+        if (!cancelled) setFetched(data)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setFetched(null)
+          setStatementError(
+            apiErrorMessage(
+              err,
+              lang === 'ar' ? 'تعذر تحميل كشف الحساب.' : 'Could not load account statement.',
+            ),
+          )
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setStatementLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tenantId, accountIdParam, dateFromParam, dateToParam, journalCustomerIdParam, includeInstallments, lang])
 
   /** وضع «تاريخ مخصص»: تحديث الرابط تلقائياً عند تغيير من/إلى (بدون زر تحديث) */
   useEffect(() => {
@@ -367,14 +436,6 @@ export default function AccountStatementSheet() {
     [visibleColumns],
   )
 
-  const visibleCountBeforeDebit = useMemo(
-    () =>
-      ACCOUNT_STATEMENT_COLUMN_KEYS.filter(
-        (k) => visibleColumns[k] && k !== 'debit' && k !== 'credit' && k !== 'balance',
-      ).length,
-    [visibleColumns],
-  )
-
   const totalVisibleColumns = visibleColumnKeys.length
   const closingLabelColSpan = Math.max(1, totalVisibleColumns - (visibleColumns.balance ? 1 : 0))
 
@@ -384,31 +445,46 @@ export default function AccountStatementSheet() {
     enabled: !!tenantId && !!viewEntryId,
   })
 
+  const showPreviousBalanceRow = useMemo(
+    () => (fetched ? shouldShowPreviousBalanceRow(fetched) : false),
+    [fetched],
+  )
+
   const allLines = useMemo(() => {
     if (!fetched) return []
-    const openingLine: LineType | null =
-      fetched.opening_balance !== 0
-        ? {
-            date: fetched.period.from,
-            reference_number: '',
-            operation_type: t.accounts.openingBalance,
-            operation_code: 'opening',
-            description: null,
-            debit: fetched.opening_balance >= 0 ? fetched.opening_balance : 0,
-            credit: fetched.opening_balance < 0 ? Math.abs(fetched.opening_balance) : 0,
-            running_balance: fetched.opening_balance,
-            branch_id: null,
-            cost_center_id: null,
-          }
-        : null
-    const list = openingLine ? [openingLine, ...fetched.lines] : fetched.lines
-    return list
-  }, [fetched, t.accounts.openingBalance])
+    const asOf = fetched.opening_balance_as_of
+    const asOfDisplay = asOf ? formatDisplayDate(asOf) : '—'
+    const prevDesc =
+      lang === 'ar'
+        ? `${t.accounts.previousBalanceUntil} ${asOfDisplay}`
+        : `${t.accounts.previousBalanceUntil} ${asOfDisplay}`
+
+    const openingLine: LineType | null = showPreviousBalanceRow
+      ? {
+          date: fetched.period.from,
+          reference_number: '—',
+          operation_type: t.accounts.previousBalance,
+          operation_code: 'opening',
+          description: prevDesc,
+          debit: fetched.opening_balance >= 0 ? fetched.opening_balance : 0,
+          credit: fetched.opening_balance < 0 ? Math.abs(fetched.opening_balance) : 0,
+          running_balance: fetched.opening_balance,
+          branch_id: null,
+          cost_center_id: null,
+        }
+      : null
+    return openingLine ? [openingLine, ...fetched.lines] : fetched.lines
+  }, [fetched, showPreviousBalanceRow, t.accounts.previousBalance, t.accounts.previousBalanceUntil, lang])
 
   const filteredByMovement = useMemo(() => {
     if (movementTypeFilter.length === 0) return allLines
-    const opening = allLines.find((l) => (l as LineType & { operation_code?: string }).operation_code === 'opening')
-    const rest = allLines.filter((l) => (l as LineType & { operation_code?: string }).operation_code && movementTypeFilter.includes((l as LineType & { operation_code?: string }).operation_code!))
+    const opening = allLines.find(isOpeningStatementLine)
+    const rest = allLines.filter(
+      (l) =>
+        !isOpeningStatementLine(l) &&
+        (l as LineType & { operation_code?: string }).operation_code &&
+        movementTypeFilter.includes((l as LineType & { operation_code?: string }).operation_code!),
+    )
     return opening ? [opening, ...rest] : rest
   }, [allLines, movementTypeFilter])
 
@@ -416,9 +492,9 @@ export default function AccountStatementSheet() {
     if (!branchFilter && !costCenterFilter) return filteredByMovement
     const bid = branchFilter ? Number(branchFilter) : null
     const ccid = costCenterFilter ? Number(costCenterFilter) : null
-    const opening = filteredByMovement.find((l) => l.operation_code === 'opening')
+    const opening = filteredByMovement.find(isOpeningStatementLine)
     const rest = filteredByMovement.filter((l) => {
-      if (l.operation_code === 'opening') return false
+      if (isOpeningStatementLine(l)) return false
       const lb = l.branch_id ?? null
       const lc = l.cost_center_id ?? null
       if (bid !== null && lb !== bid) return false
@@ -429,21 +505,26 @@ export default function AccountStatementSheet() {
   }, [filteredByMovement, branchFilter, costCenterFilter])
 
   const filteredBySearch = useMemo(() => {
-    if (!tableSearch.trim()) return filteredByBranchAndCostCenter
+    const base = filteredByBranchAndCostCenter
+    const opening = base.find(isOpeningStatementLine)
+    const restBase = base.filter((l) => !isOpeningStatementLine(l))
+    if (!tableSearch.trim()) return opening ? [opening, ...restBase] : restBase
     const q = tableSearch.trim().toLowerCase()
-    return filteredByBranchAndCostCenter.filter(
+    const rest = restBase.filter(
       (l) =>
         (l.reference_number || '').toLowerCase().includes(q) ||
         (l.operation_type || '').toLowerCase().includes(q) ||
         getStatementDescription(l, lang).toLowerCase().includes(q) ||
         getBranchDisplay(l, lang).toLowerCase().includes(q) ||
-        getCostCenterDisplay(l, lang).toLowerCase().includes(q)
+        getCostCenterDisplay(l, lang).toLowerCase().includes(q),
     )
+    return opening ? [opening, ...rest] : rest
   }, [filteredByBranchAndCostCenter, tableSearch, lang])
 
   const sortedLines = useMemo(() => {
-    const arr = [...filteredBySearch]
-    arr.sort((a, b) => {
+    const opening = filteredBySearch.find(isOpeningStatementLine)
+    const rest = filteredBySearch.filter((l) => !isOpeningStatementLine(l))
+    rest.sort((a, b) => {
       let cmp = 0
       if (sortBy === 'date') {
         cmp = (a.date || '').localeCompare(b.date || '')
@@ -454,7 +535,7 @@ export default function AccountStatementSheet() {
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
-    return arr
+    return opening ? [opening, ...rest] : rest
   }, [filteredBySearch, sortBy, sortDir])
 
   const totalFiltered = sortedLines.length
@@ -463,6 +544,17 @@ export default function AccountStatementSheet() {
     const start = (page - 1) * pageSize
     return sortedLines.slice(start, start + pageSize)
   }, [sortedLines, page, pageSize])
+
+  /** مجموع أعمدة المدين/الدائن لكل الصفوف المعروضة (بما فيها الرصيد السابق) */
+  const displayedDebitCreditTotals = useMemo(() => {
+    let debit = 0
+    let credit = 0
+    for (const line of sortedLines) {
+      debit += Number(line.debit) || 0
+      credit += Number(line.credit) || 0
+    }
+    return { debit, credit }
+  }, [sortedLines])
 
   function toggleSort(field: 'date' | 'debit' | 'credit') {
     if (sortBy === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -565,6 +657,51 @@ export default function AccountStatementSheet() {
     return <th key={k} className={`${textAlign} py-2.5 px-3 font-medium text-neutral-700`}>{label}</th>
   }
 
+  const periodTotalsLabelKeys = useMemo(
+    () => visibleColumnKeys.filter((k) => k !== 'debit' && k !== 'credit' && k !== 'balance'),
+    [visibleColumnKeys],
+  )
+
+  function renderPeriodTotalsFooterCell(k: AccountStatementColumnKey) {
+    const numCellClass = 'p-3 text-sm tabular-nums font-semibold leading-tight text-center'
+    if (k === 'debit') {
+      return (
+        <td key={k} className={`${numCellClass} text-red-600`} dir="ltr">
+          {formatNum(displayedDebitCreditTotals.debit)}
+        </td>
+      )
+    }
+    if (k === 'credit') {
+      return (
+        <td key={k} className={`${numCellClass} text-emerald-600`} dir="ltr">
+          {formatNum(displayedDebitCreditTotals.credit)}
+        </td>
+      )
+    }
+    if (k === 'balance') {
+      return (
+        <td key={k} className={`${numCellClass} text-slate-400`} dir="ltr">
+          —
+        </td>
+      )
+    }
+    if (k === periodTotalsLabelKeys[0]) {
+      return (
+        <td
+          key={k}
+          colSpan={Math.max(1, periodTotalsLabelKeys.length)}
+          className={`${textAlign} p-3 text-sm leading-tight`}
+        >
+          {lang === 'ar' ? 'إجماليات الفترة' : 'Period totals'}
+        </td>
+      )
+    }
+    if (periodTotalsLabelKeys.includes(k)) {
+      return null
+    }
+    return null
+  }
+
   function renderStatementCell(line: LineType, k: AccountStatementColumnKey, jeId: number | null | undefined) {
     const numClass = 'text-center py-2.5 px-3 font-medium align-middle tabular-nums'
     switch (k) {
@@ -621,6 +758,145 @@ export default function AccountStatementSheet() {
       default:
         return null
     }
+  }
+
+  function renderOpeningStatementRow(line: LineType, rowKey: string | number) {
+    const balance = line.running_balance
+    const balancePositive = balance >= 0
+    const balanceClass = balancePositive
+      ? 'text-red-700 dark:text-red-400'
+      : 'text-emerald-700 dark:text-emerald-400'
+
+    return (
+      <tr
+        key={rowKey}
+        className="bg-amber-50 dark:bg-amber-900/20 border-b-2 border-amber-300 dark:border-amber-700"
+      >
+        {visibleColumnKeys.map((k) => {
+          if (k === 'date') {
+            return (
+              <td key={k} className={`${textAlign} py-3 px-3 align-middle`}>
+                <span className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                  {formatDateEnglish(line.date)}
+                </span>
+              </td>
+            )
+          }
+          if (k === 'voucher') {
+            return (
+              <td key={k} className={`font-mono text-xs ${textAlign} py-3 px-3 text-neutral-400`}>
+                —
+              </td>
+            )
+          }
+          if (k === 'operation') {
+            return (
+              <td key={k} className={`${textAlign} py-3 px-3 align-middle`}>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                  ◈ {t.accounts.previousBalanceBadge}
+                </span>
+              </td>
+            )
+          }
+          if (k === 'branch' || k === 'costCenter') {
+            return (
+              <td key={k} className={`${textAlign} py-3 px-3 text-neutral-400`}>
+                —
+              </td>
+            )
+          }
+          if (k === 'description') {
+            return (
+              <td key={k} className={`${textAlign} py-3 px-3 align-middle`}>
+                <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+                  {getStatementDescription(line, lang)}
+                </span>
+              </td>
+            )
+          }
+          if (k === 'debit') {
+            return (
+              <td key={k} className="text-center py-3 px-3 font-semibold text-red-600 dark:text-red-400 tabular-nums">
+                {line.debit > 0 ? formatNum(line.debit) : '—'}
+              </td>
+            )
+          }
+          if (k === 'credit') {
+            return (
+              <td key={k} className="text-center py-3 px-3 font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                {line.credit > 0 ? formatNum(line.credit) : '—'}
+              </td>
+            )
+          }
+          if (k === 'balance') {
+            return (
+              <td key={k} className={`text-center py-3 px-3 font-bold tabular-nums ${balanceClass}`}>
+                {formatNum(balance)}
+                <span className="text-xs font-normal opacity-80 ms-1">
+                  ({balancePositive ? t.accounts.balanceDebit : t.accounts.balanceCredit})
+                </span>
+              </td>
+            )
+          }
+          return null
+        })}
+      </tr>
+    )
+  }
+
+  function renderPrintOpeningRow(line: LineType) {
+    return (
+      <tr className="bg-amber-50 border-b-2 border-amber-300 print:bg-amber-50">
+        {visibleColumnKeys.map((k) => {
+          if (k === 'date') {
+            return (
+              <td key={k} className="px-3 py-2 font-bold text-amber-900">
+                {formatDateEnglish(line.date)}
+              </td>
+            )
+          }
+          if (k === 'voucher') {
+            return <td key={k} className="px-3 py-2 text-slate-500">—</td>
+          }
+          if (k === 'operation' || k === 'description') {
+            const label =
+              k === 'operation'
+                ? `◈ ${t.accounts.previousBalanceBadge}`
+                : getStatementDescription(line, lang)
+            return (
+              <td key={k} className="px-3 py-2 font-semibold text-amber-900">
+                {label}
+              </td>
+            )
+          }
+          if (k === 'branch' || k === 'costCenter') {
+            return <td key={k} className="px-3 py-2 text-slate-500">—</td>
+          }
+          if (k === 'debit') {
+            return (
+              <td key={k} className={`${alignNum} px-3 py-2 font-medium text-red-600`}>
+                {line.debit > 0 ? formatNum(line.debit) : ''}
+              </td>
+            )
+          }
+          if (k === 'credit') {
+            return (
+              <td key={k} className={`${alignNum} px-3 py-2 font-medium text-emerald-600`}>
+                {line.credit > 0 ? formatNum(line.credit) : ''}
+              </td>
+            )
+          }
+          if (k === 'balance') {
+            return (
+              <td key={k} className={`${alignNum} px-3 py-2 font-bold text-slate-900`}>
+                {formatNum(line.running_balance)}
+              </td>
+            )
+          }
+          return null
+        })}
+      </tr>
+    )
   }
 
   function renderPrintCell(line: LineType, k: AccountStatementColumnKey) {
@@ -799,7 +1075,7 @@ export default function AccountStatementSheet() {
             ? 'رابط غير صالح. افتح الكشف من قائمة الحسابات أو تأكد من وجود accountId ومن تاريخ وإلى تاريخ في الرابط.'
             : 'Invalid link. Open the statement from the accounts list (accountId, from_date, to_date required).'}
         </div>
-      ) : statementLoading && !fetched ? (
+      ) : !tenantId || (statementLoading && !fetched) ? (
         <div className="flex items-center justify-center py-24">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
         </div>
@@ -934,6 +1210,9 @@ export default function AccountStatementSheet() {
                 </thead>
                 <tbody>
                   {paginatedLines.map((line, idx) => {
+                    if (isOpeningStatementLine(line)) {
+                      return renderOpeningStatementRow(line, `opening-${idx}`)
+                    }
                     const jeId = (line as LineType & { journal_entry_id?: number | null }).journal_entry_id
                     return (
                       <tr key={idx} className="border-b border-neutral-100">
@@ -942,38 +1221,10 @@ export default function AccountStatementSheet() {
                     )
                   })}
                 </tbody>
-                {(visibleColumns.debit || visibleColumns.credit || visibleColumns.balance) && (
+                {(visibleColumns.debit || visibleColumns.credit) && (
                   <tfoot>
                     <tr className="bg-gradient-to-r from-slate-100 to-slate-50 border-t-2 border-slate-400 font-bold text-slate-900 shadow-[0_-2px_4px_rgba(0,0,0,0.04)]">
-                      {visibleCountBeforeDebit > 0 && (
-                        <td colSpan={visibleCountBeforeDebit} className={`${textAlign} p-3 text-sm leading-tight`}>
-                          {lang === 'ar' ? 'إجماليات الفترة' : 'Period totals'}
-                        </td>
-                      )}
-                      {visibleColumns.debit && (
-                        <td
-                          className={`p-3 text-sm tabular-nums font-semibold leading-tight ${isRtl ? 'text-right' : 'text-center'} text-red-600`}
-                          dir="ltr"
-                        >
-                          {formatNum(fetched.total_debit)}
-                        </td>
-                      )}
-                      {visibleColumns.credit && (
-                        <td
-                          className={`p-3 text-sm tabular-nums font-semibold leading-tight ${isRtl ? 'text-right' : 'text-center'} text-emerald-600`}
-                          dir="ltr"
-                        >
-                          {formatNum(fetched.total_credit)}
-                        </td>
-                      )}
-                      {visibleColumns.balance && (
-                        <td
-                          className={`p-3 text-sm tabular-nums font-semibold leading-tight ${isRtl ? 'text-right' : 'text-center'} ${fetched.closing_balance >= 0 ? 'text-red-600' : 'text-emerald-600'}`}
-                          dir="ltr"
-                        >
-                          {formatNum(fetched.closing_balance)}
-                        </td>
-                      )}
+                      {visibleColumnKeys.map((k) => renderPeriodTotalsFooterCell(k))}
                     </tr>
                   </tfoot>
                 )}
@@ -1033,47 +1284,57 @@ export default function AccountStatementSheet() {
                   </tr>
                 </thead>
                 <tbody>
-                  {fetched.opening_balance !== 0 && (
-                    <tr className="bg-amber-50/50 border-b border-slate-200">
-                      <td className="px-3 py-2 text-slate-600" colSpan={Math.max(1, visibleCountBeforeDebit)}>
-                        {t.accounts.openingBalance}
-                      </td>
-                      {visibleColumns.debit && (
-                        <td className={`${alignNum} px-3 py-2 font-medium`}>
-                          {fetched.opening_balance >= 0 ? formatNum(fetched.opening_balance) : ''}
-                        </td>
-                      )}
-                      {visibleColumns.credit && (
-                        <td className={`${alignNum} px-3 py-2 font-medium`}>
-                          {fetched.opening_balance < 0 ? formatNum(-fetched.opening_balance) : ''}
-                        </td>
-                      )}
-                      {visibleColumns.balance && (
-                        <td className={`${alignNum} px-3 py-2 font-medium`}>{formatNum(fetched.opening_balance)}</td>
-                      )}
-                    </tr>
+                  {allLines.map((line, idx) =>
+                    isOpeningStatementLine(line) ? (
+                      renderPrintOpeningRow(line)
+                    ) : (
+                      <tr key={idx} className="border-b border-slate-100">
+                        {visibleColumnKeys.map((k) => renderPrintCell(line, k))}
+                      </tr>
+                    ),
                   )}
-                  {fetched.lines.map((line, idx) => (
-                    <tr key={idx} className="border-b border-slate-100">
-                      {visibleColumnKeys.map((k) => renderPrintCell(line, k))}
-                    </tr>
-                  ))}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-slate-100 font-semibold text-slate-900">
-                    <td className="px-3 py-3 border-t-2 border-slate-300" colSpan={Math.max(1, visibleCountBeforeDebit)}>
-                      {t.total}
-                    </td>
-                    {visibleColumns.debit && (
-                      <td className={`${alignNum} px-3 py-3 border-t-2 border-slate-300 text-red-600`}>{formatNum(fetched.total_debit)}</td>
-                    )}
-                    {visibleColumns.credit && (
-                      <td className={`${alignNum} px-3 py-3 border-t-2 border-slate-300 text-emerald-600`}>{formatNum(fetched.total_credit)}</td>
-                    )}
-                    {visibleColumns.balance && (
-                      <td className={`${alignNum} px-3 py-3 border-t-2 border-slate-300`}>{formatNum(fetched.closing_balance)}</td>
-                    )}
-                  </tr>
+                  {(visibleColumns.debit || visibleColumns.credit) && (
+                    <tr className="bg-slate-100 font-semibold text-slate-900">
+                      {visibleColumnKeys.map((k) => {
+                        if (k === 'debit') {
+                          return (
+                            <td key={k} className={`${alignNum} px-3 py-3 border-t-2 border-slate-300 text-red-600`}>
+                              {formatNum(displayedDebitCreditTotals.debit)}
+                            </td>
+                          )
+                        }
+                        if (k === 'credit') {
+                          return (
+                            <td key={k} className={`${alignNum} px-3 py-3 border-t-2 border-slate-300 text-emerald-600`}>
+                              {formatNum(displayedDebitCreditTotals.credit)}
+                            </td>
+                          )
+                        }
+                        if (k === 'balance') {
+                          return (
+                            <td key={k} className={`${alignNum} px-3 py-3 border-t-2 border-slate-300 text-slate-400`}>
+                              —
+                            </td>
+                          )
+                        }
+                        if (k === periodTotalsLabelKeys[0]) {
+                          return (
+                            <td
+                              key={k}
+                              colSpan={Math.max(1, periodTotalsLabelKeys.length)}
+                              className={`${textAlign} px-3 py-3 border-t-2 border-slate-300`}
+                            >
+                              {lang === 'ar' ? 'إجماليات الفترة' : 'Period totals'}
+                            </td>
+                          )
+                        }
+                        if (periodTotalsLabelKeys.includes(k)) return null
+                        return null
+                      })}
+                    </tr>
+                  )}
                   <tr className="bg-primary-50 font-semibold text-slate-900">
                     {visibleColumns.balance ? (
                       <>
@@ -1107,8 +1368,37 @@ export default function AccountStatementSheet() {
           </div>
         </>
       ) : (
-        <div className="py-12 text-center text-neutral-500 text-sm border border-dashed border-neutral-200 rounded-[8px] bg-neutral-50/50">
-          {lang === 'ar' ? 'تعذر تحميل كشف الحساب.' : 'Could not load account statement.'}
+        <div className="py-12 text-center text-neutral-500 text-sm border border-dashed border-neutral-200 rounded-[8px] bg-neutral-50/50 space-y-3">
+          <p>{statementError ?? (lang === 'ar' ? 'تعذر تحميل كشف الحساب.' : 'Could not load account statement.')}</p>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            onClick={() => {
+              if (!tenantId || !accountIdParam || !dateFromParam || !dateToParam) return
+              setStatementLoading(true)
+              setStatementError(null)
+              fetchAccountStatement(tenantId, {
+                account_id: accountIdParam,
+                from_date: dateFromParam,
+                to_date: dateToParam,
+                ...(journalCustomerIdParam ? { journal_customer_id: journalCustomerIdParam } : {}),
+                ...(!includeInstallments ? { include_installments: false } : {}),
+              })
+                .then(setFetched)
+                .catch((err) => {
+                  setFetched(null)
+                  setStatementError(
+                    apiErrorMessage(
+                      err,
+                      lang === 'ar' ? 'تعذر تحميل كشف الحساب.' : 'Could not load account statement.',
+                    ),
+                  )
+                })
+                .finally(() => setStatementLoading(false))
+            }}
+          >
+            {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+          </button>
         </div>
       )}
 
