@@ -33,6 +33,8 @@ Thumbs.db
 
 # Database export backups (local migration)
 scripts/backups/*.sql
+scripts/backups/*.sqlite
+backend/db_export.sql
 backend/storage/app/exports/*.sql
 # Snapshot pushed with «رفع كل شيء» — not ignored:
 !deploy/db_backup.sql
