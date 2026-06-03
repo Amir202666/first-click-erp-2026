@@ -16,6 +16,7 @@ fi
 
 DB_BACKUP_FILE=""
 for candidate in \
+  "$PROJECT_ROOT/deploy/db_backup.sql" \
   "/tmp/db_backup.sql" \
   "$PROJECT_ROOT/db_backup.sql" \
   "$PROJECT_ROOT/storage/db_backup.sql"; do

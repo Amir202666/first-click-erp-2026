@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0.."
 
 set "NO_PAUSE=%~1"
@@ -41,14 +41,14 @@ set "EXPORT_OK=0"
 
 if /i "%DB_CONN%"=="sqlite" (
     echo SQLite detected — exporting via artisan...
-    cd backend
+    pushd backend
     php artisan tenant:export --full --output="%OUT_ABS%"
-    set "ART_EXIT=%ERRORLEVEL%"
-    cd ..
+    set "ART_EXIT=!ERRORLEVEL!"
+    popd
     if exist "%OUT_ABS%" (
         for %%A in ("%OUT_ABS%") do if %%~zA GTR 500 set "EXPORT_OK=1"
     )
-    if not "%ART_EXIT%"=="0" if "%EXPORT_OK%"=="0" set "EXPORT_OK=0"
+    if "!EXPORT_OK!"=="1" copy /Y "%OUT_ABS%" "%BACKUP_DIR%\UPLOAD_AS_db_backup.sql" >nul
     goto export_done
 )
 
@@ -112,6 +112,11 @@ if "%EXPORT_OK%"=="0" (
 echo.
 echo Export OK: %OUT_FILE%
 for %%A in ("%OUT_ABS%") do echo Size: %%~zA bytes
-echo Next: upload to server as /tmp/db_backup.sql then publish-all-online.sh
+echo Also copied to: %BACKUP_DIR%\UPLOAD_AS_db_backup.sql
+echo.
+echo Next steps:
+echo   1. Hostinger File Manager: upload UPLOAD_AS_db_backup.sql as /var/www/erp/db_backup.sql
+echo   2. Hostinger Terminal: bash /var/www/erp/deploy/publish-all-online.sh
+echo   3. Browser: Ctrl+Shift+R
 if not "%NO_PAUSE%"=="--no-pause" pause
 exit /b 0

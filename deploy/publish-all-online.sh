@@ -19,7 +19,7 @@ echo "--- Deploy code (build, migrate, nginx) ---"
 bash "$PROJECT_DIR/deploy.sh"
 
 DB_BACKUP=""
-for f in /tmp/db_backup.sql "$PROJECT_DIR/db_backup.sql" "$PROJECT_DIR/storage/db_backup.sql"; do
+for f in "$PROJECT_DIR/deploy/db_backup.sql" /tmp/db_backup.sql "$PROJECT_DIR/db_backup.sql" "$PROJECT_DIR/storage/db_backup.sql"; do
   if [ -f "$f" ]; then DB_BACKUP="$f"; break; fi
 done
 
@@ -31,8 +31,8 @@ else
   echo ""
   echo "NOTE: db_backup.sql not found."
   echo "Only CODE was updated. To sync ALL data from your PC:"
-  echo "  1) Run scripts\\publish-all-to-online.bat on Windows"
-  echo "  2) Hostinger File Manager: upload to /var/www/erp/db_backup.sql"
+  echo "  1) Run scripts\\رفع-كل-شيء.bat on Windows (exports + git push)"
+  echo "  2) Or upload db_backup.sql to /var/www/erp/deploy/db_backup.sql"
   echo "  3) Run this script again"
 fi
 
