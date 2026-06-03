@@ -17,7 +17,7 @@ if /i "%~1"=="full" set "MODE=full"
 if /i "%~1"=="2" set "MODE=full"
 
 if "%MODE%"=="full" (
-  call "%~dp0publish-all-to-online.bat"
+  call "%~dp0رفع-كل-شيء.bat"
   exit /b %ERRORLEVEL%
 )
 

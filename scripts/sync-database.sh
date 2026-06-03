@@ -1,5 +1,5 @@
 #!/bin/bash
-# استيراد نسخة MySQL — ارفع الملف إلى أحد المسارات (انظر publish-all-to-online.bat)
+# استيراد نسخة MySQL — انظر scripts/رفع-كل-شيء.bat و deploy/publish-all-online.sh
 set -euo pipefail
 
 echo "===================================="

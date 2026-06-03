@@ -46,7 +46,7 @@ call :do_master_push
 goto show_server
 
 :full_db
-call "%~dp0publish-all-to-online.bat"
+call "%~dp0رفع-كل-شيء.bat"
 exit /b %ERRORLEVEL%
 
 :do_code_push

@@ -86,5 +86,5 @@ pause
 exit /b 0
 
 :mode_full
-call "%~dp0publish-all-to-online.bat"
+call "%~dp0رفع-كل-شيء.bat"
 exit /b %ERRORLEVEL%
