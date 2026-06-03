@@ -1,14 +1,26 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════
 # First Click ERP — تطبيق تحسينات الأداء
-# تشغيل كـ root: bash deploy/6-apply-performance.sh [--with-swap]
+# تشغيل كـ root: bash deploy/6-apply-performance.sh [--with-swap] [--skip-composer]
 # ═══════════════════════════════════════════════════════════
 set -euo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export COMPOSER_PROCESS_TIMEOUT=300
 
 PROJECT_DIR="/var/www/erp"
 BACKEND_DIR="$PROJECT_DIR/backend"
 WITH_SWAP=false
-[[ "${1:-}" == "--with-swap" ]] && WITH_SWAP=true
+SKIP_COMPOSER=false
+for arg in "$@"; do
+  case "$arg" in
+    --with-swap) WITH_SWAP=true ;;
+    --skip-composer) SKIP_COMPOSER=true ;;
+  esac
+done
+
+step() { echo ""; echo "▶ $1"; }
 
 # shellcheck source=/dev/null
 source "$PROJECT_DIR/deploy/lib/detect-php-fpm.sh"
@@ -26,16 +38,17 @@ if [ -f "$PROJECT_DIR/deploy/diagnose-performance.sh" ]; then
 fi
 
 # ── Redis + phpredis ──
-echo ""
-echo "── Redis ──"
+step "Redis"
 if ! command -v redis-server >/dev/null 2>&1; then
-  apt update -qq
-  apt install -y redis-server "php${PHP_VER}-redis"
+  apt-get update -qq
+  apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+    redis-server "php${PHP_VER}-redis"
   systemctl enable redis-server
   systemctl start redis-server
   echo "✓ Redis installed"
 else
-  apt install -y "php${PHP_VER}-redis" 2>/dev/null || true
+  apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+    "php${PHP_VER}-redis" 2>/dev/null || true
   systemctl enable redis-server 2>/dev/null || true
   systemctl start redis-server 2>/dev/null || true
   echo "✓ Redis running"
@@ -44,8 +57,7 @@ echo "  ⚠️  عيّن في backend/.env: CACHE_STORE=redis SESSION_DRIVER=red
 echo "      REDIS_CLIENT=phpredis  REDIS_HOST=127.0.0.1"
 
 # ── Nginx ──
-echo ""
-echo "── Nginx ──"
+step "Nginx"
 if [ -f "$PROJECT_DIR/deploy/nginx/firstclick-rate-limit.conf" ]; then
   cp "$PROJECT_DIR/deploy/nginx/firstclick-rate-limit.conf" /etc/nginx/conf.d/firstclick-rate-limit.conf
 fi
@@ -60,8 +72,7 @@ if [ -f "$PROJECT_DIR/deploy/nginx/firstclick-erp-ssl.conf" ]; then
 fi
 
 # ── OPcache ──
-echo ""
-echo "── OPcache ──"
+step "OPcache"
 if [ -f "$PROJECT_DIR/deploy/php/opcache.ini.example" ]; then
   mkdir -p "${PHP_FPM_DIR}/conf.d"
   cp "$PROJECT_DIR/deploy/php/opcache.ini.example" "${PHP_FPM_DIR}/conf.d/99-firstclick-opcache.ini"
@@ -69,8 +80,7 @@ if [ -f "$PROJECT_DIR/deploy/php/opcache.ini.example" ]; then
 fi
 
 # ── PHP-FPM pool ──
-echo ""
-echo "── PHP-FPM ──"
+step "PHP-FPM"
 if [ -f "$PROJECT_DIR/deploy/php/firstclick-fpm-pool.conf" ]; then
   mkdir -p "${PHP_FPM_DIR}/pool.d"
   cp "$PROJECT_DIR/deploy/php/firstclick-fpm-pool.conf" "${PHP_FPM_DIR}/pool.d/zz-firstclick-performance.conf"
@@ -78,19 +88,19 @@ if [ -f "$PROJECT_DIR/deploy/php/firstclick-fpm-pool.conf" ]; then
 fi
 
 # ── MySQL 8 (بدون query_cache) ──
-echo ""
-echo "── MySQL ──"
+step "MySQL"
 if [ -f "$PROJECT_DIR/deploy/mysql/mysqld-tuning.cnf.example" ]; then
   cp "$PROJECT_DIR/deploy/mysql/mysqld-tuning.cnf.example" /etc/mysql/mysql.conf.d/99-firstclick.cnf
-  systemctl restart mysql 2>/dev/null || systemctl restart mysqld 2>/dev/null || true
+  echo "✓ MySQL config copied — restarting (may take 30–60s)..."
+  timeout 120 systemctl restart mysql 2>/dev/null || timeout 120 systemctl restart mysqld 2>/dev/null || echo "⚠️  MySQL restart skipped"
   echo "✓ MySQL tuning (InnoDB buffer pool 512M)"
 fi
 
 # ── Supervisor queue worker ──
-echo ""
-echo "── Supervisor ──"
+step "Supervisor"
 if [ -f "$PROJECT_DIR/deploy/supervisor/laravel-worker.conf" ]; then
-  apt install -y supervisor 2>/dev/null || true
+  apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+    supervisor 2>/dev/null || true
   cp "$PROJECT_DIR/deploy/supervisor/laravel-worker.conf" /etc/supervisor/conf.d/laravel-worker.conf
   supervisorctl reread 2>/dev/null || true
   supervisorctl update 2>/dev/null || true
@@ -98,12 +108,18 @@ if [ -f "$PROJECT_DIR/deploy/supervisor/laravel-worker.conf" ]; then
 fi
 
 # ── Composer + Laravel cache ──
-echo ""
-echo "── Laravel ──"
+step "Laravel cache"
 if [ -f "$BACKEND_DIR/composer.json" ]; then
   cd "$BACKEND_DIR"
   export COMPOSER_ALLOW_SUPERUSER=1
-  composer install --no-dev --optimize-autoloader --no-interaction 2>/dev/null || composer install --optimize-autoloader --no-interaction
+  if ! $SKIP_COMPOSER; then
+    echo "  composer install (max 5 min)..."
+    timeout 300 composer install --no-dev --optimize-autoloader --no-interaction \
+      || timeout 300 composer install --optimize-autoloader --no-interaction \
+      || echo "⚠️  composer skipped — run later if needed"
+  else
+    echo "  composer skipped (--skip-composer)"
+  fi
   php artisan config:cache
   php artisan route:cache
   php artisan view:cache
@@ -127,6 +143,7 @@ if $WITH_SWAP && ! swapon --show | grep -q .; then
 fi
 
 # ── Reload services ──
+step "Reload nginx + PHP-FPM"
 SOCK=$(detect_php_fpm_socket || true)
 if [ -n "${SOCK:-}" ] && [ -f "$PROJECT_DIR/deploy/fix-nginx-socket.sh" ]; then
   bash "$PROJECT_DIR/deploy/fix-nginx-socket.sh" 2>/dev/null || true
