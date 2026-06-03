@@ -1,0 +1,9 @@
+# Default owner for review (adjust GitHub username if needed)
+* @Amir202666
+
+# Deploy and CI
+/.github/ @Amir202666
+
+# Environment templates — changes need explicit review
+/backend/.env.example @Amir202666
+/deploy/ @Amir202666

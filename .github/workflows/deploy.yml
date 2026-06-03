@@ -33,7 +33,20 @@ jobs:
           script: |
             set -e
             cd /var/www/erp
+            mkdir -p /var/www/backups
+            if command -v mysqldump >/dev/null 2>&1; then
+              DB_NAME=$(grep -E '^DB_DATABASE=' backend/.env | head -1 | cut -d= -f2- | tr -d '\r"' | tr -d "'")
+              DB_USER=$(grep -E '^DB_USERNAME=' backend/.env | head -1 | cut -d= -f2- | tr -d '\r"' | tr -d "'")
+              DB_PASS=$(grep -E '^DB_PASSWORD=' backend/.env | head -1 | cut -d= -f2- | tr -d '\r"' | tr -d "'")
+              if [ -n "$DB_NAME" ] && [ -n "$DB_USER" ]; then
+                echo "📦 Pre-deploy DB backup..."
+                MYSQL_PWD="$DB_PASS" mysqldump -u "$DB_USER" "$DB_NAME" \
+                  > "/var/www/backups/pre_deploy_$(date +%Y%m%d_%H%M%S).sql" \
+                  || echo "⚠️ mysqldump skipped"
+                ls -t /var/www/backups/pre_deploy_*.sql 2>/dev/null | tail -n +8 | xargs -r rm -f
+              fi
+            fi
             git fetch origin main
             git reset --hard origin/main
             echo "📌 $(git log -1 --oneline)"
-            bash deploy.sh
+            bash deploy/publish-online.sh
