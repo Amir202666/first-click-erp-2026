@@ -198,7 +198,9 @@ chown -R www-data:www-data /var/www/erp/backend/bootstrap/cache
 | `3-deploy.sh` | كل تحديث — pull, migrate, build |
 | `4-setup-nginx.sh` | مرة واحدة — إعداد الموقع |
 | `5-setup-ssl.sh` | مرة واحدة — HTTPS |
-| `6-apply-performance.sh` | Redis + OPcache + Supervisor + cache |
+| `6-apply-performance.sh` | Redis + OPcache + MySQL + Nginx + Laravel cache |
+| `diagnose-performance.sh` | قِس TTFB و RAM و CPU قبل/بعد التحسين |
+| `backup-daily.sh` | نسخة DB يومية (cron) |
 | `nginx/firstclick-erp-ssl.conf` | Nginx إنتاج HTTPS |
 | `env.production` | قالب `backend/.env` |
 

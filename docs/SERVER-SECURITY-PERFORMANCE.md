@@ -3,7 +3,8 @@
 **الدومين:** firstclickerp.top  
 **النظام:** Ubuntu 22.04 | PHP 8.2 | MySQL 8 | Nginx | Laravel + React  
 
-> ملفات جاهزة في المشروع: `deploy/nginx/` · `deploy/fail2ban/` · `deploy/supervisor/` · `deploy/cron/` · `deploy/mysql/` · `deploy/php/`
+> ملفات جاهزة في المشروع: `deploy/nginx/` · `deploy/fail2ban/` · `deploy/supervisor/` · `deploy/cron/` · `deploy/mysql/` · `deploy/php/`  
+> **دليل الأداء المختصر (عربي):** [`docs/PERFORMANCE-AR.md`](PERFORMANCE-AR.md)
 
 ---
 

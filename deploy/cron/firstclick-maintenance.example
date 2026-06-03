@@ -1,6 +1,6 @@
 # First Click ERP — صيانة يومية
 # cp إلى /etc/cron.d/firstclick-maintenance ثم chmod 644
-# أنشئ /root/.my.cnf لنسخ DB (انظر docs/SERVER-SECURITY-PERFORMANCE.md)
+# أنشئ /root/.my.cnf لنسخ DB (انظر docs/PERFORMANCE-AR.md)
 
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
@@ -12,7 +12,4 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 15 2 * * * root find /var/www/erp/backend/storage/logs -name "*.log" -mtime +14 -delete
 
 # نسخة احتياطية DB يومياً 03:00 (يتطلب /root/.my.cnf)
-0 3 * * * root mysqldump firstclick_erp | gzip > /backups/db_$(date +\%Y\%m\%d).sql.gz
-
-# حذف نسخ أقدم من 30 يوماً
-30 4 * * * root find /backups -name "db_*.sql.gz" -mtime +30 -delete
+0 3 * * * root bash /var/www/erp/deploy/backup-daily.sh >> /var/www/backups/backup.log 2>&1

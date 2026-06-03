@@ -220,6 +220,8 @@ apply_nginx_and_reload() {
     DEPLOY_FAILED=1
     exit 1
   fi
+  PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || echo "8.4")
+  systemctl restart "php${PHP_VER}-fpm" 2>/dev/null || systemctl restart php8.4-fpm 2>/dev/null || systemctl restart php8.2-fpm 2>/dev/null || true
   log_ok "nginx و PHP-FPM"
 }
 
