@@ -68,21 +68,70 @@ class ExportTenantData extends Command
 
     public function handle(): int
     {
-        if (config('database.default') !== 'mysql' && DB::connection()->getDriverName() !== 'mysql') {
-            $this->error('الاتصال الحالي ليس MySQL. للتصدير المحلي استخدم MySQL في backend/.env أو scripts/export-local-db.bat');
+        $driver = DB::connection()->getDriverName();
+        $output = $this->option('output')
+            ?? storage_path('app/exports/export_'.now()->format('Ymd_His').'.sql');
+
+        if ($driver === 'sqlite' && ($this->option('full') || ! $this->option('tenant'))) {
+            return $this->exportSqliteFull($output);
+        }
+
+        if ($driver !== 'mysql') {
+            $this->error('الاتصال الحالي ليس MySQL. للتصدير من SQLite: php artisan tenant:export --full');
 
             return self::FAILURE;
         }
 
         $tenantId = $this->option('tenant') ? (int) $this->option('tenant') : null;
-        $output = $this->option('output')
-            ?? storage_path('app/exports/export_'.now()->format('Ymd_His').'.sql');
 
         if ($this->option('full') || $tenantId === null) {
             return $this->exportViaMysqldump($output);
         }
 
         return $this->exportViaPhp($output, $tenantId);
+    }
+
+    /** تصدير كامل من SQLite المحلي إلى SQL متوافق مع MySQL (للرفع للسيرفر) */
+    private function exportSqliteFull(string $output): int
+    {
+        $this->info('جاري تصدير SQLite كاملاً إلى SQL (MySQL)...');
+
+        $tables = collect(DB::select(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        ))->pluck('name')->all();
+
+        $sql = "-- First Click ERP — SQLite full export for MySQL import\n";
+        $sql .= '-- التاريخ: '.now()->toDateTimeString()."\n\n";
+        $sql .= "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n\n";
+
+        $bar = $this->output->createProgressBar(count($tables));
+        $bar->start();
+
+        foreach ($tables as $table) {
+            $rows = DB::table($table)->orderByRaw('1')->get();
+            $sql .= "-- {$table}\n";
+            $sql .= "DELETE FROM `{$table}`;\n";
+            foreach ($rows as $row) {
+                $sql .= $this->insertStatement($table, (array) $row);
+            }
+            $sql .= "\n";
+            $bar->advance();
+        }
+
+        $sql .= "SET FOREIGN_KEY_CHECKS=1;\n";
+
+        $dir = dirname($output);
+        if (! is_dir($dir)) {
+            File::makeDirectory($dir, 0755, true);
+        }
+        file_put_contents($output, $sql);
+        $bar->finish();
+        $this->newLine(2);
+        $this->info("تم التصدير: {$output}");
+        $this->info('الحجم: '.round(filesize($output) / 1024, 2).' KB');
+        $this->line('ارفع الملف إلى السيرفر كـ db_backup.sql ثم: bash /var/www/erp/deploy/publish-all-online.sh');
+
+        return self::SUCCESS;
     }
 
     private function exportViaMysqldump(string $output): int

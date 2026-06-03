@@ -34,10 +34,22 @@ for /f "usebackq tokens=1,* delims==" %%a in (`findstr /r "^DB_CONNECTION= ^DB_D
     if "%%a"=="DB_PORT" set "DB_PORT=%%b"
 )
 
+for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "TS=%%i"
+set "OUT_FILE=%BACKUP_DIR%\backup_%TS%.sql"
+set "OUT_ABS=%CD%\%OUT_FILE%"
+set "EXPORT_OK=0"
+
 if /i "%DB_CONN%"=="sqlite" (
-    echo ERROR: DB is SQLite. Run: php artisan db:sqlite-to-mysql --fresh
-    if not "%NO_PAUSE%"=="--no-pause" pause
-    exit /b 1
+    echo SQLite detected — exporting via artisan...
+    cd backend
+    php artisan tenant:export --full --output="%OUT_ABS%"
+    set "ART_EXIT=%ERRORLEVEL%"
+    cd ..
+    if exist "%OUT_ABS%" (
+        for %%A in ("%OUT_ABS%") do if %%~zA GTR 500 set "EXPORT_OK=1"
+    )
+    if not "%ART_EXIT%"=="0" if "%EXPORT_OK%"=="0" set "EXPORT_OK=0"
+    goto export_done
 )
 
 if "%DB_NAME%"=="" (
@@ -45,10 +57,6 @@ if "%DB_NAME%"=="" (
     if not "%NO_PAUSE%"=="--no-pause" pause
     exit /b 1
 )
-
-for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "TS=%%i"
-set "OUT_FILE=%BACKUP_DIR%\backup_%TS%.sql"
-set "OUT_ABS=%CD%\%OUT_FILE%"
 
 echo Database: %DB_NAME%
 echo User: %DB_USER%
@@ -92,6 +100,7 @@ if "%EXPORT_OK%"=="0" (
     if not "%ART_EXIT%"=="0" set "EXPORT_OK=0"
 )
 
+:export_done
 if "%EXPORT_OK%"=="0" (
     echo.
     echo ERROR: Export failed.
