@@ -14,24 +14,31 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-DB_BACKUP_FILE=""
-for candidate in \
-  "$PROJECT_ROOT/deploy/db_backup.sql" \
-  "/tmp/db_backup.sql" \
-  "$PROJECT_ROOT/db_backup.sql" \
-  "$PROJECT_ROOT/storage/db_backup.sql"; do
-  if [[ -f "$candidate" ]]; then
-    DB_BACKUP_FILE="$candidate"
-    break
-  fi
-done
-
+DB_BACKUP_FILE="${1:-}"
 if [[ -z "$DB_BACKUP_FILE" ]]; then
+  for candidate in \
+    "$PROJECT_ROOT/deploy/db_backup.sql" \
+    "/tmp/db_backup.sql" \
+    "$PROJECT_ROOT/db_backup.sql" \
+    "$PROJECT_ROOT/storage/db_backup.sql"; do
+    if [[ -f "$candidate" ]]; then
+      DB_BACKUP_FILE="$candidate"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$DB_BACKUP_FILE" || ! -f "$DB_BACKUP_FILE" ]]; then
   echo "[خطأ] ملف db_backup.sql غير موجود."
-  echo "ارفع عبر Hostinger File Manager إلى أحد:"
-  echo "  /var/www/erp/db_backup.sql          (الأسهل — داخل مجلد المشروع)"
-  echo "  /var/www/erp/storage/db_backup.sql"
-  echo "  /tmp/db_backup.sql"
+  echo "استخدم: bash scripts/sync-database.sh /var/www/erp/deploy/db_backup.sql"
+  exit 1
+fi
+
+file_size=$(stat -c%s "$DB_BACKUP_FILE" 2>/dev/null || stat -f%z "$DB_BACKUP_FILE" 2>/dev/null || echo 0)
+if [[ "$file_size" -lt 50000 ]]; then
+  echo "[خطأ] الملف صغير جداً (${file_size} bytes) — غالباً فارغ من wget فاشل."
+  echo "احذف: rm -f /var/www/erp/db_backup.sql"
+  echo "استخدم: /var/www/erp/deploy/db_backup.sql من GitHub"
   exit 1
 fi
 
@@ -84,7 +91,7 @@ fi
 echo "تم الاستيراد."
 
 echo "تحقق سريع من البيانات..."
-mysql_cmd "$DB_NAME" -e "SELECT slug, (SELECT COUNT(*) FROM customers c WHERE c.tenant_id=t.id) AS customers, (SELECT COUNT(*) FROM invoices i WHERE i.tenant_id=t.id) AS invoices FROM tenants t;"
+mysql_cmd "$DB_NAME" -e "SELECT slug, (SELECT COUNT(*) FROM customers c WHERE c.tenant_id=t.id) AS customers, (SELECT COUNT(*) FROM invoices i WHERE i.tenant_id=t.id) AS invoices, (SELECT COUNT(*) FROM invoices i WHERE i.tenant_id=t.id AND i.type='purchase') AS purchase_invoices FROM tenants t;"
 
 echo "جاري تشغيل migrations (إن وُجدت جديدة)..."
 php artisan migrate --force

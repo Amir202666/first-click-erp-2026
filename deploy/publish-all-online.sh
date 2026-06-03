@@ -14,26 +14,36 @@ git fetch origin main
 git reset --hard origin/main
 echo "Code: $(git log -1 --oneline)"
 
-echo ""
-echo "--- Deploy code (build, migrate, nginx) ---"
-bash "$PROJECT_DIR/deploy.sh"
-
 DB_BACKUP=""
 for f in "$PROJECT_DIR/deploy/db_backup.sql" /tmp/db_backup.sql "$PROJECT_DIR/db_backup.sql" "$PROJECT_DIR/storage/db_backup.sql"; do
   if [ -f "$f" ]; then DB_BACKUP="$f"; break; fi
 done
 
 if [ -n "$DB_BACKUP" ]; then
+  size=$(stat -c%s "$DB_BACKUP" 2>/dev/null || stat -f%z "$DB_BACKUP" 2>/dev/null || echo 0)
+  if [ "$size" -lt 50000 ]; then
+    echo ""
+    echo "WARNING: $DB_BACKUP is too small (${size} bytes) — skipping import."
+    echo "Remove empty wget file: rm -f /var/www/erp/db_backup.sql"
+    echo "Use deploy/db_backup.sql from git (scripts\\رفع-كل-شيء.bat)."
+    DB_BACKUP=""
+  fi
+fi
+
+if [ -n "$DB_BACKUP" ]; then
   echo ""
   echo "--- Import FULL database from $DB_BACKUP ---"
-  bash "$PROJECT_DIR/scripts/sync-database.sh"
-else
+  bash "$PROJECT_DIR/scripts/sync-database.sh" "$DB_BACKUP"
+fi
+
+echo ""
+echo "--- Deploy code (build, migrate, nginx) ---"
+bash "$PROJECT_DIR/deploy.sh"
+
+if [ -z "$DB_BACKUP" ]; then
   echo ""
-  echo "NOTE: db_backup.sql not found."
-  echo "Only CODE was updated. To sync ALL data from your PC:"
-  echo "  1) Run scripts\\رفع-كل-شيء.bat on Windows (exports + git push)"
-  echo "  2) Or upload db_backup.sql to /var/www/erp/deploy/db_backup.sql"
-  echo "  3) Run this script again"
+  echo "NOTE: No valid db backup imported."
+  echo "Run scripts\\رفع-كل-شيء.bat on Windows then this script again."
 fi
 
 echo ""
