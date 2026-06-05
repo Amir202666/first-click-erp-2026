@@ -166,7 +166,19 @@ deploy_frontend() {
   else
     npm install
   fi
+  # منع تسريب VITE_API_URL المحلي (127.0.0.1) إلى bundle الإنتاج
+  export VITE_API_URL=/api
+  if [ -f .env.local ]; then
+    mv .env.local .env.local.build-bak
+  fi
   npm run build
+  if [ -f .env.local.build-bak ]; then
+    mv .env.local.build-bak .env.local
+  fi
+  if grep -rq '127\.0\.0\.1:8000' dist/ 2>/dev/null; then
+    log_err "Frontend build contains localhost API URL — aborting deploy"
+    exit 1
+  fi
   bash "$PROJECT_DIR/deploy/lib/sync-public.sh" "$PROJECT_DIR"
   ensure_laravel_entry
   log_ok "Frontend built → backend/public"

@@ -10,10 +10,10 @@ import {
   fetchIntegrationWebhooks,
   revokeIntegrationApiKey,
 } from '../../api/integrationPlatform'
+import { resolveApiBase } from '../../utils/apiBase'
 
 function backendOriginFromApiBase(): string {
-  const base = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000/api' : '/api')
-  return base.replace(/\/?api\/?$/, '')
+  return resolveApiBase().replace(/\/?api\/?$/, '')
 }
 
 export default function SettingsApiPlatform() {

@@ -1,7 +1,8 @@
 import axios from 'axios'
 import type { OrderPayload, OrderResponse, PublicMenuData } from '../types/menu'
+import { resolveApiBase } from '../utils/apiBase'
 
-const apiBase = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000/api' : '/api')
+const apiBase = resolveApiBase()
 const BASE = `${apiBase}/public/menu`
 
 /** عميل بدون auth — لا يُعاد توجيه 401 إلى صفحة الدخول */

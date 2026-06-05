@@ -1,7 +1,7 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios'
+import { resolveApiBase } from '../utils/apiBase'
 
-// نفس المنشأ عبر Vite proxy (/api → 127.0.0.1:8000) لتجنّب مشاكل CORS والكookies
-const apiBase = import.meta.env.VITE_API_URL || '/api'
+const apiBase = resolveApiBase()
 
 const MAX_NETWORK_RETRIES = 3
 const RETRY_DELAY_MS = 1500
