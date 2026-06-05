@@ -26,7 +26,9 @@ echo ""
 echo "Subscription plans (official tiers)..."
 php artisan plans:setup-official || true
 
-if [ -f "$PROJECT_DIR/scripts/sync-data/reference_first-company.json" ]; then
+# استيراد المرجع يُستبدل بيانات العملات/الفروع — فقط عند الطلب الصريح:
+# bash deploy/publish-online.sh --with-reference
+if [ "${1:-}" = "--with-reference" ] && [ -f "$PROJECT_DIR/scripts/sync-data/reference_first-company.json" ]; then
   echo ""
   echo "Importing reference data (currencies, branches, payment methods, units, categories)..."
   bash "$PROJECT_DIR/deploy/import-reference.sh" --import-only
