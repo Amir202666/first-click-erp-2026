@@ -651,12 +651,9 @@ export default function Layout({ children }: LayoutProps) {
 
   const closeSidebar = () => setSidebarOpen(false)
 
-  const headerBtnClass = lightSidebarChrome
-    ? 'text-sm text-neutral-800 hover:bg-black/[0.06] border-black/10 font-medium min-h-[44px] lg:min-h-0'
-    : 'text-sm text-white/85 hover:bg-white/10 border-white/15 font-medium min-h-[44px] lg:min-h-0'
-  const headerIconBtnClass = lightSidebarChrome
-    ? 'text-neutral-800/85 hover:bg-black/[0.06]'
-    : 'text-white/80 hover:bg-white/10'
+  const headerBtnClass =
+    'fc-topbar-btn text-sm font-medium min-h-[44px] lg:min-h-0 border transition-colors'
+  const headerIconBtnClass = 'fc-topbar-icon-btn transition-colors rounded-md'
 
   const navHoverClass = lightSidebarChrome ? 'hover:bg-black/[0.06]' : 'hover:bg-white/10'
 
@@ -879,8 +876,8 @@ export default function Layout({ children }: LayoutProps) {
           dir={isRtl ? 'rtl' : 'ltr'}
           className="no-print shrink-0 z-30 flex items-center justify-between gap-2 px-2 lg:px-2.5 h-11 lg:h-10 shadow-sm w-full"
           style={{
-            background: 'var(--fc-sidebar-bg)',
-            borderBottom: '1px solid var(--fc-sidebar-divider)',
+            background: 'var(--fc-topbar-bg)',
+            borderBottom: '1px solid var(--fc-topbar-border)',
           }}
         >
           {/* 1. أقصى اليمين (RTL): زر طي الشريط الجانبي + خانة البحث بجانبه */}
@@ -896,9 +893,9 @@ export default function Layout({ children }: LayoutProps) {
             <div className="relative w-full max-w-[10.5rem]">
               <Search
                 size={14}
-                className={`absolute top-1/2 -translate-y-1/2 pointer-events-none shrink-0 ${
-                  lightSidebarChrome ? 'text-neutral-500' : 'text-white/50'
-                } ${isRtl ? 'right-2.5 left-auto' : 'left-2.5 right-auto'}`}
+                className={`absolute top-1/2 -translate-y-1/2 pointer-events-none shrink-0 text-[var(--fc-topbar-text)] ${
+                  isRtl ? 'right-2.5 left-auto' : 'left-2.5 right-auto'
+                }`}
               />
               <input
                 type="text"
@@ -907,11 +904,7 @@ export default function Layout({ children }: LayoutProps) {
                 onFocus={() => setNavSearchFocused(true)}
                 onBlur={() => setTimeout(() => setNavSearchFocused(false), 150)}
                 placeholder={t.searchPagesPlaceholder}
-                className={
-                  lightSidebarChrome
-                    ? `w-full border border-neutral-200 rounded-md h-11 lg:h-[26px] text-sm font-medium text-neutral-900 placeholder:text-neutral-500 bg-white/90 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-neutral-300 focus:border-neutral-400 transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`
-                    : `w-full border border-white/15 rounded-md h-11 lg:h-[26px] text-sm font-medium text-white placeholder-white/50 bg-white/10 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-white/15 focus:border-white/25 focus:bg-white/10 transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`
-                }
+                className={`fc-topbar-search w-full rounded-md h-11 lg:h-[26px] text-sm font-medium border transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`}
                 dir={isRtl ? 'rtl' : 'ltr'}
               />
               {navSearchFocused && navSearch.trim() && navSearchResults.length > 0 && (
@@ -999,7 +992,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             {/* Dark Mode Toggle */}
-            <DarkModeToggle variant={lightSidebarChrome ? 'default' : 'onDarkHeader'} />
+            <DarkModeToggle variant="default" />
 
             {/* Language Toggle */}
             <button
@@ -1015,33 +1008,26 @@ export default function Layout({ children }: LayoutProps) {
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className={
-                  lightSidebarChrome
-                    ? 'flex items-center gap-1.5 h-11 px-3 rounded-md text-sm font-medium transition-colors border text-neutral-900 hover:bg-black/[0.06] border-black/10 lg:h-[26px] lg:px-2.5'
-                    : 'flex items-center gap-1.5 h-11 px-3 rounded-md text-sm font-medium transition-colors border text-white/90 hover:bg-white/10 border-white/15 lg:h-[26px] lg:px-2.5'
-                }
+                className="fc-topbar-btn flex items-center gap-1.5 h-11 px-3 rounded-md text-sm font-medium transition-colors border lg:h-[26px] lg:px-2.5"
               >
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
                   style={{
-                    background: 'color-mix(in srgb, var(--fc-accent) 22%, transparent)',
-                    color: 'var(--fc-accent)',
+                    background: 'color-mix(in srgb, var(--fc-accent) 18%, transparent)',
+                    color: 'var(--fc-topbar-text)',
                   }}
                 >
                   {user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </div>
                 <div className="hidden md:block text-start">
-                  <p
-                    className={`font-semibold text-sm leading-tight ${lightSidebarChrome ? 'text-neutral-900' : 'text-white'}`}
-                  >
+                  <p className="font-semibold text-sm leading-tight" style={{ color: 'var(--fc-topbar-text)' }}>
                     {user?.name || '—'}
                   </p>
                 </div>
                 <ChevronDown
                   size={13}
-                  className={`transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''} ${
-                    lightSidebarChrome ? 'text-neutral-600' : 'text-white/60'
-                  }`}
+                  className={`transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`}
+                  style={{ color: 'var(--fc-topbar-text)', opacity: 0.75 }}
                 />
               </button>
 

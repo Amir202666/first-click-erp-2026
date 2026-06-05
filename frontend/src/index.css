@@ -1193,6 +1193,34 @@ html[dir='ltr'] .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
   text-align: start;
 }
 
+/* الشريط العلوي — خلفية بيضاء وأيقونات بلون الثيم المختار */
+.fc-topbar-btn {
+  color: var(--fc-topbar-text);
+  border-color: var(--fc-topbar-border);
+}
+.fc-topbar-btn:hover {
+  background: var(--fc-topbar-hover);
+}
+.fc-topbar-icon-btn {
+  color: var(--fc-topbar-text);
+}
+.fc-topbar-icon-btn:hover {
+  background: var(--fc-topbar-hover);
+}
+.fc-topbar-search {
+  color: var(--fc-topbar-input-text);
+  background: var(--fc-topbar-input-bg);
+  border-color: var(--fc-topbar-border);
+}
+.fc-topbar-search::placeholder {
+  color: var(--fc-text-muted);
+}
+.fc-topbar-search:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--fc-accent) 45%, var(--fc-topbar-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fc-accent) 35%, transparent);
+}
+
 /* الشريط الجانبي — تمرير واحد للقائمة كاملة (بدون تمرير داخلي يقطع الوصول لآخر عنصر) */
 .fc-app-sidebar {
   min-height: 0;

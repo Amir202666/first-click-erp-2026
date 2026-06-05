@@ -111,6 +111,18 @@ function applyCssTheme(theme: ThemePalette, isDark: boolean, config: ThemeConfig
   root.style.setProperty('--fc-sidebar-regular-text', theme.sidebarRegularItem)
   root.style.setProperty('--fc-sidebar-divider', theme.sidebarDivider)
 
+  root.style.setProperty('--fc-topbar-bg', isDark ? '#1e293b' : '#ffffff')
+  root.style.setProperty('--fc-topbar-text', theme.accent)
+  root.style.setProperty(
+    '--fc-topbar-border',
+    isDark
+      ? `color-mix(in srgb, ${theme.accent} 22%, #475569)`
+      : `color-mix(in srgb, ${theme.accent} 18%, #e5e7eb)`,
+  )
+  root.style.setProperty('--fc-topbar-hover', `color-mix(in srgb, ${theme.accent} 10%, transparent)`)
+  root.style.setProperty('--fc-topbar-input-bg', isDark ? '#0f172a' : '#ffffff')
+  root.style.setProperty('--fc-topbar-input-text', isDark ? '#f1f5f9' : '#1f2937')
+
   for (const [shade, rgb] of Object.entries(theme.shades)) {
     root.style.setProperty(`--color-primary-${shade}`, rgb)
   }

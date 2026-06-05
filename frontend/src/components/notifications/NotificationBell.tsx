@@ -136,7 +136,8 @@ export default function NotificationBell({ tenantId, isRtl, lang }: Notification
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative flex items-center justify-center p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200"
+        className="relative flex items-center justify-center p-2 rounded-lg transition-colors border fc-topbar-icon-btn"
+        style={{ borderColor: 'var(--fc-topbar-border)' }}
         title={lang === 'ar' ? 'التنبيهات' : 'Notifications'}
         aria-label={lang === 'ar' ? 'التنبيهات' : 'Notifications'}
       >

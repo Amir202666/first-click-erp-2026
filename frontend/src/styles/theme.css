@@ -10,6 +10,10 @@
   --fc-sidebar-divider: rgba(255, 255, 255, 0.08);
   --fc-page-bg: #ffffff;
   --fc-card-bg: #ffffff;
+  --fc-topbar-bg: #ffffff;
+  --fc-topbar-text: var(--fc-accent);
+  --fc-topbar-border: color-mix(in srgb, var(--fc-accent) 18%, #e5e7eb);
+  --fc-topbar-hover: color-mix(in srgb, var(--fc-accent) 10%, transparent);
   --fc-border: #e5e7eb;
   --fc-text: #1f2937;
   --fc-text-muted: #6b7280;
