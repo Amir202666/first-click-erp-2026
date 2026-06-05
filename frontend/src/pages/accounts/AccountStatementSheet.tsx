@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
-import { fetchAccountStatement, fetchSettings, fetchJournalEntry, fetchBranches, fetchCostCenters } from '../../api/tenant'
+import { fetchAccountStatement, fetchSettings, fetchJournalEntry, fetchBranches, fetchCostCenters, fetchCurrencies } from '../../api/tenant'
 import type {
   AccountStatementResponse,
   AccountStatementLine as LineType,
@@ -11,6 +11,7 @@ import type {
   JournalEntry,
   Branch,
   CostCenter,
+  Currency,
 } from '../../types'
 import { formatAmount } from '../../utils/currency'
 import { formatDisplayDate, getReportPeriodRange, type ReportPeriodKey } from '../../utils/date'
@@ -307,6 +308,12 @@ export default function AccountStatementSheet() {
   const { data: costCentersList = [] } = useQuery<CostCenter[]>({
     queryKey: ['costCenters', tenantId, 'accountStatementSheet'],
     queryFn: () => fetchCostCenters(tenantId, { active_only: '1' }),
+    enabled: !!tenantId,
+  })
+
+  const { data: currencies = [] } = useQuery<Currency[]>({
+    queryKey: ['currencies', tenantId, 'accountStatementSheet'],
+    queryFn: () => fetchCurrencies(tenantId),
     enabled: !!tenantId,
   })
   const decimals = Number(settings?.doc_amount_decimals) || 2
@@ -1006,24 +1013,34 @@ export default function AccountStatementSheet() {
     return cc ? getDisplayName(cc) : '—'
   }, [costCenterFilter, costCentersList, getDisplayName, lang])
 
-  const printCurrencyLabel = useMemo(() => {
-    const code = fetched?.account.currency?.trim()
-      || (typeof settings?.default_currency === 'string' ? settings.default_currency : '')
-      || (typeof settings?.doc_default_currency_code === 'string' ? settings.doc_default_currency_code : '')
-      || 'SAR'
-    return code
-  }, [fetched?.account.currency, settings])
+  const systemDefaultCurrency = useMemo(() => {
+    const s = settings as TenantSettings | undefined
+    const byCode = (code?: string | null) => (code ? currencies.find((c) => c.code === code) ?? null : null)
 
-  const printMetaLine = useMemo(() => {
-    if (!fetched) return ''
-    const fromLabel = lang === 'ar' ? 'من' : 'From'
-    const toLabel = lang === 'ar' ? 'إلى' : 'To'
-    const branchLbl = lang === 'ar' ? 'الفرع' : 'Branch'
-    const ccLbl = lang === 'ar' ? 'مركز التكلفة' : 'Cost center'
-    const curLbl = lang === 'ar' ? 'العملة' : 'Currency'
-    const period = `${fromLabel}: ${formatDateEnglish(fetched.period.from)} — ${toLabel}: ${formatDateEnglish(fetched.period.to)}`
-    return `${period}    ${branchLbl}: ${printBranchLabel}    ${ccLbl}: ${printCostCenterLabel}    ${curLbl}: ${printCurrencyLabel}`
-  }, [fetched, lang, printBranchLabel, printCostCenterLabel, printCurrencyLabel])
+    const docCode = typeof s?.doc_default_currency_code === 'string' ? s.doc_default_currency_code : null
+    const fromDoc = byCode(docCode)
+    if (fromDoc) return fromDoc
+
+    const defaultIdRaw = s?.default_currency_id
+    const defaultId =
+      typeof defaultIdRaw === 'number'
+        ? defaultIdRaw
+        : typeof defaultIdRaw === 'string' && defaultIdRaw.trim() !== ''
+          ? Number(defaultIdRaw)
+          : null
+    if (defaultId != null && Number.isFinite(defaultId)) {
+      const fromId = currencies.find((c) => c.id === defaultId) ?? null
+      if (fromId) return fromId
+    }
+
+    const marked = currencies.find((c) => c.is_default)
+    if (marked) return marked
+
+    const active = currencies.filter((c) => c.is_active !== false)
+    return (active[0] ?? currencies[0]) ?? null
+  }, [settings, currencies])
+
+  const printCurrencyLabel = systemDefaultCurrency?.code ?? 'SAR'
 
   return (
     <div className="page-bg flex flex-col w-full max-w-full min-h-0">
@@ -1353,9 +1370,20 @@ export default function AccountStatementSheet() {
                 {getDisplayName(fetched.account)}{' '}
                 <span className="font-mono text-xs text-slate-600">({fetched.account.code})</span>
               </p>
-              <p className="text-[11px] text-slate-700 mt-1 leading-relaxed text-start whitespace-normal">
-                {printMetaLine}
-              </p>
+              <div className="stmt-print-meta-row text-[11px] text-slate-700 mt-1 leading-relaxed text-start">
+                <span className="stmt-print-meta-period">
+                  {lang === 'ar' ? 'من' : 'From'}: {formatDateEnglish(fetched.period.from)} — {lang === 'ar' ? 'إلى' : 'To'}: {formatDateEnglish(fetched.period.to)}
+                </span>
+                <span className="stmt-print-meta-branch">
+                  {lang === 'ar' ? 'الفرع' : 'Branch'}: {printBranchLabel}
+                </span>
+                <span className="stmt-print-meta-cc">
+                  {lang === 'ar' ? 'مركز التكلفة' : 'Cost center'}: {printCostCenterLabel}
+                </span>
+                <span className="stmt-print-meta-currency">
+                  {lang === 'ar' ? 'العملة' : 'Currency'}: {printCurrencyLabel}
+                </span>
+              </div>
             </div>
             <div className="overflow-x-auto px-2 pb-2">
               <table className="w-full text-sm statement-table">
@@ -1665,18 +1693,27 @@ export default function AccountStatementSheet() {
           .no-print { display: none !important; }
           .statement-document { break-inside: avoid; page-break-inside: avoid; }
           .stmt-print-meta { padding-top: 4px !important; padding-bottom: 6px !important; }
+          .stmt-print-meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: flex-start;
+          }
+          .stmt-print-meta-branch { margin-inline-start: 2.75rem; }
+          .stmt-print-meta-cc { margin-inline-start: 1.5rem; }
+          .stmt-print-meta-currency { margin-inline-start: 1.5rem; }
           .statement-table {
             table-layout: fixed;
             width: 100%;
             font-size: 9px;
             border-collapse: collapse;
           }
-          .statement-table col.stmt-print-num-col { width: 7.5%; }
-          .statement-table col.stmt-print-balance-col { width: 8.5%; }
-          .statement-table col.stmt-print-desc-col { width: 28%; }
-          .statement-table col.stmt-print-date-col { width: 7%; }
-          .statement-table col.stmt-print-voucher-col { width: 8%; }
-          .statement-table col.stmt-print-mid-col { width: 9%; }
+          .statement-table col.stmt-print-num-col { width: 7%; }
+          .statement-table col.stmt-print-balance-col { width: 8%; }
+          .statement-table col.stmt-print-desc-col { width: 25%; }
+          .statement-table col.stmt-print-date-col { width: 9.5%; }
+          .statement-table col.stmt-print-voucher-col { width: 10.5%; }
+          .statement-table col.stmt-print-mid-col { width: 8.5%; }
           .statement-table .stmt-print-cell {
             box-sizing: border-box;
             border: 1px solid #cbd5e1;
@@ -1698,8 +1735,14 @@ export default function AccountStatementSheet() {
             word-break: break-word;
           }
           .statement-table .stmt-print-voucher-col {
-            font-size: 8px;
+            font-size: 8.5px;
             white-space: nowrap;
+          }
+          .statement-table .stmt-print-date-col {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 9px;
           }
           .statement-table .stmt-print-amount {
             text-align: center;
@@ -1709,8 +1752,7 @@ export default function AccountStatementSheet() {
             padding-right: 2px !important;
             letter-spacing: -0.02em;
           }
-          .statement-table .stmt-print-mid-col,
-          .statement-table .stmt-print-date-col {
+          .statement-table .stmt-print-mid-col {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1718,6 +1760,10 @@ export default function AccountStatementSheet() {
         }
         @media screen {
           #account-statement-print { width: 100%; max-width: none; }
+          .stmt-print-meta-row { display: flex; flex-wrap: wrap; align-items: baseline; }
+          .stmt-print-meta-branch { margin-inline-start: 2.75rem; }
+          .stmt-print-meta-cc { margin-inline-start: 1.5rem; }
+          .stmt-print-meta-currency { margin-inline-start: 1.5rem; }
           .statement-table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: 11px; }
           .statement-table .stmt-print-cell {
             box-sizing: border-box;
