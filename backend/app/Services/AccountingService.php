@@ -1219,6 +1219,7 @@ class AccountingService
                 'code' => $account->code,
                 'name' => $account->name,
                 'name_en' => $account->name_en,
+                'currency' => $account->currency,
                 'account_holder' => $customer?->name ?? $vendor?->name ?? $account->name,
                 'phone' => $customer?->phone ?? $vendor?->phone,
                 'address' => $customer?->address ?? $vendor?->address,

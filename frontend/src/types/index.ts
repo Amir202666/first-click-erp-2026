@@ -1336,6 +1336,7 @@ export interface AccountStatementResponse {
     code: string
     name: string
     name_en: string | null
+    currency?: string | null
     account_holder?: string
     phone?: string | null
     address?: string | null

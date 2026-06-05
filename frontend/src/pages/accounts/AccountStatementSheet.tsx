@@ -859,15 +859,17 @@ export default function AccountStatementSheet() {
     return (
       <tr className="bg-white border-b-2 border-neutral-200">
         {visibleColumnKeys.map((k) => {
+          const colClass = getPrintColumnColClass(k)
+          const cellBase = `stmt-print-cell ${colClass}`
           if (k === 'date') {
             return (
-              <td key={k} className="px-3 py-2 font-bold text-amber-900">
+              <td key={k} className={`${cellBase} font-bold text-amber-900`}>
                 {formatDateEnglish(line.date)}
               </td>
             )
           }
           if (k === 'voucher') {
-            return <td key={k} className="px-3 py-2 text-slate-500">—</td>
+            return <td key={k} className={`${cellBase} text-slate-500`}>—</td>
           }
           if (k === 'operation' || k === 'description') {
             const label =
@@ -875,32 +877,36 @@ export default function AccountStatementSheet() {
                 ? `◈ ${t.accounts.previousBalanceBadge}`
                 : getStatementDescription(line, lang)
             return (
-              <td key={k} className="px-3 py-2 font-semibold text-amber-900">
+              <td key={k} className={`${cellBase} font-semibold text-amber-900`}>
                 {label}
               </td>
             )
           }
           if (k === 'branch' || k === 'costCenter') {
-            return <td key={k} className="px-3 py-2 text-slate-500">—</td>
+            return <td key={k} className={`${cellBase} text-slate-500`}>—</td>
           }
           if (k === 'debit') {
             return (
-              <td key={k} className={`${alignNum} px-3 py-2 font-medium text-red-600`}>
+              <td key={k} className={`${cellBase} stmt-print-amount text-red-600`} dir="ltr">
                 {line.debit > 0 ? formatNum(line.debit) : ''}
               </td>
             )
           }
           if (k === 'credit') {
             return (
-              <td key={k} className={`${alignNum} px-3 py-2 font-medium text-emerald-600`}>
+              <td key={k} className={`${cellBase} stmt-print-amount text-emerald-600`} dir="ltr">
                 {line.credit > 0 ? formatNum(line.credit) : ''}
               </td>
             )
           }
           if (k === 'balance') {
+            const balancePositive = line.running_balance >= 0
             return (
-              <td key={k} className={`${alignNum} px-3 py-2 font-bold text-slate-900`}>
-                {formatNum(line.running_balance)}
+              <td key={k} className={`${cellBase} stmt-print-amount font-bold text-slate-900`} dir="ltr">
+                <span className="block leading-tight">{formatNum(line.running_balance)}</span>
+                <span className="block text-[8px] font-normal leading-tight opacity-80">
+                  ({balancePositive ? t.accounts.balanceDebit : t.accounts.balanceCredit})
+                </span>
               </td>
             )
           }
@@ -912,25 +918,58 @@ export default function AccountStatementSheet() {
 
   function renderPrintCell(line: LineType, k: AccountStatementColumnKey) {
     const colClass = getPrintColumnColClass(k)
+    const cellBase = `stmt-print-cell ${colClass}`
     switch (k) {
       case 'date':
-        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{formatDateEnglish(line.date)}</td>
+        return <td key={k} className={`${cellBase} text-slate-700`}>{formatDateEnglish(line.date)}</td>
       case 'voucher':
-        return <td key={k} className={`px-2 py-2 text-slate-700 font-mono text-xs ${colClass}`}>{line.reference_number}</td>
+        return (
+          <td key={k} className={`${cellBase} text-slate-700 font-mono text-[9px]`} title={line.reference_number || ''}>
+            {line.reference_number || '—'}
+          </td>
+        )
       case 'operation':
-        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{getOperationTypeDisplay(line, lang)}</td>
+        return (
+          <td key={k} className={`${cellBase} text-slate-700`} title={getOperationTypeDisplay(line, lang)}>
+            {getOperationTypeDisplay(line, lang)}
+          </td>
+        )
       case 'branch':
-        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{getBranchDisplay(line, lang)}</td>
+        return (
+          <td key={k} className={`${cellBase} text-slate-700`} title={getBranchDisplay(line, lang)}>
+            {getBranchDisplay(line, lang)}
+          </td>
+        )
       case 'costCenter':
-        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{getCostCenterDisplay(line, lang)}</td>
+        return (
+          <td key={k} className={`${cellBase} text-slate-700`} title={getCostCenterDisplay(line, lang)}>
+            {getCostCenterDisplay(line, lang)}
+          </td>
+        )
       case 'description':
-        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{getStatementDescription(line, lang)}</td>
+        return (
+          <td key={k} className={`${cellBase} text-slate-700`} title={getStatementDescription(line, lang)}>
+            {getStatementDescription(line, lang)}
+          </td>
+        )
       case 'debit':
-        return <td key={k} className={`${alignNum} px-1.5 py-2 text-red-600 ${colClass}`}>{line.debit > 0 ? formatNum(line.debit) : ''}</td>
+        return (
+          <td key={k} className={`${cellBase} stmt-print-amount text-red-600`} dir="ltr">
+            {line.debit > 0 ? formatNum(line.debit) : ''}
+          </td>
+        )
       case 'credit':
-        return <td key={k} className={`${alignNum} px-1.5 py-2 text-emerald-600 ${colClass}`}>{line.credit > 0 ? formatNum(line.credit) : ''}</td>
+        return (
+          <td key={k} className={`${cellBase} stmt-print-amount text-emerald-600`} dir="ltr">
+            {line.credit > 0 ? formatNum(line.credit) : ''}
+          </td>
+        )
       case 'balance':
-        return <td key={k} className={`${alignNum} px-1.5 py-2 font-medium text-slate-800 ${colClass}`}>{formatNum(line.running_balance)}</td>
+        return (
+          <td key={k} className={`${cellBase} stmt-print-amount font-medium text-slate-800`} dir="ltr">
+            {formatNum(line.running_balance)}
+          </td>
+        )
       default:
         return null
     }
@@ -948,15 +987,43 @@ export default function AccountStatementSheet() {
   function renderPrintHeaderCell(k: AccountStatementColumnKey) {
     const label = columnLabels[k]
     const colClass = getPrintColumnColClass(k)
-    if (k === 'debit' || k === 'credit' || k === 'balance') {
-      return <th key={k} className={`${alignNum} px-1.5 py-2 border-b border-slate-200 ${colClass}`}>{label}</th>
-    }
-    return <th key={k} className={`${textAlign} px-2 py-2 border-b border-slate-200 ${colClass}`}>{label}</th>
+    return <th key={k} className={`stmt-print-cell stmt-print-head ${colClass}`}>{label}</th>
   }
 
   const containerWidthClass = 'w-full max-w-full'
 
   const paramsValid = !!accountIdParam && !!dateFromParam && !!dateToParam
+
+  const printBranchLabel = useMemo(() => {
+    if (!branchFilter) return lang === 'ar' ? 'الكل' : 'All'
+    const b = branchesList.find((x) => String(x.id) === branchFilter)
+    return b ? getDisplayName(b) : '—'
+  }, [branchFilter, branchesList, getDisplayName, lang])
+
+  const printCostCenterLabel = useMemo(() => {
+    if (!costCenterFilter) return lang === 'ar' ? 'الكل' : 'All'
+    const cc = costCentersList.find((x) => String(x.id) === costCenterFilter)
+    return cc ? getDisplayName(cc) : '—'
+  }, [costCenterFilter, costCentersList, getDisplayName, lang])
+
+  const printCurrencyLabel = useMemo(() => {
+    const code = fetched?.account.currency?.trim()
+      || (typeof settings?.default_currency === 'string' ? settings.default_currency : '')
+      || (typeof settings?.doc_default_currency_code === 'string' ? settings.doc_default_currency_code : '')
+      || 'SAR'
+    return code
+  }, [fetched?.account.currency, settings])
+
+  const printMetaLine = useMemo(() => {
+    if (!fetched) return ''
+    const fromLabel = lang === 'ar' ? 'من' : 'From'
+    const toLabel = lang === 'ar' ? 'إلى' : 'To'
+    const branchLbl = lang === 'ar' ? 'الفرع' : 'Branch'
+    const ccLbl = lang === 'ar' ? 'مركز التكلفة' : 'Cost center'
+    const curLbl = lang === 'ar' ? 'العملة' : 'Currency'
+    const period = `${fromLabel}: ${formatDateEnglish(fetched.period.from)} — ${toLabel}: ${formatDateEnglish(fetched.period.to)}`
+    return `${period}    ${branchLbl}: ${printBranchLabel}    ${ccLbl}: ${printCostCenterLabel}    ${curLbl}: ${printCurrencyLabel}`
+  }, [fetched, lang, printBranchLabel, printCostCenterLabel, printCurrencyLabel])
 
   return (
     <div className="page-bg flex flex-col w-full max-w-full min-h-0">
@@ -1272,33 +1339,25 @@ export default function AccountStatementSheet() {
 
           {/* ─── منطقة الطباعة (مخفية على الشاشة العادية عند عدم الطباعة) ─── */}
           <div id="account-statement-print" className="bg-white rounded-xl border border-slate-200 overflow-hidden statement-document mt-6 print:block hidden print:visible" dir={isRtl ? 'rtl' : 'ltr'}>
-            <div className="p-6 border-b border-slate-200">
-              {fetched.company?.logo && (
-                <div className="mb-3">
-                  <img src={fetched.company.logo} alt="" className="h-14 object-contain" />
-                </div>
-              )}
-              <h2 className="text-xl font-bold text-slate-900 mb-1">{fetched.company?.name ?? currentTenant?.name ?? '—'}</h2>
-              <div className="text-sm text-slate-600 space-y-0.5">
-                {fetched.company?.address && <p>{fetched.company.address}</p>}
-                {fetched.company?.phone && <p>{t.accounts.phone}: {fetched.company.phone}</p>}
-                {fetched.company?.email && <p>{fetched.company.email}</p>}
-                {fetched.company?.tax_registration_number && <p>{t.accounts.taxNumber}: {fetched.company.tax_registration_number}</p>}
+            {(fetched.company?.logo || fetched.company?.name) && (
+              <div className="px-4 pt-3 pb-1 border-b border-slate-100 stmt-print-company">
+                {fetched.company?.logo && (
+                  <img src={fetched.company.logo} alt="" className="h-10 object-contain mb-1" />
+                )}
+                <p className="text-sm font-semibold text-slate-900">{fetched.company?.name ?? currentTenant?.name ?? '—'}</p>
               </div>
-              <h3 className="text-lg font-semibold text-slate-800 mt-6 text-center">{t.accounts.accountStatementTitle}</h3>
-              <p className="text-sm text-slate-600 text-center mt-1">
-                {t.accounts.statementNumber}: {fetched.statement_number} — {t.accounts.issueDate}: {formatDateEnglish(fetched.issue_date)}
+            )}
+            <div className="px-4 py-2 border-b border-slate-200 stmt-print-meta">
+              <h3 className="text-base font-bold text-slate-900 text-center leading-tight">{t.accounts.accountStatementTitle}</h3>
+              <p className="text-sm text-slate-800 text-center mt-0.5 leading-snug">
+                {getDisplayName(fetched.account)}{' '}
+                <span className="font-mono text-xs text-slate-600">({fetched.account.code})</span>
+              </p>
+              <p className="text-[11px] text-slate-700 mt-1 leading-relaxed text-start whitespace-normal">
+                {printMetaLine}
               </p>
             </div>
-            <div className="px-6 py-4 bg-white border-b border-slate-200 space-y-1">
-              <p className="font-medium text-slate-800"><span className="text-slate-500">{t.accounts.accountName}:</span> {getDisplayName(fetched.account)}</p>
-              <p className="text-sm text-slate-600"><span className="text-slate-500">{t.accounts.accountNumber}:</span> {fetched.account.code}</p>
-              {fetched.account.phone && <p className="text-sm text-slate-600"><span className="text-slate-500">{t.accounts.phone}:</span> {fetched.account.phone}</p>}
-              {fetched.account.address && <p className="text-sm text-slate-600"><span className="text-slate-500">{t.accounts.address}:</span> {fetched.account.address}</p>}
-              {fetched.account.tax_number && <p className="text-sm text-slate-600"><span className="text-slate-500">{t.accounts.taxNumber}:</span> {fetched.account.tax_number}</p>}
-              <p className="text-sm text-slate-600 mt-2">{t.accounts.periodFromTo}: {formatDateEnglish(fetched.period.from)} — {formatDateEnglish(fetched.period.to)}</p>
-            </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto px-2 pb-2">
               <table className="w-full text-sm statement-table">
                 <colgroup>
                   {visibleColumnKeys.map((k) => (
@@ -1327,21 +1386,21 @@ export default function AccountStatementSheet() {
                       {visibleColumnKeys.map((k) => {
                         if (k === 'debit') {
                           return (
-                            <td key={k} className={`${alignNum} px-3 py-3 border-t-2 border-slate-300 text-red-600`}>
+                            <td key={k} className="stmt-print-cell stmt-print-amount stmt-print-num-col text-red-600" dir="ltr">
                               {formatNum(displayedDebitCreditTotals.debit)}
                             </td>
                           )
                         }
                         if (k === 'credit') {
                           return (
-                            <td key={k} className={`${alignNum} px-3 py-3 border-t-2 border-slate-300 text-emerald-600`}>
+                            <td key={k} className="stmt-print-cell stmt-print-amount stmt-print-num-col text-emerald-600" dir="ltr">
                               {formatNum(displayedDebitCreditTotals.credit)}
                             </td>
                           )
                         }
                         if (k === 'balance') {
                           return (
-                            <td key={k} className={`${alignNum} px-3 py-3 border-t-2 border-slate-300 text-slate-400`}>
+                            <td key={k} className="stmt-print-cell stmt-print-amount stmt-print-balance-col text-slate-400" dir="ltr">
                               —
                             </td>
                           )
@@ -1351,7 +1410,7 @@ export default function AccountStatementSheet() {
                             <td
                               key={k}
                               colSpan={Math.max(1, periodTotalsLabelKeys.length)}
-                              className={`${textAlign} px-3 py-3 border-t-2 border-slate-300`}
+                              className="stmt-print-cell text-start"
                             >
                               {lang === 'ar' ? 'إجماليات الفترة' : 'Period totals'}
                             </td>
@@ -1365,15 +1424,18 @@ export default function AccountStatementSheet() {
                   <tr className="bg-white font-semibold text-slate-900">
                     {visibleColumns.balance ? (
                       <>
-                        <td className="px-3 py-2 border-t border-slate-200" colSpan={closingLabelColSpan}>
+                        <td className="stmt-print-cell border-t border-slate-200" colSpan={closingLabelColSpan}>
                           {t.accounts.closingBalance} / {t.accounts.balanceState}
                         </td>
-                        <td className={`${alignNum} px-3 py-2 border-t border-slate-200`}>
-                          {formatNum(fetched.closing_balance)} ({fetched.balance_type === 'debit' ? t.accounts.balanceDebit : t.accounts.balanceCredit})
+                        <td className="stmt-print-cell stmt-print-amount stmt-print-balance-col border-t border-slate-200" dir="ltr">
+                          <span className="block leading-tight">{formatNum(fetched.closing_balance)}</span>
+                          <span className="block text-[8px] font-normal leading-tight">
+                            ({fetched.balance_type === 'debit' ? t.accounts.balanceDebit : t.accounts.balanceCredit})
+                          </span>
                         </td>
                       </>
                     ) : (
-                      <td className="px-3 py-2 border-t border-slate-200" colSpan={Math.max(1, totalVisibleColumns)}>
+                      <td className="stmt-print-cell border-t border-slate-200" colSpan={Math.max(1, totalVisibleColumns)}>
                         {t.accounts.closingBalance} / {t.accounts.balanceState}: {formatNum(fetched.closing_balance)} (
                         {fetched.balance_type === 'debit' ? t.accounts.balanceDebit : t.accounts.balanceCredit})
                       </td>
@@ -1382,8 +1444,8 @@ export default function AccountStatementSheet() {
                 </tfoot>
               </table>
             </div>
-            <div className="p-6 mt-6">
-              <div className="flex items-end justify-center gap-32 mt-12 pt-8 text-sm text-slate-600">
+            <div className="px-4 py-3 mt-2">
+              <div className="flex items-end justify-center gap-32 pt-4 text-sm text-slate-600">
                 <div className="text-center">
                   <p className="font-medium text-slate-700">{t.accounts.signature}</p>
                 </div>
@@ -1596,36 +1658,75 @@ export default function AccountStatementSheet() {
 
       <style>{`
         @media print {
-          @page { size: A4; margin: 15mm; }
+          @page { size: A4; margin: 12mm; }
           body * { visibility: hidden; }
           #account-statement-print, #account-statement-print * { visibility: visible; }
           #account-statement-print { position: absolute; left: 0; top: 0; width: 100%; max-width: 210mm; margin: 0; padding: 0; box-shadow: none; border: none; background: white; }
           .no-print { display: none !important; }
           .statement-document { break-inside: avoid; page-break-inside: avoid; }
+          .stmt-print-meta { padding-top: 4px !important; padding-bottom: 6px !important; }
           .statement-table {
             table-layout: fixed;
             width: 100%;
-            font-size: 10px;
+            font-size: 9px;
+            border-collapse: collapse;
           }
-          .statement-table col.stmt-print-num-col { width: 6%; }
-          .statement-table col.stmt-print-balance-col { width: 7%; }
-          .statement-table col.stmt-print-desc-col { width: 34%; }
-          .statement-table col.stmt-print-date-col { width: 8%; }
-          .statement-table col.stmt-print-voucher-col { width: 9%; }
-          .statement-table col.stmt-print-mid-col { width: 10%; }
+          .statement-table col.stmt-print-num-col { width: 7.5%; }
+          .statement-table col.stmt-print-balance-col { width: 8.5%; }
+          .statement-table col.stmt-print-desc-col { width: 28%; }
+          .statement-table col.stmt-print-date-col { width: 7%; }
+          .statement-table col.stmt-print-voucher-col { width: 8%; }
+          .statement-table col.stmt-print-mid-col { width: 9%; }
+          .statement-table .stmt-print-cell {
+            box-sizing: border-box;
+            border: 1px solid #cbd5e1;
+            padding: 3px 4px;
+            vertical-align: middle;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            word-wrap: break-word;
+            background: #ffffff;
+          }
+          .statement-table .stmt-print-head {
+            font-weight: 600;
+            font-size: 9px;
+            background: #ffffff;
+          }
           .statement-table .stmt-print-desc-col {
-            word-break: break-word;
+            white-space: normal;
             overflow-wrap: anywhere;
+            word-break: break-word;
           }
-          .statement-table .stmt-print-num-col,
-          .statement-table .stmt-print-balance-col {
+          .statement-table .stmt-print-voucher-col {
+            font-size: 8px;
             white-space: nowrap;
+          }
+          .statement-table .stmt-print-amount {
+            text-align: center;
+            white-space: nowrap;
+            font-size: 8.5px;
             padding-left: 2px !important;
             padding-right: 2px !important;
+            letter-spacing: -0.02em;
+          }
+          .statement-table .stmt-print-mid-col,
+          .statement-table .stmt-print-date-col {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
         }
         @media screen {
           #account-statement-print { width: 100%; max-width: none; }
+          .statement-table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: 11px; }
+          .statement-table .stmt-print-cell {
+            box-sizing: border-box;
+            border: 1px solid #e2e8f0;
+            padding: 6px 8px;
+            overflow: hidden;
+            vertical-align: middle;
+          }
+          .statement-table .stmt-print-amount { text-align: center; white-space: nowrap; font-size: 10px; }
         }
       `}</style>
     </div>
