@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -14,6 +15,11 @@ import ReportFooter from '../../components/ui/ReportFooter'
 import { usePersistedColumnVisibility } from '../../hooks/usePersistedColumnVisibility'
 import { useClientSort } from '../../hooks/useClientSort'
 import SortableTh from '../../components/ui/SortableTh'
+import {
+  extractJournalEntryFromApiResponse,
+  patchJournalEntryInListCaches,
+  refetchJournalEntryLists,
+} from '../../utils/journalEntriesQueryCache'
 import {
   filterBarOverflowClass,
   filterPageSizeSelectClass,
@@ -45,6 +51,29 @@ function journalEntryBranchLabel(
   const b = entry.branch
   if (!b || (!b.name && !b.name_en)) return '—'
   return getDisplayName({ name: b.name ?? '', name_en: b.name_en ?? null })
+}
+
+function isManualLikeJournalEntry(entry: JournalEntry): boolean {
+  return entry.type === 'manual' || entry.type === 'opening'
+}
+
+/** إلغاء الترحيل عبر void (فواتير/سندات/تسويات) وليس unpost */
+function journalEntryUsesVoidUnpost(entry: JournalEntry): boolean {
+  const rt = entry.reference_type ? String(entry.reference_type) : ''
+  if (!rt) return false
+  return rt.endsWith('Invoice') || rt.endsWith('Payment') || rt.endsWith('InventoryAdjustment')
+}
+
+/** مبلغ العرض في قائمة القيود — لقيود المشتريات المرتبطة بفاتورة يُستخدم إجمالي الفاتورة */
+function journalEntryListAmount(entry: JournalEntry): number {
+  if (
+    entry.type === 'purchase'
+    && entry.invoice_total != null
+    && Number.isFinite(Number(entry.invoice_total))
+  ) {
+    return Number(entry.invoice_total)
+  }
+  return Number(entry.total_debit ?? entry.total_credit ?? 0)
 }
 
 function journalEntryCostCentersLabel(
@@ -125,6 +154,11 @@ export default function JournalEntryList() {
   const tableColSpan = useMemo(() => {
     const n = JOURNAL_LIST_COLUMN_KEYS.filter((k) => visibleColumns[k]).length
     return 1 + n
+  }, [visibleColumns])
+
+  const footerLabelColSpan = useMemo(() => {
+    const beforeDebit = ['number', 'date', 'type', 'branch', 'costCenter', 'description'] as const
+    return 1 + beforeDebit.filter((k) => visibleColumns[k]).length
   }, [visibleColumns])
 
   useEffect(() => {
@@ -209,6 +243,8 @@ export default function JournalEntryList() {
     queryKey: ['journalEntries', tenantId, params, pageSize],
     queryFn: () => fetchJournalEntries(tenantId, params),
     enabled: !!tenantId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   const entries = data?.data ?? []
@@ -220,8 +256,8 @@ export default function JournalEntryList() {
     { key: 'branch', type: 'string', getValue: (e: JournalEntry) => journalEntryBranchLabel(e, getDisplayName) },
     { key: 'costCenter', type: 'string', getValue: (e: JournalEntry) => journalEntryCostCentersLabel(e, getDisplayName, lang === 'ar' ? '، ' : ', ') },
     { key: 'description', type: 'string', getValue: (e: JournalEntry) => e.description ?? '' },
-    { key: 'debit', type: 'number', getValue: (e: JournalEntry) => e.total_debit ?? (e as any).totalDebit ?? 0 },
-    { key: 'credit', type: 'number', getValue: (e: JournalEntry) => e.total_credit ?? (e as any).totalCredit ?? 0 },
+    { key: 'debit', type: 'number', getValue: (e: JournalEntry) => journalEntryListAmount(e) },
+    { key: 'credit', type: 'number', getValue: (e: JournalEntry) => journalEntryListAmount(e) },
     { key: 'status', type: 'string', getValue: (e: JournalEntry) => statusLabels[String(e.status ?? '')] ?? String(e.status ?? '') },
   ], { locale })
 
@@ -233,8 +269,8 @@ export default function JournalEntryList() {
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteJournalEntry(tenantId, id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['journalEntries', tenantId] })
+    onSuccess: async () => {
+      await refetchJournalEntryLists(queryClient, tenantId)
       setDeleteTarget(null)
     },
   })
@@ -242,8 +278,14 @@ export default function JournalEntryList() {
   const unpostMut = useMutation<JournalEntry, Error, { id: number; hasReference: boolean }>({
     mutationFn: ({ id, hasReference }) =>
       hasReference ? voidJournalEntry(tenantId, id) : unpostJournalEntry(tenantId, id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['journalEntries', tenantId] })
+    onSuccess: async (data, variables) => {
+      const updated = extractJournalEntryFromApiResponse(data) ?? data
+      patchJournalEntryInListCaches(queryClient, tenantId, variables.id, {
+        ...(typeof updated === 'object' ? updated : {}),
+        status: variables.hasReference ? 'void' : 'draft',
+      })
+      await refetchJournalEntryLists(queryClient, tenantId)
+      queryClient.invalidateQueries({ queryKey: ['journalEntry', tenantId, variables.id] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
       const msg = typeof data === 'object' && data && 'message' in data && typeof (data as { message?: unknown }).message === 'string'
@@ -262,8 +304,10 @@ export default function JournalEntryList() {
 
   const textAlign = isRtl ? 'text-right' : 'text-left'
 
-  const totalDebit = entries.reduce((sum, e) => sum + Number(e.total_debit ?? 0), 0)
-  const totalCredit = entries.reduce((sum, e) => sum + Number(e.total_credit ?? 0), 0)
+  const summaryTotals = useMemo(() => {
+    const sumAmount = sortedEntries.reduce((sum, e) => sum + journalEntryListAmount(e), 0)
+    return { sumAmount }
+  }, [sortedEntries])
 
   function handlePrint() {
     window.print()
@@ -289,8 +333,8 @@ export default function JournalEntryList() {
       journalEntryBranchLabel(e, getDisplayName),
       journalEntryCostCentersLabel(e, getDisplayName, sep),
       e.description ?? '',
-      e.total_debit ?? 0,
-      e.total_credit ?? 0,
+      journalEntryListAmount(e),
+      journalEntryListAmount(e),
       statusLabels[e.status] ?? e.status,
     ])
     const csv = [headers.join(','), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n')
@@ -566,7 +610,7 @@ export default function JournalEntryList() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
           </div>
         ) : (
-          <div className="overflow-x-auto w-full min-w-0">
+          <div className="overflow-x-auto overflow-y-visible w-full min-w-0">
             <table className="w-full table-fixed text-xs" dir={isRtl ? 'rtl' : 'ltr'}>
               <thead>
                 <tr className="bg-slate-50 text-slate-600">
@@ -688,7 +732,7 @@ export default function JournalEntryList() {
                         onView={(e) => { e.stopPropagation(); setViewEntryId(entry.id) }}
                         onEdit={(e) => { e.stopPropagation() }}
                         onDelete={(e) => { e.stopPropagation(); setDeleteTarget(entry) }}
-                        onUnpost={(e) => { e.stopPropagation(); unpostMut.mutate({ id: entry.id, hasReference: !!(entry.reference_type || entry.reference_id) }) }}
+                        onUnpost={(e) => { e.stopPropagation(); unpostMut.mutate({ id: entry.id, hasReference: journalEntryUsesVoidUnpost(entry) }) }}
                         isUnposting={unpostMut.isPending && unpostMut.variables?.id === entry.id}
                         fmt={fmt}
                         typeLabels={typeLabels}
@@ -704,6 +748,27 @@ export default function JournalEntryList() {
                   })
                 )}
               </tbody>
+              {sortedEntries.length > 0 && (visibleColumns.debit || visibleColumns.credit) && (
+                <tfoot>
+                  <tr className="bg-gradient-to-r from-slate-100 to-slate-50 border-t-2 border-slate-400 font-bold text-slate-900 shadow-[0_-2px_4px_rgba(0,0,0,0.04)]">
+                    <td colSpan={footerLabelColSpan} className={`${textAlign} p-3 text-sm leading-tight`}>
+                      {lang === 'ar' ? 'الإجمالي' : 'Total'}
+                    </td>
+                    {visibleColumns.debit && (
+                      <td className="p-3 text-sm tabular-nums font-semibold leading-tight text-end text-red-600" dir="ltr">
+                        {fmt(summaryTotals.sumAmount)}
+                      </td>
+                    )}
+                    {visibleColumns.credit && (
+                      <td className="p-3 text-sm tabular-nums font-semibold leading-tight text-end text-emerald-600" dir="ltr">
+                        {fmt(summaryTotals.sumAmount)}
+                      </td>
+                    )}
+                    {visibleColumns.status && <td className="p-3" aria-hidden />}
+                    {visibleColumns.actions && <td className="p-3" aria-hidden />}
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}
@@ -711,10 +776,6 @@ export default function JournalEntryList() {
 
       {data && (
         <ReportFooter
-          totals={[
-            { label: lang === 'ar' ? 'إجمالي المدين' : 'Total Debit', value: fmt(totalDebit), color: 'red' },
-            { label: lang === 'ar' ? 'إجمالي الدائن' : 'Total Credit', value: fmt(totalCredit), color: 'emerald' },
-          ]}
           totalCount={data.total}
           currentPage={data.current_page}
           lastPage={data.last_page}
@@ -726,7 +787,6 @@ export default function JournalEntryList() {
           alwaysShowPaginationBar
           showRecordSummary={data.total > 0}
           recordLabel={lang === 'ar' ? 'قيد' : 'entry'}
-          totalsInBar
         />
       )}
 
@@ -776,8 +836,8 @@ export default function JournalEntryList() {
                     <td className={`px-3 py-2 text-slate-700`}>{journalEntryBranchLabel(entry, getDisplayName)}</td>
                     <td className={`px-3 py-2 text-slate-700`}>{journalEntryCostCentersLabel(entry, getDisplayName, printSep)}</td>
                     <td className={`px-3 py-2 text-slate-700`}>{entry.description ?? '—'}</td>
-                    <td className="text-end px-3 py-2 font-medium text-red-600 tabular-nums">{fmt(Number(entry.total_debit ?? 0))}</td>
-                    <td className="text-end px-3 py-2 font-medium text-emerald-600 tabular-nums">{fmt(Number(entry.total_credit ?? 0))}</td>
+                    <td className="text-end px-3 py-2 font-medium text-red-600 tabular-nums">{fmt(journalEntryListAmount(entry))}</td>
+                    <td className="text-end px-3 py-2 font-medium text-emerald-600 tabular-nums">{fmt(journalEntryListAmount(entry))}</td>
                     <td className={`px-3 py-2 text-slate-700`}>{statusLabels[entry.status] ?? entry.status}</td>
                   </tr>
                   )
@@ -788,8 +848,8 @@ export default function JournalEntryList() {
               <tfoot>
                 <tr className="bg-slate-100 border-t-2 border-slate-300 font-bold text-slate-900">
                   <td className={`px-3 py-2 ${textAlign}`} colSpan={6}>{t.total}</td>
-                  <td className="text-end px-3 py-2 text-red-600 tabular-nums">{fmt(totalDebit)}</td>
-                  <td className="text-end px-3 py-2 text-emerald-600 tabular-nums">{fmt(totalCredit)}</td>
+                  <td className="text-end px-3 py-2 text-red-600 tabular-nums">{fmt(summaryTotals.sumAmount)}</td>
+                  <td className="text-end px-3 py-2 text-emerald-600 tabular-nums">{fmt(summaryTotals.sumAmount)}</td>
                   <td className="px-3 py-2"></td>
                 </tr>
               </tfoot>
@@ -1003,20 +1063,59 @@ function EntryRow({ entry, isExpanded, onToggle, onView, onEdit, onDelete, onUnp
   lang: 'ar' | 'en'
 }) {
   const [actionsOpen, setActionsOpen] = useState(false)
-  const actionsMenuRef = useRef<HTMLDivElement>(null)
+  const actionsBtnRef = useRef<HTMLButtonElement>(null)
+  const [actionsMenuRect, setActionsMenuRect] = useState<{ top: number; left: number; minWidth: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (!actionsOpen) {
+      setActionsMenuRect(null)
+      return
+    }
+    const el = actionsBtnRef.current
+    if (!el) {
+      setActionsMenuRect(null)
+      return
+    }
+    const update = () => {
+      const r = el.getBoundingClientRect()
+      const minWidth = 184
+      const menuHeight = 176
+      const openUp = r.bottom + menuHeight > window.innerHeight - 8
+      const left = lang === 'ar'
+        ? Math.max(8, r.right - Math.max(r.width, minWidth))
+        : Math.min(window.innerWidth - minWidth - 8, r.left)
+      setActionsMenuRect({
+        top: openUp ? Math.max(8, r.top - menuHeight - 6) : r.bottom + 6,
+        left,
+        minWidth: Math.max(r.width, minWidth),
+      })
+    }
+    update()
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [actionsOpen, lang])
 
   useEffect(() => {
     if (!actionsOpen) return
     const close = (e: MouseEvent) => {
-      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) setActionsOpen(false)
+      const target = e.target as Node
+      if (actionsBtnRef.current?.contains(target)) return
+      const menu = document.getElementById(`journal-actions-menu-${entry.id}`)
+      if (menu?.contains(target)) return
+      setActionsOpen(false)
     }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
-  }, [actionsOpen])
+  }, [actionsOpen, entry.id])
 
-  const canEditDraft = entry.status === 'draft' && !entry.reference_type
+  const isManualLike = isManualLikeJournalEntry(entry)
+  const canEditDraft = entry.status === 'draft' && (!entry.reference_type || isManualLike)
   const isPaymentJournal = !!(entry.reference_type && String(entry.reference_type).endsWith('Payment'))
-  const canDelete = !isPaymentJournal && entry.status === 'draft' && !entry.reference_type
+  const canDelete = !isPaymentJournal && entry.status === 'draft' && (!entry.reference_type || isManualLike)
   const canUnpost = entry.status === 'posted'
   const deleteBlockedTitle = isPaymentJournal
     ? (t.journal.deletePaymentJournalForbidden ?? '')
@@ -1024,7 +1123,107 @@ function EntryRow({ entry, isExpanded, onToggle, onView, onEdit, onDelete, onUnp
       ? ''
       : t.journal.cannotDeletePosted
   const hasSource = entry.source && entry.source.type && entry.source.id
-  const showEditLink = hasSource || canEditDraft
+  const showEditLink = hasSource || canEditDraft || (isManualLike && !isPaymentJournal)
+  const listAmount = journalEntryListAmount(entry)
+
+  const actionsMenu = actionsOpen && actionsMenuRect && typeof document !== 'undefined'
+    ? createPortal(
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[9998] cursor-default"
+            aria-label="close"
+            onClick={() => setActionsOpen(false)}
+          />
+          <div
+            id={`journal-actions-menu-${entry.id}`}
+            className="fixed z-[9999] min-w-[11.5rem] rounded-lg border border-slate-200 bg-white py-1 shadow-xl"
+            style={{
+              top: actionsMenuRect.top,
+              left: actionsMenuRect.left,
+              minWidth: actionsMenuRect.minWidth,
+              maxHeight: 'min(14rem, 50vh)',
+            }}
+            dir={lang === 'ar' ? 'rtl' : 'ltr'}
+            role="menu"
+          >
+            <div className="max-h-56 overflow-y-auto overflow-x-hidden py-1">
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                onClick={(e) => {
+                  setActionsOpen(false)
+                  onView(e)
+                }}
+              >
+                <Eye size={14} className="shrink-0 text-slate-500" />
+                <span>{t.journal.view}</span>
+              </button>
+              {canUnpost && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={isUnposting}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                  onClick={(e) => {
+                    setActionsOpen(false)
+                    onUnpost(e)
+                  }}
+                >
+                  {isUnposting ? (
+                    <span className="inline-block h-3.5 w-3.5 shrink-0 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Undo2 size={14} className="shrink-0 text-amber-600" />
+                  )}
+                  <span>{t.journal.unpost}</span>
+                </button>
+              )}
+              {showEditLink ? (
+                <Link
+                  to={hasSource ? getSourceUrl(entry.source!) : `/journal-entries/create?id=${entry.id}`}
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActionsOpen(false)
+                  }}
+                >
+                  <Pencil size={14} className="shrink-0 text-slate-500" />
+                  <span>{hasSource ? t.journal.goToSource : t.journal.edit}</span>
+                </Link>
+              ) : (
+                <div className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-sm text-slate-400" title={t.journal.cannotEditPosted}>
+                  <Pencil size={14} className="shrink-0" />
+                  <span>{t.journal.edit}</span>
+                </div>
+              )}
+              {canDelete ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                  onClick={(e) => {
+                    setActionsOpen(false)
+                    onDelete(e)
+                  }}
+                >
+                  <Trash2 size={14} className="shrink-0" />
+                  <span>{t.journal.delete}</span>
+                </button>
+              ) : (
+                <div className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-sm text-slate-400" title={deleteBlockedTitle}>
+                  <Trash2 size={14} className="shrink-0" />
+                  <span>{t.journal.delete}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </>,
+        document.body,
+      )
+    : null
+
   return (
     <>
       <tr className="hover:bg-slate-50 cursor-pointer" onClick={onToggle}>
@@ -1067,12 +1266,12 @@ function EntryRow({ entry, isExpanded, onToggle, onView, onEdit, onDelete, onUnp
         )}
         {visibleColumns.debit && (
           <td className="px-3 py-2 font-medium text-slate-800 text-end tabular-nums" dir="ltr">
-            {fmt(entry.total_debit)}
+            {fmt(listAmount)}
           </td>
         )}
         {visibleColumns.credit && (
           <td className="px-3 py-2 font-medium text-slate-800 text-end tabular-nums" dir="ltr">
-            {fmt(entry.total_credit)}
+            {fmt(listAmount)}
           </td>
         )}
         {visibleColumns.status && (
@@ -1084,97 +1283,22 @@ function EntryRow({ entry, isExpanded, onToggle, onView, onEdit, onDelete, onUnp
         )}
         {visibleColumns.actions && (
           <td className="px-2 py-2 w-12" onClick={(e) => e.stopPropagation()}>
-            <div className="relative flex justify-center" ref={actionsMenuRef}>
+            <div className="relative flex justify-center">
               <button
+                ref={actionsBtnRef}
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
                   setActionsOpen((o) => !o)
                 }}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${actionsOpen ? 'ring-2 ring-primary-500 ring-offset-1' : ''}`}
                 title={t.actions}
                 aria-expanded={actionsOpen}
                 aria-haspopup="menu"
               >
                 <MoreVertical size={16} />
               </button>
-              {actionsOpen && (
-                <div
-                  className="absolute top-full end-0 z-[100] mt-1 min-w-[11.5rem] rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
-                  dir={lang === 'ar' ? 'rtl' : 'ltr'}
-                  role="menu"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                    onClick={(e) => {
-                      setActionsOpen(false)
-                      onView(e)
-                    }}
-                  >
-                    <Eye size={14} className="shrink-0 text-slate-500" />
-                    <span>{t.journal.view}</span>
-                  </button>
-                  {canUnpost && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      disabled={isUnposting}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-amber-800 hover:bg-amber-50 disabled:opacity-50"
-                      onClick={(e) => {
-                        setActionsOpen(false)
-                        onUnpost(e)
-                      }}
-                    >
-                      {isUnposting ? (
-                        <span className="inline-block h-3.5 w-3.5 shrink-0 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Undo2 size={14} className="shrink-0 text-amber-600" />
-                      )}
-                      <span>{t.journal.unpost}</span>
-                    </button>
-                  )}
-                  {showEditLink ? (
-                    <Link
-                      to={hasSource ? getSourceUrl(entry.source!) : `/journal-entries/create?id=${entry.id}`}
-                      role="menuitem"
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setActionsOpen(false)
-                      }}
-                    >
-                      <Pencil size={14} className="shrink-0 text-slate-500" />
-                      <span>{hasSource ? t.journal.goToSource : t.journal.edit}</span>
-                    </Link>
-                  ) : (
-                    <div className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-sm text-slate-400" title={t.journal.cannotEditPosted}>
-                      <Pencil size={14} className="shrink-0" />
-                      <span>{t.journal.edit}</span>
-                    </div>
-                  )}
-                  {canDelete ? (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-700 hover:bg-red-50"
-                      onClick={(e) => {
-                        setActionsOpen(false)
-                        onDelete(e)
-                      }}
-                    >
-                      <Trash2 size={14} className="shrink-0" />
-                      <span>{t.journal.delete}</span>
-                    </button>
-                  ) : (
-                    <div className="flex cursor-not-allowed items-center gap-2 px-3 py-2 text-sm text-slate-400" title={deleteBlockedTitle}>
-                      <Trash2 size={14} className="shrink-0" />
-                      <span>{t.journal.delete}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+              {actionsMenu}
             </div>
           </td>
         )}

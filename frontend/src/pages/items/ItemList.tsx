@@ -38,6 +38,9 @@ import { usePersistedColumnVisibility } from '../../hooks/usePersistedColumnVisi
 import { useClientSort } from '../../hooks/useClientSort'
 import SortableTh from '../../components/ui/SortableTh'
 
+type ItemModalTab = 'basic' | 'pricing' | 'units' | 'variants'
+const ITEM_MODAL_TAB_ORDER: ItemModalTab[] = ['basic', 'pricing', 'units', 'variants']
+
 type UnitOptionRow = {
   unit_id: string
   conversion_factor: number
@@ -210,7 +213,7 @@ export default function ItemList() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null)
   const [showSaveItemConfirm, setShowSaveItemConfirm] = useState(false)
-  const [itemModalTab, setItemModalTab] = useState<'basic' | 'pricing' | 'units' | 'variants'>('basic')
+  const [itemModalTab, setItemModalTab] = useState<ItemModalTab>('basic')
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null)
   const [visibleColumns, setVisibleColumns] = usePersistedColumnVisibility(ITEM_COLUMNS_STORAGE, ITEM_COLUMN_KEYS)
   const [showColumnsMenu, setShowColumnsMenu] = useState(false)
@@ -244,6 +247,14 @@ export default function ItemList() {
     () => Array.from(new Set(attributeTemplates.map((t) => t.name))).filter(Boolean),
     [attributeTemplates],
   )
+
+  const isLastItemModalTab = itemModalTab === 'variants'
+  const goToNextItemModalTab = useCallback(() => {
+    const idx = ITEM_MODAL_TAB_ORDER.indexOf(itemModalTab)
+    if (idx >= 0 && idx < ITEM_MODAL_TAB_ORDER.length - 1) {
+      setItemModalTab(ITEM_MODAL_TAB_ORDER[idx + 1])
+    }
+  }, [itemModalTab])
 
   const generateVariants = useCallback((base: typeof emptyForm & { name: string; variantProperties?: VariantProperty[]; variants?: VariantRow[] }) => {
     const props = (base.variantProperties || [])
@@ -1729,12 +1740,31 @@ export default function ItemList() {
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 p-4 border-t border-slate-200 shrink-0">
-                <button type="submit" disabled={!form.code.trim() || !form.name.trim() || isSaving}
-                  className="flex-1 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-500 disabled:opacity-50">
+              <div className="flex flex-wrap gap-2 p-4 border-t border-slate-200 shrink-0">
+                {!isLastItemModalTab && (
+                  <button
+                    type="button"
+                    onClick={goToNextItemModalTab}
+                    disabled={itemModalTab === 'basic' && (!form.code.trim() || !form.name.trim())}
+                    className="px-5 py-2.5 border border-primary-600 text-primary-600 rounded-lg font-medium hover:bg-primary-50 disabled:opacity-50"
+                  >
+                    {lang === 'ar' ? 'التالي' : 'Next'}
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={!form.code.trim() || !form.name.trim() || isSaving}
+                  className="px-5 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-500 disabled:opacity-50"
+                >
                   {isSaving ? t.saving : editing ? t.invoices.saveChanges : t.items.addItem}
                 </button>
-                <button type="button" onClick={closeModal} className="px-4 py-2.5 border border-slate-300 rounded-lg">{t.cancel}</button>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-5 py-2.5 border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50"
+                >
+                  {t.cancel}
+                </button>
               </div>
             </form>
           </div>

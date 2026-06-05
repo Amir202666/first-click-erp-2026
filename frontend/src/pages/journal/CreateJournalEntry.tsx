@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
@@ -14,10 +14,15 @@ import {
   postJournalEntry,
   fetchSettings,
 } from '../../api/tenant'
-import type { Account, Branch, CostCenter, JournalEntrySource, TenantSettings } from '../../types'
+import type { Account, Branch, CostCenter, JournalEntry, JournalEntrySource, TenantSettings } from '../../types'
 import { formatAmount } from '../../utils/currency'
 import { Plus, Trash2, AlertTriangle, CheckCircle, GripVertical } from 'lucide-react'
 import AccountSearchSelect from '../../components/AccountSearchSelect'
+import {
+  extractJournalEntryFromApiResponse,
+  patchJournalEntryInListCaches,
+  refetchJournalEntryLists,
+} from '../../utils/journalEntriesQueryCache'
 
 interface LineForm {
   account_id: number | null
@@ -33,6 +38,20 @@ function getJournalSourceUrl(source: JournalEntrySource): string {
   if (source.type === 'invoice') return `/invoices/create?id=${source.id}`
   if (source.type === 'payment') return `/payments/create-voucher?id=${source.id}`
   return '/journal-entries'
+}
+
+/** يمنع الحفظ فقط للقيود غير المسودة أو المرتبطة بفاتورة/سند/تسوية */
+function getJournalEntrySaveBlockedReason(entry: JournalEntry): 'linked' | 'not_draft' | null {
+  if (entry.status !== 'draft') return 'not_draft'
+  const rt = entry.reference_type ? String(entry.reference_type) : ''
+  if (
+    rt.endsWith('Invoice')
+    || rt.endsWith('Payment')
+    || rt.endsWith('InventoryAdjustment')
+  ) {
+    return 'linked'
+  }
+  return null
 }
 
 function apiErrorMessage(err: unknown, fallback: string): string {
@@ -83,6 +102,11 @@ export default function CreateJournalEntry() {
   const [lines, setLines] = useState<LineForm[]>([{ ...emptyLine }, { ...emptyLine }])
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  /** بعد حفظ التعديلات (زر تعديل) يُفعَّل «حفظ وترحيل» */
+  const [readyToPost, setReadyToPost] = useState(false)
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null)
+  const skipDirtyResetRef = useRef(false)
+  const entryHydratedRef = useRef(false)
 
   const { data: accounts = [] } = useQuery<Account[]>({
     queryKey: ['accounts', tenantId, 'postable'],
@@ -106,6 +130,8 @@ export default function CreateJournalEntry() {
     queryKey: ['journalEntry', tenantId, entryId],
     queryFn: () => fetchJournalEntry(tenantId, entryId!),
     enabled: !!tenantId && isEdit,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   useDocumentTitle(
@@ -118,6 +144,8 @@ export default function CreateJournalEntry() {
 
   useEffect(() => {
     if (!entry) return
+    skipDirtyResetRef.current = true
+    entryHydratedRef.current = false
     const dateStr = typeof entry.date === 'string' ? entry.date.slice(0, 10) : String(entry.date)
     setDate(dateStr ?? '')
     setType(entry.type)
@@ -134,12 +162,25 @@ export default function CreateJournalEntry() {
         }))
       )
     }
+    setReadyToPost(false)
+    setSaveSuccessMsg(null)
+    entryHydratedRef.current = true
   }, [entry])
+
+  useEffect(() => {
+    if (!isEdit || !entryHydratedRef.current) return
+    if (skipDirtyResetRef.current) {
+      skipDirtyResetRef.current = false
+      return
+    }
+    setReadyToPost(false)
+    setSaveSuccessMsg(null)
+  }, [date, type, description, branchId, lines, isEdit])
 
   const createMut = useMutation({
     mutationFn: (data: Record<string, unknown>) => createJournalEntry(tenantId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['journalEntries', tenantId] })
+    onSuccess: async () => {
+      await refetchJournalEntryLists(queryClient, tenantId)
       navigate('/journal-entries')
     },
   })
@@ -149,19 +190,39 @@ export default function CreateJournalEntry() {
       const { _postAfter: _p, ...payload } = data
       return updateJournalEntry(tenantId, entryId!, payload)
     },
-    onSuccess: (_, variables: Record<string, unknown>) => {
+    onSuccess: async (_, variables: Record<string, unknown>) => {
       if (variables._postAfter) {
-        postJournalEntry(tenantId, entryId!)
-          .then(() => {
-            queryClient.invalidateQueries({ queryKey: ['journalEntries', tenantId] })
-            queryClient.invalidateQueries({ queryKey: ['journalEntry', tenantId, entryId] })
-            navigate('/journal-entries')
-          })
-          .catch(() => {})
+        try {
+          const postRes = await postJournalEntry(tenantId, entryId!)
+          const posted = extractJournalEntryFromApiResponse(postRes)
+          patchJournalEntryInListCaches(
+            queryClient,
+            tenantId,
+            entryId!,
+            posted ?? { status: 'posted' },
+          )
+          await refetchJournalEntryLists(queryClient, tenantId)
+          queryClient.invalidateQueries({ queryKey: ['journalEntry', tenantId, entryId] })
+          navigate('/journal-entries')
+        } catch {
+          // update succeeded but post failed — stay on page; updateMut error state not set here
+        }
       } else {
-        queryClient.invalidateQueries({ queryKey: ['journalEntries', tenantId] })
-        queryClient.invalidateQueries({ queryKey: ['journalEntry', tenantId, entryId] })
-        navigate('/journal-entries')
+        const updated = await queryClient.fetchQuery({
+          queryKey: ['journalEntry', tenantId, entryId],
+          queryFn: () => fetchJournalEntry(tenantId, entryId!),
+        }).catch(() => null)
+        if (updated) {
+          patchJournalEntryInListCaches(queryClient, tenantId, entryId!, updated)
+        }
+        await refetchJournalEntryLists(queryClient, tenantId)
+        skipDirtyResetRef.current = true
+        setReadyToPost(true)
+        setSaveSuccessMsg(
+          lang === 'ar'
+            ? 'تم حفظ التعديلات. يمكنك الآن ترحيل القيد.'
+            : 'Changes saved. You can now post the entry.',
+        )
       }
     },
   })
@@ -206,9 +267,7 @@ export default function CreateJournalEntry() {
 
   const saveBlockedReason = useMemo(() => {
     if (!isEdit || !entry) return null as 'linked' | 'not_draft' | null
-    if (entry.reference_type) return 'linked'
-    if (entry.status !== 'draft') return 'not_draft'
-    return null
+    return getJournalEntrySaveBlockedReason(entry)
   }, [isEdit, entry])
 
   const saveBlockedMessage =
@@ -308,7 +367,16 @@ export default function CreateJournalEntry() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <div className="flex items-start gap-2">
             <AlertTriangle className="shrink-0 mt-0.5" size={18} />
-            <span>{saveBlockedMessage}</span>
+            <div>
+              <span>{saveBlockedMessage}</span>
+              {saveBlockedReason === 'not_draft' && entry && (
+                <p className="mt-1 text-xs text-amber-800">
+                  {lang === 'ar'
+                    ? `الحالة الحالية: ${entry.status === 'posted' ? 'مرحّل' : entry.status === 'void' ? 'ملغى' : entry.status}. إذا ألغيت الترحيل للتو، حدّث الصفحة أو ارجع للقائمة ثم افتح القيد مرة أخرى.`
+                    : `Current status: ${entry.status}. If you just unposted, refresh the page or reopen the entry from the list.`}
+                </p>
+              )}
+            </div>
           </div>
           {saveBlockedReason === 'linked' && entry?.source && (
             <button
@@ -512,6 +580,13 @@ export default function CreateJournalEntry() {
         </div>
       )}
 
+      {saveSuccessMsg && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800 flex items-center gap-2">
+          <CheckCircle size={16} className="shrink-0" />
+          <span>{saveSuccessMsg}</span>
+        </div>
+      )}
+
       <div className="flex gap-3 justify-end">
         <button onClick={() => navigate(-1)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">
           {t.cancel}
@@ -522,17 +597,22 @@ export default function CreateJournalEntry() {
               type="button"
               onClick={() => handleUpdateSubmit(false)}
               disabled={updateMut.isPending || !totals.balanced || totals.totalDebit === 0 || !!saveBlockedReason}
-              className="px-4 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+              className="px-4 py-2 text-sm border border-primary-600 text-primary-700 rounded-lg hover:bg-primary-50 disabled:opacity-50 font-medium"
             >
-              {updateMut.isPending ? t.saving : t.journal.saveAsDraft}
+              {updateMut.isPending && !readyToPost ? t.saving : t.journal.edit}
             </button>
             <button
               type="button"
               onClick={() => handleUpdateSubmit(true)}
-              disabled={updateMut.isPending || !totals.balanced || totals.totalDebit === 0 || !!saveBlockedReason}
+              disabled={updateMut.isPending || !totals.balanced || totals.totalDebit === 0 || !!saveBlockedReason || !readyToPost}
+              title={
+                !readyToPost
+                  ? (lang === 'ar' ? 'احفظ التعديلات أولاً بزر «تعديل»' : 'Save changes with «Edit» first')
+                  : undefined
+              }
               className="bg-primary-600 hover:bg-primary-500 text-white rounded-lg px-6 py-2 text-sm disabled:opacity-50 transition-colors font-medium"
             >
-              {updateMut.isPending ? t.saving : t.journal.saveAndPost}
+              {updateMut.isPending && readyToPost ? t.saving : t.journal.saveAndPost}
             </button>
           </>
         ) : (

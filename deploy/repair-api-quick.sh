@@ -25,6 +25,10 @@ patch_env() {
 }
 
 echo ""
+echo "▶ 0) APP_URL / FRONTEND_URL"
+bash "$PROJECT_DIR/deploy/lib/fix-production-env.sh" "$BACKEND_DIR"
+
+echo ""
 echo "▶ 1) Redis"
 if redis-cli ping 2>/dev/null | grep -q PONG; then
   echo "  ✓ Redis يعمل"

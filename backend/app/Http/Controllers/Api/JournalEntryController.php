@@ -103,6 +103,7 @@ class JournalEntryController extends Controller
                 if (str_ends_with($entry->reference_type, 'Invoice') && isset($invoices[$entry->reference_id])) {
                     $inv = $invoices[$entry->reference_id];
                     $entry->setAttribute('source', ['type' => 'invoice', 'id' => $inv->id, 'number' => $inv->number]);
+                    $entry->setAttribute('invoice_total', (float) $inv->total);
                     $sourceNotes = is_string($inv->notes) ? trim($inv->notes) : null;
                 }
                 if (str_ends_with($entry->reference_type, 'Payment') && isset($payments[$entry->reference_id])) {
@@ -114,6 +115,7 @@ class JournalEntryController extends Controller
                 if (str_ends_with($entry->reference_type, 'Invoice') && isset($invoicesByNumber[$entry->number])) {
                     $inv = $invoicesByNumber[$entry->number];
                     $entry->setAttribute('source', ['type' => 'invoice', 'id' => $inv->id, 'number' => $inv->number]);
+                    $entry->setAttribute('invoice_total', (float) $inv->total);
                     $sourceNotes = is_string($inv->notes) ? trim($inv->notes) : null;
                 }
                 if (str_ends_with($entry->reference_type, 'Payment') && isset($paymentsByNumber[$entry->number])) {
@@ -251,6 +253,7 @@ class JournalEntryController extends Controller
                 $inv = Invoice::where('tenant_id', $request->tenant_id)->find($entry->reference_id);
                 if ($inv) {
                     $source = ['type' => 'invoice', 'id' => $inv->id, 'number' => $inv->number];
+                    $entry->setAttribute('invoice_total', (float) $inv->total);
                     $sourceNotes = is_string($inv->notes) ? trim($inv->notes) : null;
                 }
             }
@@ -266,6 +269,7 @@ class JournalEntryController extends Controller
                 $inv = Invoice::where('tenant_id', $request->tenant_id)->where('number', $entry->number)->first();
                 if ($inv) {
                     $source = ['type' => 'invoice', 'id' => $inv->id, 'number' => $inv->number];
+                    $entry->setAttribute('invoice_total', (float) $inv->total);
                     $sourceNotes = is_string($inv->notes) ? trim($inv->notes) : null;
                 }
             }
@@ -305,7 +309,12 @@ class JournalEntryController extends Controller
         }
 
         if ($entry->reference_type) {
-            return response()->json(['message' => 'لا يمكن تعديل قيد مرتبط بفاتورة أو سند / Linked entries cannot be edited'], 422);
+            $blockedRef = str_ends_with($entry->reference_type, 'Invoice')
+                || str_ends_with($entry->reference_type, 'Payment')
+                || str_ends_with($entry->reference_type, 'InventoryAdjustment');
+            if ($blockedRef) {
+                return response()->json(['message' => 'لا يمكن تعديل قيد مرتبط بفاتورة أو سند / Linked entries cannot be edited'], 422);
+            }
         }
 
         $validated = $request->validate([
@@ -398,7 +407,12 @@ class JournalEntryController extends Controller
         }
 
         if ($entry->reference_type) {
-            return response()->json(['message' => 'لا يمكن إلغاء ترحيل قيد مُولَّد من فاتورة أو سند'], 422);
+            $blockedRef = str_ends_with($entry->reference_type, 'Invoice')
+                || str_ends_with($entry->reference_type, 'Payment')
+                || str_ends_with($entry->reference_type, 'InventoryAdjustment');
+            if ($blockedRef) {
+                return response()->json(['message' => 'لا يمكن إلغاء ترحيل قيد مُولَّد من فاتورة أو سند'], 422);
+            }
         }
 
         $entry->update(['status' => 'draft', 'posted_at' => null]);

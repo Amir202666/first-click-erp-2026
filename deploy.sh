@@ -292,6 +292,7 @@ echo "========================================"
 check_prerequisites
 create_backups
 pull_code
+bash "$PROJECT_DIR/deploy/lib/fix-production-env.sh" "$BACKEND_DIR"
 deploy_backend
 deploy_frontend
 rebuild_cache

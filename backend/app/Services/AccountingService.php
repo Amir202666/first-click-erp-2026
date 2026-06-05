@@ -1097,7 +1097,17 @@ class AccountingService
                 $operationCode = 'installment_schedule';
                 $sourceNotes = $inst?->notes;
             } elseif ($je->type) {
-                $operationCode = $je->type === 'sales' ? 'sales_invoice' : ($je->type === 'purchase' ? 'purchase_invoice' : 'other');
+                $operationCode = match ($je->type) {
+                    'sales' => 'sales_invoice',
+                    'purchase' => 'purchase_invoice',
+                    'opening' => 'opening_entry',
+                    'manual' => 'manual',
+                    'closing' => 'closing_entry',
+                    'expense' => 'expense',
+                    'adjustment' => 'adjustment',
+                    'payment' => 'payment_voucher',
+                    default => 'other',
+                };
             }
 
             $operationType = $this->mapJournalTypeToOperationLabel($je->type, $je->reference_type);
@@ -1245,7 +1255,7 @@ class AccountingService
             'installment' => 'جدول أقساط',
             'expense' => 'مصروف',
             'adjustment' => 'تسوية',
-            'opening' => 'رصيد افتتاحي',
+            'opening' => 'قيد افتتاحي',
             'closing' => 'قيد إقفال',
         ];
 

@@ -753,6 +753,8 @@ export interface JournalEntry {
   vendor_id: number | null
   total_debit: number
   total_credit: number
+  /** إجمالي الفاتورة المرتبطة (لعرض القيود المشتريات بنفس إجمالي فاتورة المشتريات) */
+  invoice_total?: number | null
   status: string
   branch_id?: number | null
   branch?: { id: number; name: string; name_en?: string | null } | null

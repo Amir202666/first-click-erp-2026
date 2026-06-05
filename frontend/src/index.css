@@ -119,7 +119,7 @@
   body {
     font-family: 'Cairo', 'Segoe UI', system-ui, sans-serif;
     font-weight: 400;
-    background-color: var(--color-neutral-100);
+    background-color: #ffffff;
     color: var(--color-neutral-900);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -306,9 +306,9 @@
     padding: var(--space-2);
   }
 
-  /* منطقة الصفحة الرئيسية: خلفية محايدة خفيفة */
+  /* منطقة الصفحة الرئيسية */
   .page-bg {
-    background-color: var(--color-neutral-100);
+    background-color: #ffffff;
     min-height: 100%;
     padding: var(--space-2);
   }
@@ -347,18 +347,20 @@
     border-bottom: 1px solid transparent;
   }
   .table-zebra thead th {
-    background-color: var(--color-neutral-100);
+    background-color: #ffffff;
     font-weight: 400;
     color: var(--color-neutral-700);
   }
-  .table-zebra tbody tr:nth-child(even) {
-    background-color: var(--color-neutral-50);
-  }
+  .table-zebra tbody tr:nth-child(even),
   .table-zebra tbody tr:nth-child(odd) {
-    background-color: white;
+    background-color: #ffffff;
   }
   .table-zebra tbody tr:hover {
-    background-color: var(--color-neutral-100);
+    background-color: #ffffff;
+  }
+  .table-zebra tfoot tr,
+  .table-zebra tfoot td {
+    background-color: #ffffff;
   }
 
   .dark .table-zebra thead th {
@@ -672,6 +674,34 @@
 }
 
 @media print {
+  /* 0. خلفيات بيضاء فقط في الطباعة */
+  html,
+  body,
+  main,
+  .app-main-container,
+  .fc-route-outlet,
+  .page-bg,
+  .report-print-only,
+  .report-print-only *,
+  #journal-entries-print,
+  #journal-entries-print *,
+  table,
+  thead,
+  tbody,
+  tfoot,
+  tr,
+  th,
+  td,
+  div,
+  section,
+  header,
+  footer {
+    background: #fff !important;
+    background-color: #fff !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
   /* 1. إخفاء العناصر غير الضرورية */
   .no-print,
   .no-print * {
@@ -1561,4 +1591,71 @@ html[dir='ltr'] .app-shell-print-layout.fc-shell-rtl:not(.fc-shell-pos) {
 .fc-table-responsive > table {
   width: 100%;
   min-width: 640px;
+}
+
+/* ═══ خلفيات بيضاء موحّدة — المحتوى الرئيسي (الوضع الفاتح) ═══ */
+html:not(.dark) body,
+html:not(.dark) #root,
+html:not(.dark) main,
+html:not(.dark) .app-main-container,
+html:not(.dark) .fc-route-outlet,
+html:not(.dark) .page-bg {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .fc-route-outlet .bg-slate-50,
+html:not(.dark) .fc-route-outlet .bg-slate-50\/80,
+html:not(.dark) .fc-route-outlet .bg-slate-100,
+html:not(.dark) .fc-route-outlet .bg-neutral-50,
+html:not(.dark) .fc-route-outlet .bg-neutral-50\/50,
+html:not(.dark) .fc-route-outlet .bg-neutral-100,
+html:not(.dark) .fc-route-outlet .bg-gray-50,
+html:not(.dark) .fc-route-outlet .bg-gray-100,
+html:not(.dark) .fc-route-outlet .bg-emerald-50,
+html:not(.dark) .fc-route-outlet .bg-red-50,
+html:not(.dark) .fc-route-outlet .bg-amber-50,
+html:not(.dark) .fc-route-outlet .bg-blue-50,
+html:not(.dark) .fc-route-outlet .bg-primary-50,
+html:not(.dark) .fc-route-outlet [class*='bg-gradient-to-'],
+html:not(.dark) .fc-route-outlet thead[class*='bg-'],
+html:not(.dark) .fc-route-outlet tbody tr[class*='bg-slate'],
+html:not(.dark) .fc-route-outlet tbody tr[class*='bg-neutral'],
+html:not(.dark) .fc-route-outlet tfoot tr {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+html:not(.dark) .fc-route-outlet .hover\:bg-slate-50:hover,
+html:not(.dark) .fc-route-outlet .hover\:bg-slate-100:hover,
+html:not(.dark) .fc-route-outlet .hover\:bg-neutral-50:hover {
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) .fc-route-outlet input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+html:not(.dark) .fc-route-outlet select,
+html:not(.dark) .fc-route-outlet textarea {
+  background-color: #ffffff !important;
+}
+
+/* جداول: خلفية بيضاء لكل الرؤوس والصفوف والأعمدة */
+html:not(.dark) .app-main-container table th,
+html:not(.dark) .app-main-container table td,
+html:not(.dark) .page-bg table th,
+html:not(.dark) .page-bg table td,
+html:not(.dark) .table-zebra thead th,
+html:not(.dark) .table-zebra tbody tr,
+html:not(.dark) .table-zebra tbody tr:nth-child(even),
+html:not(.dark) .table-zebra tbody tr:nth-child(odd),
+html:not(.dark) .table-zebra tbody tr:hover,
+html:not(.dark) .table-zebra tfoot tr,
+html:not(.dark) .table-zebra tfoot td,
+html:not(.dark) .statement-table th,
+html:not(.dark) .statement-table td,
+html:not(.dark) .statement-table tr {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+html:not(.dark) .page-bg thead.sticky {
+  background-color: #ffffff !important;
 }

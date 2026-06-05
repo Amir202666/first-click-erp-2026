@@ -136,21 +136,21 @@ function applyCssTheme(theme: ThemePalette, isDark: boolean, config: ThemeConfig
     root.style.setProperty('--fc-table-row-hover', '#1e293b')
   } else {
     root.classList.remove('dark')
-    root.style.setProperty('--fc-page-bg', '#f8fafc')
+    root.style.setProperty('--fc-page-bg', '#ffffff')
     root.style.setProperty('--fc-card-bg', '#ffffff')
     root.style.setProperty('--fc-border', '#e5e7eb')
     root.style.setProperty('--fc-text', '#1f2937')
     root.style.setProperty('--fc-text-muted', '#6b7280')
-    root.style.setProperty('--fc-input-bg', '#f9fafb')
-    root.style.setProperty('--fc-table-row-hover', '#f9fafb')
+    root.style.setProperty('--fc-input-bg', '#ffffff')
+    root.style.setProperty('--fc-table-row-hover', '#ffffff')
   }
 
-  root.style.setProperty('--color-page-bg', isDark ? '#0f172a' : '#f8fafc')
+  root.style.setProperty('--color-page-bg', isDark ? '#0f172a' : '#ffffff')
   root.style.setProperty('--color-card-bg', isDark ? '#1e293b' : '#ffffff')
   root.style.setProperty('--color-border', isDark ? '#475569' : '#e5e7eb')
   root.style.setProperty('--color-text', isDark ? '#f1f5f9' : '#1f2937')
   root.style.setProperty('--color-text-muted', isDark ? '#94a3b8' : '#6b7280')
-  root.style.setProperty('--color-input-bg', isDark ? '#1e293b' : '#f9fafb')
+  root.style.setProperty('--color-input-bg', isDark ? '#1e293b' : '#ffffff')
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config))

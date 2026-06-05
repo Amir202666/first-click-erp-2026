@@ -29,6 +29,8 @@ const OPERATION_CODE_LABELS_AR: Record<string, string> = {
   return_purchase: 'مرتجع مشتريات',
   manual: 'قيد يدوي',
   installment_schedule: 'جدول أقساط',
+  opening_entry: 'قيد افتتاحي',
+  closing_entry: 'قيد إقفال',
   other: 'أخرى',
 }
 
@@ -42,6 +44,8 @@ const OPERATION_CODE_LABELS_EN: Record<string, string> = {
   return_purchase: 'Purchase return',
   manual: 'Manual entry',
   installment_schedule: 'Installment schedule',
+  opening_entry: 'Opening entry',
+  closing_entry: 'Closing entry',
   other: 'Other',
 }
 
@@ -55,6 +59,8 @@ const OPERATION_TYPE_DISPLAY_AR: Record<string, string> = {
   return_purchase: 'مرتجع مشتريات',
   manual: 'قيد يدوي',
   opening: 'رصيد سابق',
+  opening_entry: 'قيد افتتاحي',
+  closing_entry: 'قيد إقفال',
   installment_schedule: 'جدول أقساط',
   other: 'أخرى',
 }
@@ -69,6 +75,8 @@ const OPERATION_TYPE_DISPLAY_EN: Record<string, string> = {
   return_purchase: 'Purchase return',
   manual: 'Manual journal',
   opening: 'Previous balance',
+  opening_entry: 'Opening entry',
+  closing_entry: 'Closing entry',
   installment_schedule: 'Installment schedule',
   other: 'Other',
 }
@@ -77,7 +85,10 @@ function getOperationTypeDisplay(line: LineType, lang: 'ar' | 'en'): string {
   const code = (line as LineType & { operation_code?: string }).operation_code
   const map = lang === 'ar' ? OPERATION_TYPE_DISPLAY_AR : OPERATION_TYPE_DISPLAY_EN
   if (code && map[code]) return map[code]
-  return line.operation_type || '—'
+  if (line.operation_type && String(line.operation_type).trim() !== '' && line.operation_type !== '—') {
+    return line.operation_type
+  }
+  return '—'
 }
 
 function getStatementDescription(line: LineType, lang: 'ar' | 'en'): string {
@@ -770,7 +781,7 @@ export default function AccountStatementSheet() {
     return (
       <tr
         key={rowKey}
-        className="bg-amber-50 dark:bg-amber-900/20 border-b-2 border-amber-300 dark:border-amber-700"
+        className="bg-white border-b-2 border-neutral-200"
       >
         {visibleColumnKeys.map((k) => {
           if (k === 'date') {
@@ -792,7 +803,7 @@ export default function AccountStatementSheet() {
           if (k === 'operation') {
             return (
               <td key={k} className={`${textAlign} py-3 px-3 align-middle`}>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 bg-white">
                   ◈ {t.accounts.previousBalanceBadge}
                 </span>
               </td>
@@ -846,7 +857,7 @@ export default function AccountStatementSheet() {
 
   function renderPrintOpeningRow(line: LineType) {
     return (
-      <tr className="bg-amber-50 border-b-2 border-amber-300 print:bg-amber-50">
+      <tr className="bg-white border-b-2 border-neutral-200">
         {visibleColumnKeys.map((k) => {
           if (k === 'date') {
             return (
@@ -900,36 +911,47 @@ export default function AccountStatementSheet() {
   }
 
   function renderPrintCell(line: LineType, k: AccountStatementColumnKey) {
+    const colClass = getPrintColumnColClass(k)
     switch (k) {
       case 'date':
-        return <td key={k} className="px-3 py-2 text-slate-700">{formatDateEnglish(line.date)}</td>
+        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{formatDateEnglish(line.date)}</td>
       case 'voucher':
-        return <td key={k} className="px-3 py-2 text-slate-700 font-mono text-xs">{line.reference_number}</td>
+        return <td key={k} className={`px-2 py-2 text-slate-700 font-mono text-xs ${colClass}`}>{line.reference_number}</td>
       case 'operation':
-        return <td key={k} className="px-3 py-2 text-slate-700">{getOperationTypeDisplay(line, lang)}</td>
+        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{getOperationTypeDisplay(line, lang)}</td>
       case 'branch':
-        return <td key={k} className="px-3 py-2 text-slate-700">{getBranchDisplay(line, lang)}</td>
+        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{getBranchDisplay(line, lang)}</td>
       case 'costCenter':
-        return <td key={k} className="px-3 py-2 text-slate-700">{getCostCenterDisplay(line, lang)}</td>
+        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{getCostCenterDisplay(line, lang)}</td>
       case 'description':
-        return <td key={k} className="px-3 py-2 text-slate-700">{getStatementDescription(line, lang)}</td>
+        return <td key={k} className={`px-2 py-2 text-slate-700 ${colClass}`}>{getStatementDescription(line, lang)}</td>
       case 'debit':
-        return <td key={k} className={`${alignNum} px-3 py-2 text-red-600`}>{line.debit > 0 ? formatNum(line.debit) : ''}</td>
+        return <td key={k} className={`${alignNum} px-1.5 py-2 text-red-600 ${colClass}`}>{line.debit > 0 ? formatNum(line.debit) : ''}</td>
       case 'credit':
-        return <td key={k} className={`${alignNum} px-3 py-2 text-emerald-600`}>{line.credit > 0 ? formatNum(line.credit) : ''}</td>
+        return <td key={k} className={`${alignNum} px-1.5 py-2 text-emerald-600 ${colClass}`}>{line.credit > 0 ? formatNum(line.credit) : ''}</td>
       case 'balance':
-        return <td key={k} className={`${alignNum} px-3 py-2 font-medium text-slate-800`}>{formatNum(line.running_balance)}</td>
+        return <td key={k} className={`${alignNum} px-1.5 py-2 font-medium text-slate-800 ${colClass}`}>{formatNum(line.running_balance)}</td>
       default:
         return null
     }
   }
 
+  function getPrintColumnColClass(k: AccountStatementColumnKey): string {
+    if (k === 'debit' || k === 'credit') return 'stmt-print-num-col'
+    if (k === 'balance') return 'stmt-print-balance-col'
+    if (k === 'description') return 'stmt-print-desc-col'
+    if (k === 'date') return 'stmt-print-date-col'
+    if (k === 'voucher') return 'stmt-print-voucher-col'
+    return 'stmt-print-mid-col'
+  }
+
   function renderPrintHeaderCell(k: AccountStatementColumnKey) {
     const label = columnLabels[k]
+    const colClass = getPrintColumnColClass(k)
     if (k === 'debit' || k === 'credit' || k === 'balance') {
-      return <th key={k} className={`${alignNum} px-3 py-2.5 border-b border-slate-200 w-28`}>{label}</th>
+      return <th key={k} className={`${alignNum} px-1.5 py-2 border-b border-slate-200 ${colClass}`}>{label}</th>
     }
-    return <th key={k} className={`${textAlign} px-3 py-2.5 border-b border-slate-200`}>{label}</th>
+    return <th key={k} className={`${textAlign} px-2 py-2 border-b border-slate-200 ${colClass}`}>{label}</th>
   }
 
   const containerWidthClass = 'w-full max-w-full'
@@ -1203,7 +1225,7 @@ export default function AccountStatementSheet() {
 
             <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 relative">
               <table className="table-zebra w-full text-sm min-w-[880px]">
-                <thead className="sticky top-0 z-10 bg-white border-b border-neutral-200 shadow-[0_1px_0_0_var(--color-neutral-200)]">
+                <thead className="sticky top-0 z-10 bg-white border-b border-neutral-200">
                   <tr>
                     {visibleColumnKeys.map((k) => renderStatementHeaderCell(k))}
                   </tr>
@@ -1223,7 +1245,7 @@ export default function AccountStatementSheet() {
                 </tbody>
                 {(visibleColumns.debit || visibleColumns.credit) && (
                   <tfoot>
-                    <tr className="bg-gradient-to-r from-slate-100 to-slate-50 border-t-2 border-slate-400 font-bold text-slate-900 shadow-[0_-2px_4px_rgba(0,0,0,0.04)]">
+                    <tr className="bg-white border-t-2 border-neutral-300 font-bold text-slate-900">
                       {visibleColumnKeys.map((k) => renderPeriodTotalsFooterCell(k))}
                     </tr>
                   </tfoot>
@@ -1268,7 +1290,7 @@ export default function AccountStatementSheet() {
                 {t.accounts.statementNumber}: {fetched.statement_number} — {t.accounts.issueDate}: {formatDateEnglish(fetched.issue_date)}
               </p>
             </div>
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 space-y-1">
+            <div className="px-6 py-4 bg-white border-b border-slate-200 space-y-1">
               <p className="font-medium text-slate-800"><span className="text-slate-500">{t.accounts.accountName}:</span> {getDisplayName(fetched.account)}</p>
               <p className="text-sm text-slate-600"><span className="text-slate-500">{t.accounts.accountNumber}:</span> {fetched.account.code}</p>
               {fetched.account.phone && <p className="text-sm text-slate-600"><span className="text-slate-500">{t.accounts.phone}:</span> {fetched.account.phone}</p>}
@@ -1278,8 +1300,13 @@ export default function AccountStatementSheet() {
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm statement-table">
+                <colgroup>
+                  {visibleColumnKeys.map((k) => (
+                    <col key={k} className={getPrintColumnColClass(k)} />
+                  ))}
+                </colgroup>
                 <thead>
-                  <tr className="bg-slate-100 text-slate-700 font-medium">
+                  <tr className="bg-white text-slate-700 font-medium">
                     {visibleColumnKeys.map((k) => renderPrintHeaderCell(k))}
                   </tr>
                 </thead>
@@ -1296,7 +1323,7 @@ export default function AccountStatementSheet() {
                 </tbody>
                 <tfoot>
                   {(visibleColumns.debit || visibleColumns.credit) && (
-                    <tr className="bg-slate-100 font-semibold text-slate-900">
+                    <tr className="bg-white font-semibold text-slate-900">
                       {visibleColumnKeys.map((k) => {
                         if (k === 'debit') {
                           return (
@@ -1335,7 +1362,7 @@ export default function AccountStatementSheet() {
                       })}
                     </tr>
                   )}
-                  <tr className="bg-primary-50 font-semibold text-slate-900">
+                  <tr className="bg-white font-semibold text-slate-900">
                     {visibleColumns.balance ? (
                       <>
                         <td className="px-3 py-2 border-t border-slate-200" colSpan={closingLabelColSpan}>
@@ -1465,8 +1492,9 @@ export default function AccountStatementSheet() {
       .header h1 { margin: 0 0 4px; font-size: 20px; }
       .meta { font-size: 13px; color: #475569; }
       table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
-      th { background:#f8fafc; color:#334155; font-weight:400; padding:6px 8px; border:1px solid #e2e8f0; text-align:${isRtl ? 'right' : 'left'}; }
-      tfoot td { font-weight:400; background:#f8fafc; }
+      th { background:#ffffff; color:#334155; font-weight:400; padding:6px 8px; border:1px solid #e2e8f0; text-align:${isRtl ? 'right' : 'left'}; }
+      td { background:#ffffff; }
+      tfoot td { font-weight:400; background:#ffffff; }
     </style>
   </head>
   <body>
@@ -1531,7 +1559,7 @@ export default function AccountStatementSheet() {
                   {viewEntry.description && <p className="mb-3 text-slate-700">{viewEntry.description}</p>}
                   <table className="w-full text-xs border border-slate-200">
                     <thead>
-                      <tr className="bg-slate-50">
+                      <tr className="bg-white">
                         <th className={`${textAlign} px-2 py-2 font-medium`}>{t.accounts.accountCode}</th>
                         <th className={`${textAlign} px-2 py-2 font-medium`}>{t.accounts.accountName}</th>
                         <th className={`${textAlign} px-2 py-2 font-medium`}>{t.journal.debit}</th>
@@ -1542,7 +1570,7 @@ export default function AccountStatementSheet() {
                       {viewEntry.lines?.map((line, idx) => {
                         const isDebit = line.debit > 0
                         return (
-                          <tr key={line.id ?? idx} className={isDebit ? 'bg-emerald-50/60' : ''}>
+                          <tr key={line.id ?? idx} className="bg-white">
                             <td className="px-2 py-2 font-mono">{line.account?.code ?? '—'}</td>
                             <td className="px-2 py-2">{line.account?.name ?? '—'}</td>
                             <td className="px-2 py-2">{line.debit > 0 ? formatNum(line.debit) : ''}</td>
@@ -1574,7 +1602,27 @@ export default function AccountStatementSheet() {
           #account-statement-print { position: absolute; left: 0; top: 0; width: 100%; max-width: 210mm; margin: 0; padding: 0; box-shadow: none; border: none; background: white; }
           .no-print { display: none !important; }
           .statement-document { break-inside: avoid; page-break-inside: avoid; }
-          .statement-table { font-size: 10px; }
+          .statement-table {
+            table-layout: fixed;
+            width: 100%;
+            font-size: 10px;
+          }
+          .statement-table col.stmt-print-num-col { width: 6%; }
+          .statement-table col.stmt-print-balance-col { width: 7%; }
+          .statement-table col.stmt-print-desc-col { width: 34%; }
+          .statement-table col.stmt-print-date-col { width: 8%; }
+          .statement-table col.stmt-print-voucher-col { width: 9%; }
+          .statement-table col.stmt-print-mid-col { width: 10%; }
+          .statement-table .stmt-print-desc-col {
+            word-break: break-word;
+            overflow-wrap: anywhere;
+          }
+          .statement-table .stmt-print-num-col,
+          .statement-table .stmt-print-balance-col {
+            white-space: nowrap;
+            padding-left: 2px !important;
+            padding-right: 2px !important;
+          }
         }
         @media screen {
           #account-statement-print { width: 100%; max-width: none; }
