@@ -406,7 +406,7 @@ export default function JournalEntryList() {
         <div className="flex flex-wrap items-center gap-1.5">
           <Link
             to="/journal-entries/create"
-            className="flex items-center gap-2 bg-gradient-to-l from-emerald-500 to-emerald-600 text-white rounded-lg px-4 py-2 text-sm shadow-[0_2px_8px_rgba(16,185,129,0.35)] hover:shadow-[0_4px_12px_rgba(16,185,129,0.45)] hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 font-medium"
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg px-4 py-2 text-sm transition-colors font-medium"
           >
             <Plus size={18} />
             {t.journal.createEntry}
