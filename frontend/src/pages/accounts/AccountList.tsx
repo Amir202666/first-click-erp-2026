@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
-import { fetchAccountTree, createAccount, updateAccount, deleteAccount, fetchNextAccountCode, exportChartOfAccounts, fetchBranches, fetchCostCenters, fetchTenantUsers, fetchCurrencies } from '../../api/tenant'
+import { fetchAccountTree, createAccount, updateAccount, moveAccount, fetchAccountCanDelete, deleteAccount, fetchNextAccountCode, exportChartOfAccounts, fetchBranches, fetchCostCenters, fetchTenantUsers, fetchCurrencies } from '../../api/tenant'
 import type { Account } from '../../types'
 import type { Branch, CostCenter, Currency } from '../../types'
 import type { TenantUserItem } from '../../types'
@@ -35,6 +35,7 @@ interface FlatAccount {
   name: string
   name_en: string | null
   type: string
+  parent_id: number | null
   normal_balance?: 'debit' | 'credit' | null
   level: number
   is_active?: boolean
@@ -42,7 +43,17 @@ interface FlatAccount {
 
 function flattenAccounts(accounts: Account[], result: FlatAccount[] = []): FlatAccount[] {
   for (const acc of accounts) {
-    result.push({ id: acc.id, code: acc.code, name: acc.name, name_en: acc.name_en ?? null, type: acc.type, normal_balance: acc.normal_balance ?? undefined, level: acc.level, is_active: acc.is_active ?? true })
+    result.push({
+      id: acc.id,
+      code: acc.code,
+      name: acc.name,
+      name_en: acc.name_en ?? null,
+      type: acc.type,
+      parent_id: acc.parent_id ?? null,
+      normal_balance: acc.normal_balance ?? undefined,
+      level: acc.level,
+      is_active: acc.is_active ?? true,
+    })
     if (acc.children?.length) {
       flattenAccounts(acc.children, result)
     }
@@ -79,6 +90,8 @@ export default function AccountList() {
   const [parentSearch, setParentSearch] = useState('')
   const [showParentDropdown, setShowParentDropdown] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null)
+  const [deleteBlockedReason, setDeleteBlockedReason] = useState<string | null>(null)
+  const [isMovingParent, setIsMovingParent] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null)
   const [showImportWizard, setShowImportWizard] = useState(false)
   const [filterType, setFilterType] = useState<string>('')
@@ -196,11 +209,28 @@ export default function AccountList() {
     return { total, active, inactive }
   }, [flatAccounts])
 
+  const invalidParentIds = useMemo(() => {
+    if (!editing) return new Set<number>()
+    const ids = new Set<number>([editing.id])
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const acc of flatAccounts) {
+        if (acc.parent_id != null && ids.has(acc.parent_id) && !ids.has(acc.id)) {
+          ids.add(acc.id)
+          changed = true
+        }
+      }
+    }
+    return ids
+  }, [editing, flatAccounts])
+
   const filteredParentAccounts = useMemo(() => {
-    if (!parentSearch.trim()) return flatAccounts
+    let list = flatAccounts.filter((a) => !invalidParentIds.has(a.id))
+    if (!parentSearch.trim()) return list
     const q = parentSearch.toLowerCase()
-    return flatAccounts.filter(a => a.code.includes(q) || a.name.toLowerCase().includes(q) || (a.name_en?.toLowerCase().includes(q) ?? false))
-  }, [flatAccounts, parentSearch])
+    return list.filter(a => a.code.includes(q) || a.name.toLowerCase().includes(q) || (a.name_en?.toLowerCase().includes(q) ?? false))
+  }, [flatAccounts, parentSearch, invalidParentIds])
 
   useEffect(() => {
     if (!showModal || editing) return
@@ -302,23 +332,40 @@ export default function AccountList() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (editing) {
-      updateMutation.mutate({
-        id: editing.id,
-        data: {
-          name: form.name,
-          name_en: form.name_en || null,
-          normal_balance: form.normal_balance || null,
-          description: form.description || null,
-          is_postable: form.is_postable,
-          currency: form.currency || null,
-          is_active: form.is_active,
-          branch_ids: form.branch_ids,
-          cost_center_ids: form.cost_center_ids,
-          user_ids: form.user_ids,
-        } as Partial<Account>,
+      const run = async () => {
+        setIsMovingParent(true)
+        try {
+          const nextParentId = form.parent_id ?? null
+          const currentParentId = editing.parent_id ?? null
+          if (nextParentId !== currentParentId) {
+            await moveAccount(tenantId, editing.id, nextParentId)
+          }
+          await updateMutation.mutateAsync({
+            id: editing.id,
+            data: {
+              name: form.name,
+              name_en: form.name_en || null,
+              normal_balance: form.normal_balance || null,
+              description: form.description || null,
+              is_postable: form.is_postable,
+              currency: form.currency || null,
+              is_active: form.is_active,
+              branch_ids: form.branch_ids,
+              cost_center_ids: form.cost_center_ids,
+              user_ids: form.user_ids,
+            } as Partial<Account>,
+          })
+        } finally {
+          setIsMovingParent(false)
+        }
+      }
+      run().catch((err: unknown) => {
+        const ax = err as { response?: { data?: { message?: string } } }
+        showToast(ax?.response?.data?.message ?? t.msg.updateError, 'error')
       })
-    } else {
-      createMutation.mutate({
+      return
+    }
+    createMutation.mutate({
         parent_id: form.parent_id || null,
         code: form.code,
         name: form.name,
@@ -333,6 +380,22 @@ export default function AccountList() {
         cost_center_ids: form.cost_center_ids,
         user_ids: form.user_ids,
       } as Partial<Account>)
+  }
+
+  async function requestDelete(account: Account) {
+    try {
+      const check = await fetchAccountCanDelete(tenantId, account.id)
+      if (!check.can_delete) {
+        setDeleteBlockedReason(
+          check.reason
+            ?? (lang === 'ar' ? 'الحساب عليه حركات مالية ولا يمكن حذفه' : 'This account has financial transactions and cannot be deleted'),
+        )
+        return
+      }
+      setDeleteTarget(account)
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } } }
+      showToast(ax?.response?.data?.message ?? t.msg.deleteError, 'error')
     }
   }
 
@@ -360,10 +423,11 @@ export default function AccountList() {
   }
 
   function openEdit(account: Account) {
+    const parentAcc = account.parent_id ? flatAccounts.find((a) => a.id === account.parent_id) : null
     setEditing(account)
     setForm({
       parent_id: account.parent_id ?? null,
-      parentLabel: '',
+      parentLabel: parentAcc ? `${parentAcc.code} - ${getDisplayName(parentAcc)}` : '',
       code: account.code,
       name: account.name,
       name_en: account.name_en ?? '',
@@ -388,7 +452,7 @@ export default function AccountList() {
         ...prev,
         parent_id: acc.id,
         parentLabel: `${acc.code} - ${getDisplayName(acc)}`,
-        type: acc.type as Account['type'],
+        ...(editing ? {} : { type: acc.type as Account['type'] }),
       }))
     } else {
       setForm(prev => ({ ...prev, parent_id: null, parentLabel: '' }))
@@ -398,7 +462,7 @@ export default function AccountList() {
   }
 
   const textAlign = isRtl ? 'text-right' : 'text-left'
-  const isSaving = createMutation.isPending || updateMutation.isPending
+  const isSaving = createMutation.isPending || updateMutation.isPending || isMovingParent
 
   const goToAccountStatementSheet = useCallback(
     (accountId: number) => {
@@ -652,7 +716,7 @@ export default function AccountList() {
                                 </button>
                                 {canDeleteAccount && (
                                   <button
-                                    onClick={() => setDeleteTarget(fullAccount)}
+                                    onClick={() => requestDelete(fullAccount)}
                                     className="text-red-500 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors"
                                     title={t.delete}
                                     aria-label={t.delete}
@@ -680,7 +744,7 @@ export default function AccountList() {
                     onToggle={toggleExpand}
                     onAddChild={openAddChild}
                     onEdit={openEdit}
-                    onDelete={canDeleteAccount ? setDeleteTarget : undefined}
+                    onDelete={canDeleteAccount ? requestDelete : undefined}
                     onOpenStatement={goToAccountStatementSheet}
                     accountTypeLabels={accountTypeLabels}
                     t={t}
@@ -748,10 +812,9 @@ export default function AccountList() {
                     </div>
                   </div>
 
-                  {/* السطر الثاني: الحساب الأب 60% | نوع الحساب 40% (فقط عند الإضافة) */}
-                  {!editing && (
+                  {/* الحساب الأب — إضافة وتعديل */}
                   <div className="grid grid-cols-5 gap-5">
-                    <div className="relative min-w-0 col-span-3">
+                    <div className={`relative min-w-0 ${editing ? 'col-span-5' : 'col-span-3'}`}>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">{t.accounts.parentAccount}</label>
                         {form.parentLabel ? (
                           <div className="flex items-center gap-2 w-full border border-slate-200 rounded-[8px] px-3 py-2 text-sm bg-slate-50">
@@ -803,6 +866,7 @@ export default function AccountList() {
                           </div>
                         )}
                       </div>
+                    {!editing && (
                     <div className="min-w-0 col-span-2">
                       <label className="block text-sm font-medium text-slate-700 mb-1.5">{t.accounts.accountType}</label>
                       <select
@@ -815,8 +879,8 @@ export default function AccountList() {
                         ))}
                       </select>
                     </div>
+                    )}
                   </div>
-                  )}
 
                   {/* العملة والحالة */}
                   <div className="grid grid-cols-5 gap-5">
@@ -943,6 +1007,19 @@ export default function AccountList() {
             </form>
           </div>
         </div>
+      )}
+
+      {deleteBlockedReason && (
+        <ConfirmDialog
+          title={lang === 'ar' ? 'لا يمكن الحذف' : 'Cannot delete'}
+          message={deleteBlockedReason}
+          confirmLabel={t.close}
+          variant="warning"
+          showCancel={false}
+          highlightMessage
+          onConfirm={() => setDeleteBlockedReason(null)}
+          onCancel={() => setDeleteBlockedReason(null)}
+        />
       )}
 
       {deleteTarget && (

@@ -141,6 +141,12 @@ export const fetchNextAccountCode = (tenantId: number, parentId?: number | null)
 export const updateAccount = (tenantId: number, id: number, data: Partial<Account>) =>
   api.put<Account>(`/accounts/${id}`, data, tenantHeaders(tenantId)).then(r => r.data)
 
+export const moveAccount = (tenantId: number, id: number, newParentId: number | null) =>
+  api.post<Account>(`/accounts/${id}/move`, { new_parent_id: newParentId }, tenantHeaders(tenantId)).then(r => r.data)
+
+export const fetchAccountCanDelete = (tenantId: number, id: number) =>
+  api.get<{ can_delete: boolean; reason?: string }>(`/accounts/${id}/can-delete`, tenantHeaders(tenantId)).then(r => r.data)
+
 export const deleteAccount = (tenantId: number, id: number) =>
   api.delete(`/accounts/${id}`, tenantHeaders(tenantId))
 

@@ -79,6 +79,7 @@ class AccountService
         }
 
         return DB::transaction(function () use ($account, $newParent) {
+            $oldParentId = $account->parent_id;
             $oldPath = $account->path ?? $account->code;
             $newPath = ($newParent->path ?? $newParent->code).'/'.$account->code;
 
@@ -99,8 +100,55 @@ class AccountService
                 ]);
             }
 
+            if ($oldParentId && ! Account::where('tenant_id', $account->tenant_id)->where('parent_id', $oldParentId)->exists()) {
+                Account::where('id', $oldParentId)->update([
+                    'is_postable' => true,
+                    'is_group' => false,
+                    'allow_manual_entry' => true,
+                ]);
+            }
+
             return $account->fresh();
         });
+    }
+
+    public function reparentAccount(Account $account, ?Account $newParent): Account
+    {
+        if ($newParent === null) {
+            if ($account->parent_id === null) {
+                return $account->fresh();
+            }
+
+            if ($account->is_system) {
+                throw new \InvalidArgumentException('لا يمكن نقل حسابات النظام');
+            }
+
+            return DB::transaction(function () use ($account) {
+                $oldParentId = $account->parent_id;
+                $oldPath = $account->path ?? $account->code;
+                $newPath = $account->code;
+
+                $account->update([
+                    'parent_id' => null,
+                    'level' => 1,
+                    'path' => $newPath,
+                ]);
+
+                $this->updateChildrenPaths($account->tenant_id, $oldPath, $newPath, 1, $account->type);
+
+                if ($oldParentId && ! Account::where('tenant_id', $account->tenant_id)->where('parent_id', $oldParentId)->exists()) {
+                    Account::where('id', $oldParentId)->update([
+                        'is_postable' => true,
+                        'is_group' => false,
+                        'allow_manual_entry' => true,
+                    ]);
+                }
+
+                return $account->fresh();
+            });
+        }
+
+        return $this->moveAccount($account, $newParent);
     }
 
     public function generateCode(int $tenantId, ?Account $parent): string

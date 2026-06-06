@@ -207,6 +207,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/accounts', [AccountController::class, 'store']);
         Route::get('/accounts/{id}', [AccountController::class, 'show']);
         Route::put('/accounts/{id}', [AccountController::class, 'update']);
+        Route::get('/accounts/{id}/can-delete', [AccountController::class, 'canDelete'])->middleware('permission:accounts.delete');
         Route::post('/accounts/{id}/move', [AccountController::class, 'move'])->middleware('permission:accounts.edit');
         Route::delete('/accounts/{id}', [AccountController::class, 'destroy'])->middleware('permission:accounts.delete');
 

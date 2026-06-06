@@ -192,19 +192,55 @@ class AccountController extends Controller
 
     public function move(Request $request, int $id): JsonResponse
     {
-        $request->validate(['new_parent_id' => 'required|integer']);
+        $request->validate(['new_parent_id' => 'nullable|integer']);
 
         $tenantId = (int) $request->tenant_id;
         $account = Account::where('tenant_id', $tenantId)->findOrFail($id);
-        $newParent = Account::where('tenant_id', $tenantId)->findOrFail($request->new_parent_id);
+
+        $newParentId = $request->input('new_parent_id');
+        $newParent = $newParentId
+            ? Account::where('tenant_id', $tenantId)->findOrFail((int) $newParentId)
+            : null;
 
         try {
-            $moved = $this->accountService->moveAccount($account, $newParent);
+            $moved = $this->accountService->reparentAccount($account, $newParent);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
         return response()->json($this->accountWithMappings($moved));
+    }
+
+    public function canDelete(Request $request, int $id): JsonResponse
+    {
+        $tenantId = (int) $request->tenant_id;
+        $account = Account::where('tenant_id', $tenantId)->findOrFail($id);
+
+        if ($account->is_system) {
+            return response()->json([
+                'can_delete' => false,
+                'reason' => 'لا يمكن حذف حسابات النظام',
+            ]);
+        }
+
+        $idsToDelete = $this->collectDescendantIdsFast($account->id, $tenantId);
+
+        if (JournalEntryLine::whereIn('account_id', $idsToDelete)->exists()) {
+            return response()->json([
+                'can_delete' => false,
+                'reason' => 'الحساب عليه حركات مالية ولا يمكن حذفه',
+            ]);
+        }
+
+        $linked = $this->getAccountReferences($idsToDelete);
+        if ($linked !== '') {
+            return response()->json([
+                'can_delete' => false,
+                'reason' => 'لا يمكن حذف الحساب: الحساب مرتبط بـ '.$linked,
+            ]);
+        }
+
+        return response()->json(['can_delete' => true]);
     }
 
     public function reCode(Request $request): JsonResponse
@@ -223,7 +259,7 @@ class AccountController extends Controller
 
         $hasMovement = JournalEntryLine::whereIn('account_id', $idsToDelete)->exists();
         if ($hasMovement) {
-            return response()->json(['message' => 'لا يمكن الحذف: يوجد حركات محاسبية على الحساب أو أحد الحسابات الفرعية'], 422);
+            return response()->json(['message' => 'الحساب عليه حركات مالية ولا يمكن حذفه'], 422);
         }
 
         $linked = $this->getAccountReferences($idsToDelete);
