@@ -117,7 +117,7 @@ import BarcodeLabelsPage from './pages/barcode/BarcodeLabelsPage'
 import Layout from './components/layout/Layout'
 import RestaurantPosPage from './pages/restaurant/RestaurantPosPage'
 import RestaurantSalesPage from './pages/restaurant/RestaurantSalesPage'
-import RestaurantTablesPage from './pages/restaurant/RestaurantTablesPage'
+import TablesReservationsPage from './pages/restaurant/TablesReservationsPage'
 import RestaurantSectionsPage from './pages/restaurant/RestaurantSectionsPage'
 import KitchenDisplayPage from './pages/restaurant/KitchenDisplayPage'
 import MenuPublic from './pages/restaurant/MenuPublic'
@@ -135,6 +135,8 @@ import BomList from './pages/manufacturing/BomList'
 import BomForm from './pages/manufacturing/BomForm'
 import ProductionOrderList from './pages/manufacturing/ProductionOrderList'
 import ProductionOrderForm from './pages/manufacturing/ProductionOrderForm'
+import DisassemblyOrderList from './pages/manufacturing/DisassemblyOrderList'
+import DisassemblyOrderForm from './pages/manufacturing/DisassemblyOrderForm'
 import SalesRepList from './pages/sales-reps/SalesRepList'
 import DriverListPage from './pages/delivery/DriverListPage'
 import DriverSettlementPage from './pages/delivery/DriverSettlementPage'
@@ -283,7 +285,7 @@ function App() {
                     <Route path="/pos/cashier/today" element={<CashierDailyReportPage />} />
                     <Route path="/restaurant/pos" element={<RestaurantPosPage />} />
                     <Route path="/restaurant/sales" element={<RestaurantSalesPage />} />
-                    <Route path="/restaurant/tables" element={<RestaurantTablesPage />} />
+                    <Route path="/restaurant/tables" element={<TablesReservationsPage />} />
                     <Route path="/restaurant/sections" element={<RestaurantSectionsPage />} />
                     <Route path="/restaurant/kitchen" element={<KitchenDisplayPage />} />
                     <Route path="/restaurant/menu" element={<MenuBuilderPage />} />
@@ -296,6 +298,9 @@ function App() {
                     <Route path="/manufacturing/production-orders" element={<ProductionOrderList />} />
                     <Route path="/manufacturing/production-orders/create" element={<ProductionOrderForm />} />
                     <Route path="/manufacturing/production-orders/:id" element={<ProductionOrderForm />} />
+                    <Route path="/manufacturing/disassembly-orders" element={<DisassemblyOrderList />} />
+                    <Route path="/manufacturing/disassembly-orders/create" element={<DisassemblyOrderForm />} />
+                    <Route path="/manufacturing/disassembly-orders/:id" element={<DisassemblyOrderForm />} />
                     <Route path="/invoices/quotations" element={<QuotationList />} />
                     <Route path="/invoices/quotations/create" element={<CreateQuotation />} />
                     <Route path="/invoices/quotations/edit/:id" element={<EditQuotation />} />

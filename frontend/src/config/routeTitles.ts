@@ -126,6 +126,8 @@ export const ROUTE_TITLE_RULES: RouteTitleRule[] = [
   { path: '/manufacturing/bom', titleKey: 'nav.bom' },
   { path: '/manufacturing/production-orders/create', titleKey: 'nav.productionOrders' },
   { path: '/manufacturing/production-orders', titleKey: 'nav.productionOrders' },
+  { path: '/manufacturing/disassembly-orders/create', titleKey: 'nav.disassemblyOrders' },
+  { path: '/manufacturing/disassembly-orders', titleKey: 'nav.disassemblyOrders' },
   { path: '/delivery/drivers', titleKey: 'nav.deliveryDrivers' },
   { path: '/delivery/settlement', titleKey: 'nav.deliverySettlement' },
   { path: '/reports/delivery-performance', titleKey: 'nav.deliveryPerformanceReport' },

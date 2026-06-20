@@ -10,11 +10,11 @@ import type {
   PosItem, PosShiftInfo, PosCartLine, PosXReport, PosZReport, PosShiftReportRow, PosShiftsReportStats, PosExpenseCategory, PosExpenseItem,
   DocumentTemplate,
   Warehouse, TransferHeader,
-  BillOfMaterial, ProductionOrder,
+  BillOfMaterial, ProductionOrder, DisassemblyOrder, DisassemblyOrderLine, DisassemblyOrderStats,
   SalesRep,
   DeliveryDriver,
   DeliveryAssignment,
-  RestaurantTable, RestaurantSection, KitchenTicket, KitchenTicketLine,
+  RestaurantTable, RestaurantTableFloor, RestaurantReservation, RestaurantSection, KitchenTicket, KitchenTicketLine,
   Installment, InstallmentLine, InstallmentPeriod,
   ItemAttributeTemplate,
   PricingGroup,
@@ -1184,6 +1184,30 @@ export const deleteProductionOrder = (tenantId: number, id: number) =>
 export const approveProductionOrder = (tenantId: number, id: number) =>
   api.post<ProductionOrder>(`/production-orders/${id}/approve`, {}, tenantHeaders(tenantId)).then(r => r.data)
 
+export const fetchDisassemblyOrdersNextNumber = (tenantId: number) =>
+  api.get<{ number: string }>('/disassembly-orders/next-number', tenantHeaders(tenantId)).then(r => r.data)
+
+export const fetchDisassemblyOrders = (tenantId: number, params?: Record<string, string>) =>
+  api.get<PaginatedResponse<DisassemblyOrder> & { stats?: DisassemblyOrderStats }>('/disassembly-orders', { ...tenantHeaders(tenantId), params }).then(r => r.data)
+
+export const fetchDisassemblyOrder = (tenantId: number, id: number) =>
+  api.get<DisassemblyOrder>(`/disassembly-orders/${id}`, tenantHeaders(tenantId)).then(r => r.data)
+
+export const createDisassemblyOrder = (tenantId: number, data: Record<string, unknown>) =>
+  api.post<DisassemblyOrder>('/disassembly-orders', data, tenantHeaders(tenantId)).then(r => r.data)
+
+export const updateDisassemblyOrder = (tenantId: number, id: number, data: Record<string, unknown>) =>
+  api.put<DisassemblyOrder>(`/disassembly-orders/${id}`, data, tenantHeaders(tenantId)).then(r => r.data)
+
+export const deleteDisassemblyOrder = (tenantId: number, id: number) =>
+  api.delete(`/disassembly-orders/${id}`, tenantHeaders(tenantId))
+
+export const confirmDisassemblyOrder = (tenantId: number, id: number) =>
+  api.post<DisassemblyOrder>(`/disassembly-orders/${id}/confirm`, {}, tenantHeaders(tenantId)).then(r => r.data)
+
+export const cancelDisassemblyOrder = (tenantId: number, id: number) =>
+  api.post<DisassemblyOrder>(`/disassembly-orders/${id}/cancel`, {}, tenantHeaders(tenantId)).then(r => r.data)
+
 export const generateItemBarcode = (tenantId: number, itemId: number) =>
   api.post<{ barcode: string; item: Item }>(`/items/${itemId}/generate-barcode`, {}, tenantHeaders(tenantId)).then(r => r.data)
 
@@ -1776,8 +1800,34 @@ export const fetchAuditLogs = (
   api.get<PaginatedResponse<AuditLogEntry>>('/audit-logs', { ...tenantHeaders(tenantId), params }).then((r) => r.data)
 
 // ──── Restaurant Module ────
-export const fetchRestaurantTables = (tenantId: number, params?: { branch_id?: number }) =>
-  api.get<RestaurantTable[]>('/restaurant/tables', { ...tenantHeaders(tenantId), params }).then(r => r.data)
+export const fetchRestaurantTables = (tenantId: number, params?: { branch_id?: number; section?: string; floor_map?: boolean; date?: string }) =>
+  api.get<RestaurantTable[] | RestaurantTableFloor[]>('/restaurant/tables', { ...tenantHeaders(tenantId), params }).then(r => r.data)
+
+export const updateRestaurantTableStatus = (tenantId: number, id: number, status: string, params?: { date?: string }) =>
+  api.patch<RestaurantTableFloor>(`/restaurant/tables/${id}/status`, { status }, { ...tenantHeaders(tenantId), params }).then(r => r.data)
+
+export const fetchRestaurantReservations = (
+  tenantId: number,
+  params?: {
+    branch_id?: number
+    section?: string
+    status?: string
+    date?: string
+    date_from?: string
+    date_to?: string
+  },
+) =>
+  api.get<RestaurantReservation[]>('/restaurant/reservations', { ...tenantHeaders(tenantId), params }).then(r => r.data)
+
+export const saveRestaurantReservation = (tenantId: number, data: Partial<RestaurantReservation> & { id?: number }) => {
+  if (data.id) {
+    return api.put<RestaurantReservation>(`/restaurant/reservations/${data.id}`, data, tenantHeaders(tenantId)).then(r => r.data)
+  }
+  return api.post<RestaurantReservation>('/restaurant/reservations', data, tenantHeaders(tenantId)).then(r => r.data)
+}
+
+export const cancelRestaurantReservation = (tenantId: number, id: number) =>
+  api.delete(`/restaurant/reservations/${id}`, tenantHeaders(tenantId))
 
 export const saveRestaurantTable = (tenantId: number, data: Partial<RestaurantTable> & { id?: number }) => {
   if (data.id) {
@@ -1789,8 +1839,8 @@ export const saveRestaurantTable = (tenantId: number, data: Partial<RestaurantTa
 export const deleteRestaurantTable = (tenantId: number, id: number) =>
   api.delete(`/restaurant/tables/${id}`, tenantHeaders(tenantId))
 
-export const fetchRestaurantSections = (tenantId: number) =>
-  api.get<RestaurantSection[]>('/restaurant/sections', tenantHeaders(tenantId)).then(r => r.data)
+export const fetchRestaurantSections = (tenantId: number, params?: { branch_id?: number }) =>
+  api.get<RestaurantSection[]>('/restaurant/sections', { ...tenantHeaders(tenantId), params }).then(r => r.data)
 
 export const saveRestaurantSection = (tenantId: number, data: Partial<RestaurantSection> & { id?: number }) => {
   if (data.id) {
@@ -1894,7 +1944,7 @@ export const updateKitchenTicketLineCompleted = (tenantId: number, ticketId: num
   api.patch<KitchenTicketLine>(`/restaurant/kitchen-tickets/${ticketId}/lines/${lineId}`, { is_completed: isCompleted }, tenantHeaders(tenantId)).then(r => r.data)
 
 // ──── نقطة البيع (POS) ────
-export const fetchPosItems = (tenantId: number, params: { q?: string; category_id?: number; per_page?: number; pos_kind?: 'pos' | 'restaurant' }) =>
+export const fetchPosItems = (tenantId: number, params: { q?: string; category_id?: number; per_page?: number; pos_kind?: 'pos' | 'restaurant'; warehouse_id?: number; branch_id?: number }) =>
   api.get<{ data: PosItem[] }>('/pos/items', { ...tenantHeaders(tenantId), params }).then(r => r.data)
 
 export const fetchPosShift = (tenantId: number, branchId: number) =>

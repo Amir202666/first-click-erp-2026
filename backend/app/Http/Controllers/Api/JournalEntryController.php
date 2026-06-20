@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\CostCenter;
 use App\Models\InventoryAdjustment;
 use App\Models\Invoice;
 use App\Models\JournalEntry;
@@ -73,16 +74,16 @@ class JournalEntryController extends Controller
             ->pluck('reference_id')->unique()->values()->all();
 
         $invoices = $invoiceIds
-            ? Invoice::where('tenant_id', $tenantId)->whereIn('id', $invoiceIds)->get()->keyBy('id')
+            ? Invoice::where('tenant_id', $tenantId)->whereIn('id', $invoiceIds)->get(['id', 'number', 'total', 'notes', 'cost_center_id'])->keyBy('id')
             : collect();
         $payments = $paymentIds
-            ? Payment::where('tenant_id', $tenantId)->whereIn('id', $paymentIds)->get()->keyBy('id')
+            ? Payment::where('tenant_id', $tenantId)->whereIn('id', $paymentIds)->get(['id', 'number', 'type', 'notes', 'cost_center_id', 'invoice_id'])->keyBy('id')
             : collect();
         $invoicesByNumber = $invoiceNumbers
-            ? Invoice::where('tenant_id', $tenantId)->whereIn('number', $invoiceNumbers)->get()->keyBy('number')
+            ? Invoice::where('tenant_id', $tenantId)->whereIn('number', $invoiceNumbers)->get(['id', 'number', 'total', 'notes', 'cost_center_id'])->keyBy('number')
             : collect();
         $paymentsByNumber = $paymentNumbers
-            ? Payment::where('tenant_id', $tenantId)->whereIn('number', $paymentNumbers)->get()->keyBy('number')
+            ? Payment::where('tenant_id', $tenantId)->whereIn('number', $paymentNumbers)->get(['id', 'number', 'type', 'notes', 'cost_center_id', 'invoice_id'])->keyBy('number')
             : collect();
 
         $adjustmentIds = $collection
@@ -95,31 +96,64 @@ class JournalEntryController extends Controller
             ? InventoryAdjustment::where('tenant_id', $tenantId)->whereIn('id', $adjustmentIds)->get()->keyBy('id')
             : collect();
 
+        $linkedInvoiceIds = $payments->pluck('invoice_id')->filter()->unique()->values()->all();
+        $missingInvoiceIds = array_diff($linkedInvoiceIds, $invoices->keys()->all());
+        if ($missingInvoiceIds !== []) {
+            $linkedInvoices = Invoice::where('tenant_id', $tenantId)
+                ->whereIn('id', $missingInvoiceIds)
+                ->get(['id', 'number', 'total', 'notes', 'cost_center_id'])
+                ->keyBy('id');
+            $invoices = $invoices->union($linkedInvoices);
+        }
+
+        $costCenterIds = collect()
+            ->merge($invoices->pluck('cost_center_id'))
+            ->merge($payments->pluck('cost_center_id'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $costCentersById = $costCenterIds !== []
+            ? CostCenter::where('tenant_id', $tenantId)->whereIn('id', $costCenterIds)->get(['id', 'name', 'name_en'])->keyBy('id')
+            : collect();
+
         foreach ($collection as $entry) {
             $entry->setAttribute('source', null);
             $sourceNotes = null;
+            $sourceInvoice = null;
+            $sourcePayment = null;
 
             if ($entry->reference_type && $entry->reference_id) {
                 if (str_ends_with($entry->reference_type, 'Invoice') && isset($invoices[$entry->reference_id])) {
                     $inv = $invoices[$entry->reference_id];
+                    $sourceInvoice = $inv;
                     $entry->setAttribute('source', ['type' => 'invoice', 'id' => $inv->id, 'number' => $inv->number]);
                     $entry->setAttribute('invoice_total', (float) $inv->total);
                     $sourceNotes = is_string($inv->notes) ? trim($inv->notes) : null;
                 }
                 if (str_ends_with($entry->reference_type, 'Payment') && isset($payments[$entry->reference_id])) {
                     $pay = $payments[$entry->reference_id];
+                    $sourcePayment = $pay;
+                    if ($pay->invoice_id && isset($invoices[$pay->invoice_id])) {
+                        $sourceInvoice = $invoices[$pay->invoice_id];
+                    }
                     $entry->setAttribute('source', ['type' => 'payment', 'id' => $pay->id, 'number' => $pay->number, 'payment_type' => $pay->type]);
                     $sourceNotes = is_string($pay->notes) ? trim($pay->notes) : null;
                 }
             } elseif ($entry->reference_type && $entry->number) {
                 if (str_ends_with($entry->reference_type, 'Invoice') && isset($invoicesByNumber[$entry->number])) {
                     $inv = $invoicesByNumber[$entry->number];
+                    $sourceInvoice = $inv;
                     $entry->setAttribute('source', ['type' => 'invoice', 'id' => $inv->id, 'number' => $inv->number]);
                     $entry->setAttribute('invoice_total', (float) $inv->total);
                     $sourceNotes = is_string($inv->notes) ? trim($inv->notes) : null;
                 }
                 if (str_ends_with($entry->reference_type, 'Payment') && isset($paymentsByNumber[$entry->number])) {
                     $pay = $paymentsByNumber[$entry->number];
+                    $sourcePayment = $pay;
+                    if ($pay->invoice_id && isset($invoices[$pay->invoice_id])) {
+                        $sourceInvoice = $invoices[$pay->invoice_id];
+                    }
                     $entry->setAttribute('source', ['type' => 'payment', 'id' => $pay->id, 'number' => $pay->number, 'payment_type' => $pay->type]);
                     $sourceNotes = is_string($pay->notes) ? trim($pay->notes) : null;
                 }
@@ -143,6 +177,44 @@ class JournalEntryController extends Controller
                     $line->setAttribute('description', $sourceNotes);
                 }
             }
+
+            $this->enrichCostCentersFromSource($entry, $sourceInvoice, $sourcePayment, $costCentersById);
+        }
+    }
+
+    /**
+     * إثراء عرض مراكز التكلفة من الفاتورة/السند عند غيابها عن بنود القيد (قيود قديمة).
+     */
+    private function enrichCostCentersFromSource(JournalEntry $entry, ?Invoice $invoice, ?Payment $payment, $costCentersById): void
+    {
+        if (! $entry->relationLoaded('lines') || ! $entry->lines || $entry->lines->isEmpty()) {
+            return;
+        }
+
+        $hasCostCenterOnLines = $entry->lines->contains(fn ($line) => ! empty($line->cost_center_id));
+        if ($hasCostCenterOnLines) {
+            return;
+        }
+
+        $ccId = null;
+        if ($payment?->cost_center_id) {
+            $ccId = (int) $payment->cost_center_id;
+        } elseif ($invoice?->cost_center_id) {
+            $ccId = (int) $invoice->cost_center_id;
+        }
+
+        if (! $ccId) {
+            return;
+        }
+
+        $cc = $costCentersById[$ccId] ?? null;
+        if (! $cc) {
+            return;
+        }
+
+        foreach ($entry->lines as $line) {
+            $line->setAttribute('cost_center_id', $ccId);
+            $line->setRelation('costCenter', $cc);
         }
     }
 
@@ -246,56 +318,7 @@ class JournalEntryController extends Controller
             ->with(['lines.account', 'lines.costCenter', 'createdBy', 'customer', 'vendor', 'branch'])
             ->findOrFail($id);
 
-        $source = null;
-        $sourceNotes = null;
-        if ($entry->reference_type && $entry->reference_id) {
-            if (str_ends_with($entry->reference_type, 'Invoice')) {
-                $inv = Invoice::where('tenant_id', $request->tenant_id)->find($entry->reference_id);
-                if ($inv) {
-                    $source = ['type' => 'invoice', 'id' => $inv->id, 'number' => $inv->number];
-                    $entry->setAttribute('invoice_total', (float) $inv->total);
-                    $sourceNotes = is_string($inv->notes) ? trim($inv->notes) : null;
-                }
-            }
-            if (str_ends_with($entry->reference_type, 'Payment')) {
-                $pay = Payment::where('tenant_id', $request->tenant_id)->find($entry->reference_id);
-                if ($pay) {
-                    $source = ['type' => 'payment', 'id' => $pay->id, 'number' => $pay->number, 'payment_type' => $pay->type];
-                    $sourceNotes = is_string($pay->notes) ? trim($pay->notes) : null;
-                }
-            }
-        } elseif ($entry->reference_type && $entry->number) {
-            if (str_ends_with($entry->reference_type, 'Invoice')) {
-                $inv = Invoice::where('tenant_id', $request->tenant_id)->where('number', $entry->number)->first();
-                if ($inv) {
-                    $source = ['type' => 'invoice', 'id' => $inv->id, 'number' => $inv->number];
-                    $entry->setAttribute('invoice_total', (float) $inv->total);
-                    $sourceNotes = is_string($inv->notes) ? trim($inv->notes) : null;
-                }
-            }
-            if (str_ends_with($entry->reference_type, 'Payment')) {
-                $pay = Payment::where('tenant_id', $request->tenant_id)->where('number', $entry->number)->first();
-                if ($pay) {
-                    $source = ['type' => 'payment', 'id' => $pay->id, 'number' => $pay->number, 'payment_type' => $pay->type];
-                    $sourceNotes = is_string($pay->notes) ? trim($pay->notes) : null;
-                }
-            }
-        }
-
-        if ($source === null && $entry->reference_type && $entry->reference_id && str_ends_with($entry->reference_type, 'InventoryAdjustment')) {
-            $adj = InventoryAdjustment::where('tenant_id', $request->tenant_id)->find($entry->reference_id);
-            if ($adj) {
-                $source = ['type' => 'inventory_adjustment', 'id' => $adj->id, 'number' => $adj->number];
-                $this->normalizeInventoryAdjustmentJournalDescriptions($entry, $adj);
-            }
-        }
-
-        $entry->setAttribute('source', $source);
-        if ($sourceNotes && $entry->lines) {
-            foreach ($entry->lines as $line) {
-                $line->setAttribute('description', $sourceNotes);
-            }
-        }
+        $this->attachSourceToEntries($request->tenant_id, collect([$entry]));
 
         return response()->json($entry);
     }

@@ -271,6 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     '/manufacturing': ['manufacturing'],
     '/manufacturing/bom': ['manufacturing'],
     '/manufacturing/production-orders': ['manufacturing'],
+    '/manufacturing/disassembly-orders': ['manufacturing'],
     '/sales-reps': ['sales_reps'],
     '/reports/sales-rep-sales': ['sales_reps'],
     '/reports/sales-reps-monthly-productivity': ['sales_reps'],

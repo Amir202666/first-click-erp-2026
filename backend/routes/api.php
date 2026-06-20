@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\CashierDailyReportController;
 use App\Http\Controllers\Api\PosRestaurantController;
 use App\Http\Controllers\Api\PricingGroupController;
 use App\Http\Controllers\Api\PromotionController;
+use App\Http\Controllers\Api\DisassemblyOrderController;
 use App\Http\Controllers\Api\ProductionOrderController;
 use App\Http\Controllers\Api\PurchaseRequestController;
 use App\Http\Controllers\Api\QuotationController;
@@ -60,6 +61,7 @@ use App\Http\Controllers\Api\PublicMenuController;
 use App\Http\Controllers\Api\RestaurantMenuController;
 use App\Http\Controllers\Api\RestaurantSectionController;
 use App\Http\Controllers\Api\RestaurantTableController;
+use App\Http\Controllers\Api\RestaurantReservationController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SalesRepController;
 use App\Http\Controllers\Api\SettingsController;
@@ -348,6 +350,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/production-orders/{id}', [ProductionOrderController::class, 'update']);
         Route::delete('/production-orders/{id}', [ProductionOrderController::class, 'destroy']);
         Route::post('/production-orders/{id}/approve', [ProductionOrderController::class, 'approve']);
+        Route::get('/disassembly-orders/next-number', [DisassemblyOrderController::class, 'nextNumber']);
+        Route::get('/disassembly-orders', [DisassemblyOrderController::class, 'index']);
+        Route::post('/disassembly-orders', [DisassemblyOrderController::class, 'store']);
+        Route::get('/disassembly-orders/{id}', [DisassemblyOrderController::class, 'show']);
+        Route::put('/disassembly-orders/{id}', [DisassemblyOrderController::class, 'update']);
+        Route::delete('/disassembly-orders/{id}', [DisassemblyOrderController::class, 'destroy']);
+        Route::post('/disassembly-orders/{id}/confirm', [DisassemblyOrderController::class, 'confirm']);
+        Route::post('/disassembly-orders/{id}/cancel', [DisassemblyOrderController::class, 'cancel']);
 
         Route::get('/sales-reps', [SalesRepController::class, 'index']);
         Route::post('/sales-reps', [SalesRepController::class, 'store']);
@@ -463,9 +473,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // مطاعم - إدارة الطاولات وطلبات المطعم
         Route::get('/restaurant/tables', [RestaurantTableController::class, 'index']);
+        Route::get('/restaurant/tables/{id}', [RestaurantTableController::class, 'show']);
         Route::post('/restaurant/tables', [RestaurantTableController::class, 'store']);
         Route::put('/restaurant/tables/{id}', [RestaurantTableController::class, 'update']);
+        Route::patch('/restaurant/tables/{id}/status', [RestaurantTableController::class, 'updateStatus']);
         Route::delete('/restaurant/tables/{id}', [RestaurantTableController::class, 'destroy']);
+
+        Route::get('/restaurant/reservations', [RestaurantReservationController::class, 'index']);
+        Route::post('/restaurant/reservations', [RestaurantReservationController::class, 'store']);
+        Route::put('/restaurant/reservations/{id}', [RestaurantReservationController::class, 'update']);
+        Route::delete('/restaurant/reservations/{id}', [RestaurantReservationController::class, 'destroy']);
 
         Route::get('/restaurant/sections', [RestaurantSectionController::class, 'index']);
         Route::post('/restaurant/sections', [RestaurantSectionController::class, 'store']);

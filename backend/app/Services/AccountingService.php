@@ -1089,6 +1089,7 @@ class AccountingService
                 if (! $pay) {
                     $pay = $paymentsByNumber->get((string) ($je->number ?? ''));
                 }
+                $refNumber = $pay ? (string) $pay->number : $je->number;
                 $operationCode = $pay && strtolower((string) $pay->type) === 'receipt' ? 'receipt_voucher' : 'payment_voucher';
                 $sourceNotes = $pay?->notes;
             } elseif ($je->reference_type && str_ends_with((string) $je->reference_type, 'Installment')) {

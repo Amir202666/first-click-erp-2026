@@ -165,6 +165,18 @@ class InventoryMovement extends Model
                 $label = "أمر إنتاج رقم: {$refNo}";
                 break;
 
+            case DisassemblyOrder::class:
+                /** @var \App\Models\DisassemblyOrder|null $dis */
+                $dis = $reference instanceof DisassemblyOrder ? $reference : DisassemblyOrder::find($this->reference_id);
+                $refNo = $dis?->number ?? (string) $this->reference_id;
+                $voucherNumber = (string) $refNo;
+                $voucherKind = 'disassembly_order';
+                $viewUrl = '/manufacturing/disassembly-orders/'.$this->reference_id;
+                $editUrl = $viewUrl;
+                $printUrl = '';
+                $label = "أمر تفكيك رقم: {$refNo}";
+                break;
+
             case InventoryAdjustment::class:
                 /** @var \App\Models\InventoryAdjustment|null $adj */
                 $adj = $reference instanceof InventoryAdjustment ? $reference : InventoryAdjustment::find($this->reference_id);

@@ -118,7 +118,7 @@ export default function RestaurantTablesPage() {
     <div className="space-y-4 px-5 md:px-6">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-lg font-semibold">
-          {t.restaurant?.tablesTitle ?? (lang === 'ar' ? 'طاولات المطعم' : 'Restaurant tables')}
+          {t.restaurant?.tablesReservationsTitle ?? (lang === 'ar' ? 'إدارة الطاولات والحجوزات' : 'Tables & reservations')}
         </h1>
         <button
           type="button"

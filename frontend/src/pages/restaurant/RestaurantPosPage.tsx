@@ -167,8 +167,8 @@ export default function RestaurantPosPage() {
   })
 
   const { data: sections } = useQuery({
-    queryKey: ['restaurantSections', tenantId],
-    queryFn: () => fetchRestaurantSections(tenantId),
+    queryKey: ['restaurantSections', tenantId, branchId],
+    queryFn: () => fetchRestaurantSections(tenantId, branchId ? { branch_id: branchId } : undefined),
     enabled: !!tenantId && showTableModal,
   })
   const sectionsList: RestaurantSection[] = sections ?? []
@@ -322,16 +322,29 @@ export default function RestaurantPosPage() {
   }, [])
 
   const { data: itemsData } = useQuery({
-    queryKey: ['posItems', tenantId, search],
-    queryFn: () => fetchPosItems(tenantId, { q: search, per_page: 200, pos_kind: 'restaurant' }),
+    queryKey: ['posItems', tenantId, search, branchId, warehouseId],
+    queryFn: () => fetchPosItems(tenantId, {
+      q: search,
+      per_page: 200,
+      pos_kind: 'restaurant',
+      ...(branchId ? { branch_id: branchId } : {}),
+      ...(warehouseId ? { warehouse_id: warehouseId } : {}),
+    }),
     enabled: !!tenantId,
   })
   const allPosItems: PosItem[] = itemsData?.data ?? []
 
   const categories = useMemo(
-    () => itemCategories.filter((c) => (c.show_in_restaurant_pos ?? true) && c.is_active !== false),
-    [itemCategories],
+    () => itemCategories.filter((c) => {
+      if (!(c.show_in_restaurant_pos ?? true) || c.is_active === false) return false
+      if (!branchId) return true
+      if (c.applies_to_all_branches !== false) return true
+      return (c.branches ?? []).some((b) => b.id === branchId)
+    }),
+    [itemCategories, branchId],
   )
+
+  const allowNegativeSale = (settings as { allow_negative_sale?: boolean } | undefined)?.allow_negative_sale !== false
 
   const selectedTable = useMemo(() => tables?.find((t) => t.id === selectedTableId) ?? null, [tables, selectedTableId])
 
@@ -365,9 +378,15 @@ export default function RestaurantPosPage() {
         const sectionName = getLocalizedName(sec, lang).trim()
         const sectionNameAr = (sec.name ?? '').trim()
         const sectionNameEn = ((sec.name_en || sec.name) ?? '').trim()
+        const sectionCode = (sec.code ?? '').trim()
         list = list.filter((t) => {
           const tSec = (t.section ?? '').trim()
-          return tSec === sectionName || tSec === sectionNameAr || tSec === sectionNameEn
+          return (
+            tSec === sectionName
+            || tSec === sectionNameAr
+            || tSec === sectionNameEn
+            || (sectionCode !== '' && tSec === sectionCode)
+          )
         })
       }
     }
@@ -375,13 +394,18 @@ export default function RestaurantPosPage() {
   }, [tables, tableModalTab, sectionsList, lang])
 
   const posItems = useMemo(
-    () =>
-      allPosItems.filter((item) =>
-        selectedCategoryId === 'all' || !item.category_id
-          ? true
-          : item.category_id === selectedCategoryId,
-      ),
-    [allPosItems, selectedCategoryId],
+    () => {
+      const visibleCategoryIds = new Set(categories.map((c) => c.id))
+      return allPosItems.filter((item) => {
+        const catOk = !item.category_id || visibleCategoryIds.has(item.category_id)
+        const categoryMatch =
+          selectedCategoryId === 'all' || !item.category_id
+            ? true
+            : item.category_id === selectedCategoryId
+        return catOk && categoryMatch
+      })
+    },
+    [allPosItems, selectedCategoryId, categories],
   )
 
   const getItemPrice = (i: PosItem) => {
@@ -1397,7 +1421,9 @@ export default function RestaurantPosPage() {
               const imgUrl = item.image_url || item.image || null
               const stock = getPosItemStock(item)
               const unitPrice = getItemPrice(item)
-              const outOfStock = stock === 0 || unitPrice === 0
+              const trackStock = item.track_quantity !== false && item.type !== 'service'
+              const outOfStock = unitPrice <= 0 || (trackStock && stock <= 0 && !allowNegativeSale)
+              const lowStock = trackStock && stock > 0 && stock <= Number(item.min_quantity ?? 5)
               const catName = item.category_name ?? ''
               return (
                 <button
@@ -1417,10 +1443,20 @@ export default function RestaurantPosPage() {
                   <span
                     className={cn(
                       'absolute end-1 top-1 z-[2] rounded px-1.5 py-0.5 text-[9px] font-bold shadow-sm',
-                      outOfStock ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800',
+                      outOfStock
+                        ? 'bg-rose-100 text-rose-800'
+                        : lowStock
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800',
                     )}
                   >
-                    {outOfStock ? (lang === 'ar' ? 'نفد' : 'Out') : lang === 'ar' ? 'متاح' : 'OK'}
+                    {outOfStock
+                      ? (lang === 'ar' ? 'نفد' : 'Out')
+                      : lowStock
+                        ? (lang === 'ar' ? 'منخفض' : 'Low')
+                        : lang === 'ar'
+                          ? 'متاح'
+                          : 'OK'}
                   </span>
                   <div className="relative h-[72px] w-full shrink-0 bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
                     <span className="absolute inset-0 flex items-center justify-center text-3xl select-none" aria-hidden>

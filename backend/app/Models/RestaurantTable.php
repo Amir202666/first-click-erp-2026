@@ -18,8 +18,16 @@ class RestaurantTable extends Model
         'code',
         'section',
         'capacity',
+        'shape',
         'status',
         'sort_order',
+        'occupied_at',
+        'closed_at',
+    ];
+
+    protected $casts = [
+        'occupied_at' => 'datetime',
+        'closed_at' => 'datetime',
     ];
 
     public function branch(): BelongsTo
@@ -30,5 +38,10 @@ class RestaurantTable extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class, 'table_id');
+    }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(RestaurantReservation::class, 'table_id');
     }
 }

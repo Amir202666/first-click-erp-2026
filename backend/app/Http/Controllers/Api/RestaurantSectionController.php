@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\RestaurantSection;
+use App\Services\RestaurantBranchScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,12 +14,19 @@ class RestaurantSectionController extends Controller
     {
         $tenantId = $request->attributes->get('tenant_id');
 
-        $sections = RestaurantSection::query()
+        $branchId = $request->query('branch_id');
+
+        $query = RestaurantSection::query()
             ->where('tenant_id', $tenantId)
             ->with('branch:id,name')
             ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
+            ->orderBy('id');
+
+        if ($branchId !== null && $branchId !== '') {
+            RestaurantBranchScope::applySectionBranchFilter($query, $tenantId, (int) $branchId);
+        }
+
+        $sections = $query->get();
 
         return response()->json($sections);
     }
@@ -56,8 +64,9 @@ class RestaurantSectionController extends Controller
         ]);
 
         $section->update($data);
+        RestaurantBranchScope::syncTablesBranchFromSection($section->fresh());
 
-        return response()->json($section);
+        return response()->json($section->fresh('branch'));
     }
 
     public function destroy(Request $request, int $id): JsonResponse

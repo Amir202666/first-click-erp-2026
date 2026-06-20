@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * خدمة ترحيل الفواتير (تأثير محاسبي ومخزني كامل):
- * - قيد مركب: من حـ/ الصندوق أو البنك (حسب طريقة الدفع)، إلى حـ/ المبيعات، إلى حـ/ ضريبة القيمة المضافة.
+ * - قيد الإيراد: مدين حساب العميل (أو البنك/الصندوق مباشرةً في POS بدون سند قبض)، دائن المبيعات والضريبة.
+ * - عند وجود سند قبض: قيد الفاتورة على العميل فقط، والتحصيل النقدي في قيد سند القبض (مدين بنك/صندوق، دائن عميل).
  * - قيد التكلفة: مدين تكلفة البضاعة المباعة، دائن المخزون (بمتوسط التكلفة أو FIFO).
  * - خصم المخزون: BOM مع «تصنيع آلي عند البيع» يستخدم مخزن الخام ومخزن المنتج النهائي من إعدادات التصنيع؛
  *   يُنشأ قيد تصنيع مستقل (رقم MFG…) لمرحلتي صرف الخام→WIP واستلام التام من WIP؛ وقيد مبيعات منفصل للإيراد/العميل ولتكلفة المبيعات من مخزون التام.
@@ -228,8 +229,8 @@ class InvoicePostingService
 
     /**
      * بناء بنود القيد لفاتورة مبيعات.
-     * - فواتير POS: مدين عهدة الكاشير (نقداً) + مدين عملاء (آجل)، دائن المبيعات والضريبة.
-     * - فواتير عادية مدفوعة (نقداً/كي نت/أي طريقة دفع): مدين الحساب المرتبط بطريقة الدفع، دائن المبيعات والضريبة.
+     * - إذا وُجدت سندات قبض مرتبطة: مدين حساب العميل بالكامل، دائن المبيعات والضريبة (التحصيل عبر سند القبض).
+     * - فواتير POS بدون سند قبض: مدين الصندوق/البنك أو عهدة الكاشير حسب الإعدادات.
      * - فواتير آجلة: مدين حساب العميل، دائن المبيعات والضريبة.
      */
     private function buildSalesJournalLines(Invoice $invoice, $defaults): array
@@ -239,128 +240,142 @@ class InvoicePostingService
 
         $totalBase = $this->toBaseAmount((float) $invoice->total, $invoice);
         $costCenterId = $this->costCenterId($invoice);
-        $isPos = ! empty($invoice->pos_shift_id);
-        $custodyAccountId = $defaults->pos_cash_custody_account_id ? (int) $defaults->pos_cash_custody_account_id : null;
 
-        if ($isPos && $custodyAccountId) {
-            $paidBase = $this->toBaseAmount((float) $invoice->amount_paid, $invoice);
-            $receivableBase = round($totalBase - $paidBase, self::DECIMALS);
-            if ($paidBase >= 0.001) {
-                $lines[] = [
-                    'account_id' => $custodyAccountId,
-                    'cost_center_id' => $costCenterId,
-                    'debit' => round($paidBase, self::DECIMALS),
-                    'credit' => 0,
-                    'description' => $desc.' (نقداً - عهدة كاشير)',
-                ];
+        if ($this->invoiceHasPostedReceiptPayments($invoice)) {
+            $receivableAccountId = $this->getReceivableAccountId($invoice, $defaults);
+            if (! $receivableAccountId) {
+                throw new \RuntimeException('العميل غير مرتبط بحساب في دليل الحسابات، أو لم يتم تحديد حساب العملاء في الإعدادات.');
             }
-            if ($receivableBase >= 0.001) {
+            $lines[] = [
+                'account_id' => $receivableAccountId,
+                'cost_center_id' => $costCenterId,
+                'debit' => round($totalBase, self::DECIMALS),
+                'credit' => 0,
+                'description' => $desc,
+            ];
+        } else {
+            $isPos = ! empty($invoice->pos_shift_id);
+            $custodyAccountId = $defaults->pos_cash_custody_account_id ? (int) $defaults->pos_cash_custody_account_id : null;
+
+            if ($isPos && $custodyAccountId) {
+                $paidBase = $this->toBaseAmount((float) $invoice->amount_paid, $invoice);
+                $receivableBase = round($totalBase - $paidBase, self::DECIMALS);
+                if ($paidBase >= 0.001) {
+                    $lines[] = [
+                        'account_id' => $custodyAccountId,
+                        'cost_center_id' => $costCenterId,
+                        'debit' => round($paidBase, self::DECIMALS),
+                        'credit' => 0,
+                        'description' => $desc.' (نقداً - عهدة كاشير)',
+                    ];
+                }
+                if ($receivableBase >= 0.001) {
+                    $receivableAccountId = $this->getReceivableAccountId($invoice, $defaults);
+                    if ($receivableAccountId) {
+                        $lines[] = [
+                            'account_id' => $receivableAccountId,
+                            'cost_center_id' => $costCenterId,
+                            'debit' => round($receivableBase, self::DECIMALS),
+                            'credit' => 0,
+                            'description' => $desc.' (آجل)',
+                        ];
+                    } else {
+                        $lines[] = [
+                            'account_id' => $custodyAccountId,
+                            'cost_center_id' => $costCenterId,
+                            'debit' => round($receivableBase, self::DECIMALS),
+                            'credit' => 0,
+                            'description' => $desc.' (آجل - مؤقت)',
+                        ];
+                    }
+                }
+            } else {
+                $paidBase = $this->toBaseAmount((float) $invoice->amount_paid, $invoice);
+                $receivableBase = round($totalBase - $paidBase, self::DECIMALS);
                 $receivableAccountId = $this->getReceivableAccountId($invoice, $defaults);
-                if ($receivableAccountId) {
+
+                // المبلغ المدفوع: من سجلات InvoicePayment على رأس الفاتورة (POS بدون سند قبض منفصل)
+                if ($paidBase >= 0.001) {
+                    $invoice->loadMissing(['paymentMethod', 'invoicePayments.paymentMethod']);
+                    $invoicePayments = $invoice->invoicePayments;
+                    $paymentsSum = $invoicePayments->sum(fn ($p) => (float) $p->amount);
+                    $invoicePaid = (float) $invoice->amount_paid;
+                    $useInvoicePayments = $invoicePayments->isNotEmpty() && abs($paymentsSum - $invoicePaid) < 0.01;
+
+                    if ($useInvoicePayments) {
+                        $byMethod = $invoicePayments->groupBy('payment_method_id');
+                        foreach ($byMethod as $methodId => $methodPayments) {
+                            $sumInBase = 0;
+                            foreach ($methodPayments as $p) {
+                                $sumInBase += $this->toBaseAmount((float) $p->amount, $invoice);
+                            }
+                            $sumInBase = round($sumInBase, self::DECIMALS);
+                            if ($sumInBase < 0.001) {
+                                continue;
+                            }
+                            $method = $methodPayments->first()->paymentMethod;
+                            $linkedId = $method?->linked_account_id ? (int) $method->linked_account_id : null;
+                            if ($linkedId) {
+                                $lines[] = [
+                                    'account_id' => $linkedId,
+                                    'cost_center_id' => $costCenterId,
+                                    'debit' => $sumInBase,
+                                    'credit' => 0,
+                                    'description' => $desc.' (طريقة الدفع)',
+                                ];
+                            } else {
+                                throw new \RuntimeException(
+                                    'طريقة الدفع «'.($method?->name ?? $method?->name_en ?? (string) $methodId).'» غير مرتبطة بحساب في دليل الحسابات. يرجى ربطها من إعدادات طرق الدفع.'
+                                );
+                            }
+                        }
+                    } else {
+                        if (! $invoice->payment_method_id) {
+                            throw new \RuntimeException(
+                                'يوجد مبلغ مدفوع على الفاتورة ولم يتم تحديد طريقة الدفع. يرجى تحديد طريقة الدفع المرتبطة بحساب البنك/الصندوق عند إنشاء الفاتورة أو إضافة الدفعة.'
+                            );
+                        }
+                        $paymentAccountId = $invoice->paymentMethod?->linked_account_id ? (int) $invoice->paymentMethod->linked_account_id : null;
+                        if (! $paymentAccountId) {
+                            throw new \RuntimeException(
+                                'طريقة الدفع «'.($invoice->paymentMethod->name ?? $invoice->paymentMethod->name_en ?? '').'» غير مرتبطة بحساب في دليل الحسابات. يرجى ربطها بحساب البنك من إعدادات طرق الدفع.'
+                            );
+                        }
+                        $lines[] = [
+                            'account_id' => $paymentAccountId,
+                            'cost_center_id' => $costCenterId,
+                            'debit' => round($paidBase, self::DECIMALS),
+                            'credit' => 0,
+                            'description' => $desc.' (طريقة الدفع)',
+                        ];
+                    }
+                }
+
+                if ($receivableBase >= 0.001) {
+                    if (! $receivableAccountId) {
+                        throw new \RuntimeException('العميل غير مرتبط بحساب في دليل الحسابات، أو لم يتم تحديد حساب العملاء في الإعدادات.');
+                    }
                     $lines[] = [
                         'account_id' => $receivableAccountId,
                         'cost_center_id' => $costCenterId,
                         'debit' => round($receivableBase, self::DECIMALS),
                         'credit' => 0,
-                        'description' => $desc.' (آجل)',
-                    ];
-                } else {
-                    $lines[] = [
-                        'account_id' => $custodyAccountId,
-                        'cost_center_id' => $costCenterId,
-                        'debit' => round($receivableBase, self::DECIMALS),
-                        'credit' => 0,
-                        'description' => $desc.' (آجل - مؤقت)',
+                        'description' => $desc.($paidBase >= 0.001 ? ' (آجل)' : ''),
                     ];
                 }
-            }
-        } else {
-            $paidBase = $this->toBaseAmount((float) $invoice->amount_paid, $invoice);
-            $receivableBase = round($totalBase - $paidBase, self::DECIMALS);
-            $receivableAccountId = $this->getReceivableAccountId($invoice, $defaults);
 
-            // المبلغ المدفوع: إما من سندات القبض (payments) أو من رأس الفاتورة (payment_method_id + amount_paid)
-            if ($paidBase >= 0.001) {
-                $invoice->loadMissing(['paymentMethod', 'payments.paymentMethod']);
-                $payments = $invoice->payments;
-                $paymentsSum = $payments->sum(fn ($p) => (float) $p->amount);
-                $invoicePaid = (float) $invoice->amount_paid;
-                $usePayments = $payments->isNotEmpty() && abs($paymentsSum - $invoicePaid) < 0.01;
-
-                if ($usePayments) {
-                    $byMethod = $payments->groupBy('payment_method_id');
-                    foreach ($byMethod as $methodId => $methodPayments) {
-                        $sumInBase = 0;
-                        foreach ($methodPayments as $p) {
-                            $sumInBase += $this->toBaseAmount((float) $p->amount, $invoice);
-                        }
-                        $sumInBase = round($sumInBase, self::DECIMALS);
-                        if ($sumInBase < 0.001) {
-                            continue;
-                        }
-                        $method = $methodPayments->first()->paymentMethod;
-                        $linkedId = $method?->linked_account_id ? (int) $method->linked_account_id : null;
-                        if ($linkedId) {
-                            $lines[] = [
-                                'account_id' => $linkedId,
-                                'cost_center_id' => $costCenterId,
-                                'debit' => $sumInBase,
-                                'credit' => 0,
-                                'description' => $desc.' (طريقة الدفع)',
-                            ];
-                        } else {
-                            throw new \RuntimeException(
-                                'طريقة الدفع «'.($method?->name ?? $method?->name_en ?? (string) $methodId).'» غير مرتبطة بحساب في دليل الحسابات. يرجى ربطها من إعدادات طرق الدفع.'
-                            );
-                        }
-                    }
-                } else {
-                    // الاعتماد على رأس الفاتورة: payment_method_id و amount_paid (فاتورة جديدة مرحّلة دون سندات قبض بعد)
-                    if (! $invoice->payment_method_id) {
-                        throw new \RuntimeException(
-                            'يوجد مبلغ مدفوع على الفاتورة ولم يتم تحديد طريقة الدفع. يرجى تحديد طريقة الدفع المرتبطة بحساب البنك/الصندوق عند إنشاء الفاتورة أو إضافة الدفعة.'
-                        );
-                    }
-                    $paymentAccountId = $invoice->paymentMethod?->linked_account_id ? (int) $invoice->paymentMethod->linked_account_id : null;
-                    if (! $paymentAccountId) {
-                        throw new \RuntimeException(
-                            'طريقة الدفع «'.($invoice->paymentMethod->name ?? $invoice->paymentMethod->name_en ?? '').'» غير مرتبطة بحساب في دليل الحسابات. يرجى ربطها بحساب البنك من إعدادات طرق الدفع.'
-                        );
+                if (empty($lines)) {
+                    if (! $receivableAccountId) {
+                        throw new \RuntimeException('العميل غير مرتبط بحساب في دليل الحسابات، أو لم يتم تحديد حساب العملاء في الإعدادات.');
                     }
                     $lines[] = [
-                        'account_id' => $paymentAccountId,
+                        'account_id' => $receivableAccountId,
                         'cost_center_id' => $costCenterId,
-                        'debit' => round($paidBase, self::DECIMALS),
+                        'debit' => round($totalBase, self::DECIMALS),
                         'credit' => 0,
-                        'description' => $desc.' (طريقة الدفع)',
+                        'description' => $desc,
                     ];
                 }
-            }
-
-            if ($receivableBase >= 0.001) {
-                if (! $receivableAccountId) {
-                    throw new \RuntimeException('العميل غير مرتبط بحساب في دليل الحسابات، أو لم يتم تحديد حساب العملاء في الإعدادات.');
-                }
-                $lines[] = [
-                    'account_id' => $receivableAccountId,
-                    'cost_center_id' => $costCenterId,
-                    'debit' => round($receivableBase, self::DECIMALS),
-                    'credit' => 0,
-                    'description' => $desc.($paidBase >= 0.001 ? ' (آجل)' : ''),
-                ];
-            }
-
-            if (empty($lines)) {
-                if (! $receivableAccountId) {
-                    throw new \RuntimeException('العميل غير مرتبط بحساب في دليل الحسابات، أو لم يتم تحديد حساب العملاء في الإعدادات.');
-                }
-                $lines[] = [
-                    'account_id' => $receivableAccountId,
-                    'cost_center_id' => $costCenterId,
-                    'debit' => round($totalBase, self::DECIMALS),
-                    'credit' => 0,
-                    'description' => $desc,
-                ];
             }
         }
 
@@ -421,6 +436,29 @@ class InvoicePostingService
         }
 
         return $lines;
+    }
+
+    /**
+     * هل وُجدت سندات قبض معتمدة/مرحّلة مرتبطة بالفاتورة؟
+     * عندها يُسجَّل الإيراد على حساب العميل في قيد الفاتورة، والتحصيل النقدي في قيد سند القبض.
+     */
+    private function invoiceHasPostedReceiptPayments(Invoice $invoice): bool
+    {
+        $invoice->loadMissing('payments');
+
+        if ($invoice->payments->isNotEmpty()) {
+            return $invoice->payments->contains(
+                fn ($payment) => $payment->type === 'receipt'
+                    && in_array((string) $payment->status, ['approved', 'posted'], true)
+            );
+        }
+
+        return \App\Models\Payment::query()
+            ->where('tenant_id', $invoice->tenant_id)
+            ->where('invoice_id', $invoice->id)
+            ->where('type', 'receipt')
+            ->whereIn('status', ['approved', 'posted'])
+            ->exists();
     }
 
     /**

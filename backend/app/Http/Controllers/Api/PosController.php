@@ -43,14 +43,24 @@ class PosController extends Controller
         $categoryId = $request->has('category_id') ? (int) $request->category_id : null;
         $posKind = strtolower(trim((string) ($request->pos_kind ?? 'pos'))); // pos | restaurant
         $limit = min((int) ($request->per_page ?? 50), 100);
+        $warehouseId = $request->filled('warehouse_id') ? (int) $request->warehouse_id : null;
+        $branchId = $request->filled('branch_id') ? (int) $request->branch_id : null;
 
         $query = Item::where('tenant_id', $tenantId)->where('is_active', true);
 
         // تصفية الظهور حسب إعداد الفئة (يؤثر على كل الأصناف التابعة)
         $flagCol = $posKind === 'restaurant' ? 'show_in_restaurant_pos' : 'show_in_pos';
-        $query->where(function ($q) use ($flagCol) {
+        $query->where(function ($q) use ($flagCol, $branchId) {
             $q->whereNull('category_id')
-                ->orWhereHas('category', fn ($qc) => $qc->where($flagCol, true));
+                ->orWhereHas('category', function ($qc) use ($flagCol, $branchId) {
+                    $qc->where($flagCol, true);
+                    if ($branchId) {
+                        $qc->where(function ($qb) use ($branchId) {
+                            $qb->where('applies_to_all_branches', true)
+                                ->orWhereHas('branches', fn ($b) => $b->where('branches.id', $branchId));
+                        });
+                    }
+                });
         });
 
         if ($categoryId > 0) {
@@ -105,8 +115,8 @@ class PosController extends Controller
             $promoSet = array_fill_keys($promoIds, true);
         }
 
-        $items->each(function ($item) use ($salesByItem, $promoSet) {
-            $item->setAttribute('current_stock', $this->inventoryService->getItemStock($item->id));
+        $items->each(function ($item) use ($salesByItem, $promoSet, $warehouseId) {
+            $item->setAttribute('current_stock', $this->inventoryService->getItemStock($item->id, $warehouseId));
             $item->setAttribute('sales_count', (float) ($salesByItem[(int) $item->id] ?? 0));
             $item->setAttribute('is_promo', isset($promoSet[(int) $item->id]));
             $cat = $item->category;

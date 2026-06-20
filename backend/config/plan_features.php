@@ -59,6 +59,7 @@ return [
 
         'boms' => ['manufacturing'],
         'production-orders' => ['manufacturing'],
+        'disassembly-orders' => ['manufacturing'],
 
         'delivery-' => ['sales'],
         'delivery/' => ['sales'],

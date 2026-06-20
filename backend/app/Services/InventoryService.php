@@ -485,7 +485,7 @@ class InventoryService
         if ($voucherKind !== '') {
             $allowedKinds = [
                 'purchase_invoice', 'sales_invoice', 'purchase_return', 'sales_return',
-                'opening_stock', 'stock_transfer', 'production_order', 'inventory_adjustment',
+                'opening_stock', 'stock_transfer', 'production_order', 'disassembly_order', 'inventory_adjustment',
                 'manual_adjustment', 'invoice', 'other',
             ];
             if (in_array($voucherKind, $allowedKinds, true)) {

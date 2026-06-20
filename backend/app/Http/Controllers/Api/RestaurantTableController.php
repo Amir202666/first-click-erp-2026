@@ -4,26 +4,83 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\RestaurantTable;
+use App\Services\RestaurantBranchScope;
+use App\Services\RestaurantFloorMapService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RestaurantTableController extends Controller
 {
+    public function __construct(private RestaurantFloorMapService $floorMapService) {}
+
     public function index(Request $request): JsonResponse
     {
-        $tenantId = $request->attributes->get('tenant_id');
+        $tenantId = (int) $request->attributes->get('tenant_id');
         $branchId = $request->query('branch_id');
+        $section = $request->query('section');
 
         $query = RestaurantTable::query()
             ->where('tenant_id', $tenantId)
             ->orderBy('sort_order')
             ->orderBy('id');
 
-        if ($branchId) {
-            $query->where('branch_id', $branchId);
+        if ($branchId !== null && $branchId !== '') {
+            RestaurantBranchScope::applyTableBranchFilter($query, $tenantId, (int) $branchId);
+        }
+        if ($section) {
+            $query->where('section', $section);
         }
 
-        return response()->json($query->get());
+        $tables = $query->get();
+
+        if ($request->boolean('floor_map')) {
+            $date = $request->query('date', now()->toDateString());
+
+            return response()->json($this->floorMapService->enrichTables($tables, $tenantId, $date));
+        }
+
+        return response()->json($tables);
+    }
+
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $tenantId = (int) $request->attributes->get('tenant_id');
+        $date = $request->query('date', now()->toDateString());
+        $table = RestaurantTable::where('tenant_id', $tenantId)->findOrFail($id);
+        $enriched = $this->floorMapService->enrichTables(collect([$table]), $tenantId, $date);
+
+        return response()->json($enriched[0] ?? $table);
+    }
+
+    public function updateStatus(Request $request, int $id): JsonResponse
+    {
+        $tenantId = (int) $request->attributes->get('tenant_id');
+        $table = RestaurantTable::where('tenant_id', $tenantId)->findOrFail($id);
+
+        $data = $request->validate([
+            'status' => ['required', 'in:available,occupied,cleaning,reserved,preparing,closed'],
+        ]);
+
+        $updates = ['status' => $data['status']];
+
+        if ($data['status'] === 'occupied') {
+            $updates['occupied_at'] = now();
+            $updates['closed_at'] = null;
+        } elseif ($data['status'] === 'closed') {
+            $updates['closed_at'] = now();
+        } elseif ($data['status'] === 'available') {
+            $updates['occupied_at'] = null;
+            $updates['closed_at'] = null;
+        } elseif ($data['status'] === 'preparing') {
+            $updates['status'] = 'cleaning';
+        }
+
+        $table->update($updates);
+
+        $date = $request->query('date', now()->toDateString());
+        $enriched = $this->floorMapService->enrichTables(collect([$table->fresh()]), $tenantId, $date);
+
+        return response()->json($enriched[0] ?? $table->fresh());
     }
 
     public function store(Request $request): JsonResponse
@@ -36,11 +93,19 @@ class RestaurantTableController extends Controller
             'code' => ['nullable', 'string', 'max:50'],
             'section' => ['nullable', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:1'],
-            'status' => ['nullable', 'in:available,occupied,cleaning'],
+            'status' => ['nullable', 'in:available,occupied,cleaning,closed'],
+            'shape' => ['nullable', 'in:square,round'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $data['tenant_id'] = $tenantId;
+
+        if (empty($data['branch_id']) && ! empty($data['section'])) {
+            $resolved = RestaurantBranchScope::resolveBranchIdFromSectionName($tenantId, (string) $data['section']);
+            if ($resolved) {
+                $data['branch_id'] = $resolved;
+            }
+        }
 
         $table = RestaurantTable::create($data);
 
@@ -58,9 +123,17 @@ class RestaurantTableController extends Controller
             'code' => ['nullable', 'string', 'max:50'],
             'section' => ['nullable', 'string', 'max:255'],
             'capacity' => ['nullable', 'integer', 'min:1'],
-            'status' => ['nullable', 'in:available,occupied,cleaning'],
+            'status' => ['nullable', 'in:available,occupied,cleaning,closed'],
+            'shape' => ['nullable', 'in:square,round'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        if (empty($data['branch_id']) && ! empty($data['section'])) {
+            $resolved = RestaurantBranchScope::resolveBranchIdFromSectionName($tenantId, (string) $data['section']);
+            if ($resolved) {
+                $data['branch_id'] = $resolved;
+            }
+        }
 
         $table->update($data);
 

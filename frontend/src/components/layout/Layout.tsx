@@ -328,10 +328,11 @@ const navEntries: NavEntry[] = [
   {
     labelKey: 'nav.manufacturing',
     icon: Factory,
-    basePaths: ['/manufacturing/bom', '/manufacturing/production-orders'],
+    basePaths: ['/manufacturing/bom', '/manufacturing/production-orders', '/manufacturing/disassembly-orders'],
     children: [
       { path: '/manufacturing/bom', labelKey: 'nav.bom', icon: ListTree },
       { path: '/manufacturing/production-orders', labelKey: 'nav.productionOrders', icon: ClipboardList },
+      { path: '/manufacturing/disassembly-orders', labelKey: 'nav.disassemblyOrders', icon: ClipboardList },
     ],
   },
   {

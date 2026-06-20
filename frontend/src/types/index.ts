@@ -1292,6 +1292,53 @@ export interface ProductionOrder {
   approvedByUser?: { id: number; name: string } | null
 }
 
+export interface DisassemblyOrderLine {
+  id?: number
+  disassembly_order_id?: number
+  item_id: number
+  warehouse_id: number
+  quantity: number
+  unit_cost?: number
+  total_cost?: number
+  unit_id?: number | null
+  notes?: string | null
+  sort_order?: number
+  item?: Item
+  warehouse?: Warehouse | null
+  unit?: ItemUnit | null
+}
+
+export interface DisassemblyOrderStats {
+  total: number
+  draft: number
+  completed: number
+  cancelled: number
+}
+
+export interface DisassemblyOrder {
+  id: number
+  tenant_id: number
+  number: string
+  item_id: number
+  warehouse_id: number
+  quantity: number
+  unit_cost: number
+  total_cost: number
+  date: string
+  status: 'draft' | 'completed' | 'cancelled'
+  notes: string | null
+  created_by?: number | null
+  confirmed_by?: number | null
+  confirmed_at?: string | null
+  item?: Item
+  warehouse?: Warehouse | null
+  lines?: DisassemblyOrderLine[]
+  createdByUser?: { id: number; name: string } | null
+  created_by_user?: { id: number; name: string } | null
+  confirmedByUser?: { id: number; name: string } | null
+  confirmed_by_user?: { id: number; name: string } | null
+}
+
 export interface PaginatedResponse<T> {
   data: T[]
   current_page: number
@@ -1693,8 +1740,49 @@ export interface RestaurantTable {
   code?: string | null
   section?: string | null
   capacity?: number | null
-  status: 'available' | 'occupied' | 'cleaning'
+  shape?: 'square' | 'round' | null
+  status: 'available' | 'occupied' | 'cleaning' | 'closed' | string
   sort_order?: number
+  occupied_at?: string | null
+  closed_at?: string | null
+}
+
+export type RestaurantTableDisplayStatus = 'available' | 'reserved' | 'preparing' | 'occupied' | 'closed'
+
+export interface RestaurantTableReservationBrief {
+  id: number
+  customer_name: string
+  customer_phone?: string | null
+  time: string
+  guests_count: number
+  status: RestaurantReservationStatus
+}
+
+export interface RestaurantTableFloor extends RestaurantTable {
+  display_status: RestaurantTableDisplayStatus
+  number: string
+  reservation?: RestaurantTableReservationBrief | null
+  open_order_id?: number | null
+  occupied_since?: string | null
+}
+
+export type RestaurantReservationStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
+
+export interface RestaurantReservation {
+  id: number
+  tenant_id: number
+  branch_id?: number | null
+  table_id?: number | null
+  section?: string | null
+  customer_name: string
+  customer_phone?: string | null
+  reservation_date: string
+  reservation_time: string
+  guests_count: number
+  status: RestaurantReservationStatus
+  notes?: string | null
+  seated_at?: string | null
+  table?: Pick<RestaurantTable, 'id' | 'name' | 'code' | 'section' | 'capacity'> | null
 }
 
 export interface RestaurantSection {

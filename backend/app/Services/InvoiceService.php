@@ -637,6 +637,30 @@ class InvoiceService
             }
         }
 
+        return $this->applyInvoiceCostCenterToJournalLines($invoice, $lines);
+    }
+
+    private function invoiceCostCenterId(Invoice $invoice): ?int
+    {
+        $id = $invoice->cost_center_id ?? null;
+
+        return $id ? (int) $id : null;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $lines
+     * @return array<int, array<string, mixed>>
+     */
+    private function applyInvoiceCostCenterToJournalLines(Invoice $invoice, array $lines): array
+    {
+        $ccId = $this->invoiceCostCenterId($invoice);
+        if ($ccId === null) {
+            return $lines;
+        }
+        foreach ($lines as $i => $line) {
+            $lines[$i]['cost_center_id'] = $ccId;
+        }
+
         return $lines;
     }
 
@@ -748,7 +772,7 @@ class InvoiceService
             ];
         }
 
-        return $lines;
+        return $this->applyInvoiceCostCenterToJournalLines($invoice, $lines);
     }
 
     private function createSalesInventoryMovements(Invoice $invoice, int $tenantId): void
@@ -912,7 +936,7 @@ class InvoiceService
             }
         }
 
-        return $lines;
+        return $this->applyInvoiceCostCenterToJournalLines($invoice, $lines);
     }
 
     /** مرتجع مشتريات: عكس القيد (مدين موردون، دائن مخزون)، وخروج من المخزون */
@@ -968,7 +992,7 @@ class InvoiceService
             ];
         }
 
-        return $lines;
+        return $this->applyInvoiceCostCenterToJournalLines($invoice, $lines);
     }
 
     /** مرتجع مبيعات: إعادة للمخزون (دخول) — الكمية بالوحدة الصغرى */

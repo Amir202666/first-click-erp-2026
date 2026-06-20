@@ -34,7 +34,7 @@ class PaymentService
         $this->resolveCashBankAccount($payment);
         $tenantId = $payment->tenant_id;
         $journalLines = [];
-        $costCenterId = $payment->cost_center_id;
+        $costCenterId = $this->resolvePaymentCostCenterId($payment);
 
         $addLine = function (int $accountId, float $debit, float $credit, string $description) use ($costCenterId, &$journalLines) {
             $journalLines[] = [
@@ -109,6 +109,24 @@ class PaymentService
         $payment->update(['journal_entry_id' => $entry->id]);
     }
 
+    private function resolvePaymentCostCenterId(Payment $payment): ?int
+    {
+        if ($payment->cost_center_id) {
+            return (int) $payment->cost_center_id;
+        }
+
+        if ($payment->invoice_id) {
+            $invoice = $payment->relationLoaded('invoice')
+                ? $payment->invoice
+                : Invoice::where('tenant_id', $payment->tenant_id)->find($payment->invoice_id);
+            if ($invoice?->cost_center_id) {
+                return (int) $invoice->cost_center_id;
+            }
+        }
+
+        return null;
+    }
+
     public function createPayment(array $data): Payment
     {
         return DB::transaction(function () use ($data) {
@@ -136,6 +154,9 @@ class PaymentService
                     }
                     if (empty($data['branch_id']) && $invoice->branch_id) {
                         $data['branch_id'] = $invoice->branch_id;
+                    }
+                    if (empty($data['cost_center_id']) && $invoice->cost_center_id) {
+                        $data['cost_center_id'] = $invoice->cost_center_id;
                     }
                 }
             }

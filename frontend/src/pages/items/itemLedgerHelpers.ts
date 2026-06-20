@@ -49,6 +49,7 @@ export type InventoryTranslations = {
   voucherKindOpeningStock?: string
   voucherKindStockTransfer?: string
   voucherKindProductionOrder?: string
+  voucherKindDisassemblyOrder?: string
   voucherKindManualAdjustment?: string
   voucherKindInventoryAdjustment?: string
   voucherKindInvoice?: string
@@ -95,6 +96,8 @@ export function voucherKindLabel(kind: string | undefined, inv: InventoryTransla
       return inv.voucherKindStockTransfer ?? 'Stock transfer'
     case 'production_order':
       return inv.voucherKindProductionOrder ?? 'Production order'
+    case 'disassembly_order':
+      return inv.voucherKindDisassemblyOrder ?? 'Disassembly order'
     case 'manual_adjustment':
       return inv.voucherKindManualAdjustment ?? 'Manual adjustment'
     case 'inventory_adjustment':

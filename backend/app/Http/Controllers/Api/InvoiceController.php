@@ -366,6 +366,7 @@ class InvoiceController extends Controller
                             'reference' => $invoice->number ?? (string) $invoice->id,
                             'notes' => $spec['notes'],
                             'branch_id' => $invoice->branch_id,
+                            'cost_center_id' => $invoice->cost_center_id,
                             'status' => 'approved',
                             'created_by' => $request->user()->id,
                         ]);

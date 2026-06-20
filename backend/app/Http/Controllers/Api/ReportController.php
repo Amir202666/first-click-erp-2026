@@ -2345,6 +2345,9 @@ class ReportController extends Controller
             if ($je && $je->reference_type && str_ends_with($je->reference_type, 'Invoice')) {
                 $inv = Invoice::where('id', $je->reference_id)->first();
                 $refNumber = $inv ? $inv->number : $refNumber;
+            } elseif ($je && $je->reference_type && str_ends_with($je->reference_type, 'Payment')) {
+                $pay = Payment::where('tenant_id', $tenantId)->where('id', $je->reference_id)->first();
+                $refNumber = $pay ? (string) $pay->number : $refNumber;
             }
             $result[] = [
                 'date' => $je?->date?->format('Y-m-d'),

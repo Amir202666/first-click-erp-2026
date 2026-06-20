@@ -79,7 +79,7 @@ const accountColumnKeys: AccountColumnKey[] = ['code', 'name', 'type', 'status']
 export default function AccountList() {
   const navigate = useNavigate()
   const { currentTenant, can } = useAuth()
-  const { t, isRtl, getDisplayName } = useLanguage()
+  const { lang, t, isRtl, getDisplayName } = useLanguage()
   const tenantId = currentTenant?.id ?? 0
   const queryClient = useQueryClient()
   const canDeleteAccount = can('accounts.delete')
