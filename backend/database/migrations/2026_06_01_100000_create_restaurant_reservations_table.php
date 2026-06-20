@@ -27,8 +27,8 @@ return new class extends Migration
             $table->foreign('tenant_id')->references('id')->on('tenants')->onDelete('cascade');
             $table->foreign('branch_id')->references('id')->on('branches')->nullOnDelete();
             $table->foreign('table_id')->references('id')->on('restaurant_tables')->nullOnDelete();
-            $table->index(['tenant_id', 'reservation_date', 'status']);
-            $table->index(['tenant_id', 'table_id', 'reservation_date']);
+            $table->index(['tenant_id', 'reservation_date', 'status'], 'rr_tenant_date_status_idx');
+            $table->index(['tenant_id', 'table_id', 'reservation_date'], 'rr_tenant_table_date_idx');
         });
     }
 
