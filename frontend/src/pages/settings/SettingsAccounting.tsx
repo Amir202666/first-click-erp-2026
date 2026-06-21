@@ -68,6 +68,7 @@ const ITEM_OPTIONS_KEYS = [
   'allow_negative_sale',
   'invoice_variants_sales_enabled',
   'invoice_variants_purchases_enabled',
+  'disassembly_affects_average_cost',
 ] as const
 
 /** تنسيقات الرقم المرجعي العامة */
@@ -194,7 +195,7 @@ export default function SettingsAccounting() {
       const val = (settings as Record<string, unknown>)[key]
       if (val === undefined || val === null) {
         next[key] =
-          key === 'invoice_variants_sales_enabled' || key === 'invoice_variants_purchases_enabled' || key === 'invoice_expiry_dates_enabled'
+          key === 'invoice_variants_sales_enabled' || key === 'invoice_variants_purchases_enabled' || key === 'invoice_expiry_dates_enabled' || key === 'disassembly_affects_average_cost'
             ? true
             : false
       } else {
@@ -666,6 +667,19 @@ export default function SettingsAccounting() {
               >
                 <option value="0">لا</option>
                 <option value="1">نعم</option>
+              </select>
+            </div>
+            <div className="min-w-0 sm:col-span-2">
+              <label className={`block text-sm font-medium text-slate-700 mb-1 ${textAlign}`}>
+                أمر التفكيك يؤثر على متوسط تكلفة الصنف
+              </label>
+              <select
+                value={form.disassembly_affects_average_cost ? '1' : '0'}
+                onChange={(e) => handleChange('disassembly_affects_average_cost', e.target.value === '1')}
+                className="w-full min-w-0 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-inset focus:ring-primary-500 outline-none"
+              >
+                <option value="1">نعم</option>
+                <option value="0">لا</option>
               </select>
             </div>
           </div>

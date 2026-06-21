@@ -92,6 +92,7 @@ class TenantSettingsService
             'invoice_variants_purchases_enabled',
             /** تاريخ الصلاحية ورقم الباتش في أسطر فواتير المبيعات/المشتريات */
             'invoice_expiry_dates_enabled',
+            'disassembly_affects_average_cost',
             'notification_email_enabled',
             'notification_sms_enabled',
             'pos_use_default_customer',

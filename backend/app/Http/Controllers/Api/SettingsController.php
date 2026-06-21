@@ -22,6 +22,7 @@ class SettingsController extends Controller
         'invoice_variants_purchases_enabled' => false,
         'invoice_expiry_dates_enabled' => false,
         'default_vat_rate' => 15,
+        'disassembly_affects_average_cost' => true,
     ];
 
     public function __construct(

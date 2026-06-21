@@ -86,41 +86,58 @@ class DocumentTemplateController extends Controller
     }
 
     /**
-     * تحويل قالب من صيغة PHP المُسلسَلة (مثل تصدير أنظمة أخرى) إلى صيغة القالب المستخدمة في النظام.
-     * يقبل النص الخام: إما base64 لمحتوى PHP serialized أو النص المُسلسَل مباشرة.
+     * استيراد قالب من JSON (مثل تصدير أنظمة أخرى) إلى صيغة القالب المستخدمة في النظام.
+     * يقبل النص الخام: إما base64 لمحتوى JSON أو نص JSON مباشرة.
+     * لا يُستخدم unserialize() — تجنباً لثغرات إلغاء التسلسل في PHP.
      */
     public function convertPhpSerialized(Request $request): JsonResponse
     {
-        $request->validate([
-            'content' => 'required|string',
+        $validated = $request->validate([
+            'content' => 'required|string|max:500000',
         ]);
-        $raw = $request->input('content');
+        $raw = trim($validated['content']);
 
-        $data = null;
-        if (preg_match('/^[A-Za-z0-9+\/=]+\s*$/', trim($raw)) && strlen(trim($raw)) > 20) {
-            $decoded = base64_decode(trim($raw), true);
-            if ($decoded !== false) {
-                $data = @unserialize($decoded);
-            }
-        }
-        if ($data === false || $data === null) {
-            $data = @unserialize($raw);
-        }
+        $data = $this->decodeTemplateImportPayload($raw);
 
         if (! is_array($data)) {
-            return response()->json(['message' => 'المحتوى ليس قالباً بصيغة PHP صالحة.'], 422);
+            return response()->json(['message' => 'المحتوى ليس قالباً بصيغة JSON صالحة.'], 422);
         }
 
+        $allowedKeys = ['title', 'name', 'type', 'html', 'config', 'labels', 'module'];
+        $data = array_intersect_key($data, array_flip($allowedKeys));
+
         $title = $data['title'] ?? $data['name'] ?? 'قالب مستورد';
+        if (! is_string($title) || $title === '') {
+            $title = 'قالب مستورد';
+        }
+        $title = mb_substr($title, 0, 150);
+
         $type = $data['type'] ?? 'sales';
+        if (! is_string($type)) {
+            $type = 'sales';
+        }
         $docType = $type === 'sales' ? 'invoice' : $type;
+        if (! is_string($docType) || strlen($docType) > 50) {
+            return response()->json(['message' => 'نوع المستند غير صالح.'], 422);
+        }
+
         $html = $data['html'] ?? '';
+        if (! is_string($html)) {
+            return response()->json(['message' => 'محتوى HTML غير صالح.'], 422);
+        }
+
         $config = isset($data['config']) ? (is_string($data['config']) ? json_decode($data['config'], true) : $data['config']) : null;
         $labels = isset($data['labels']) ? (is_string($data['labels']) ? json_decode($data['labels'], true) : $data['labels']) : null;
+        if ($config !== null && ! is_array($config)) {
+            return response()->json(['message' => 'حقل config يجب أن يكون JSON صالحاً.'], 422);
+        }
+        if ($labels !== null && ! is_array($labels)) {
+            return response()->json(['message' => 'حقل labels يجب أن يكون JSON صالحاً.'], 422);
+        }
 
         $meta = array_filter([
-            'imported_from' => 'php_serialized',
-            'module' => $data['module'] ?? null,
+            'imported_from' => 'json',
+            'module' => is_string($data['module'] ?? null) ? $data['module'] : null,
             'config' => $config,
             'labels' => $labels,
         ], fn ($v) => $v !== null);
@@ -132,5 +149,29 @@ class DocumentTemplateController extends Controller
             'content' => $html,
             'meta' => $meta,
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function decodeTemplateImportPayload(string $raw): ?array
+    {
+        if ($raw === '') {
+            return null;
+        }
+
+        if (preg_match('/^[A-Za-z0-9+\/=]+\s*$/', $raw) && strlen($raw) > 20) {
+            $decoded = base64_decode($raw, true);
+            if ($decoded !== false) {
+                $data = json_decode($decoded, true);
+                if (is_array($data)) {
+                    return $data;
+                }
+            }
+        }
+
+        $data = json_decode($raw, true);
+
+        return is_array($data) ? $data : null;
     }
 }

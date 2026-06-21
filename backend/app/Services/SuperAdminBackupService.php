@@ -180,20 +180,35 @@ class SuperAdminBackupService
         $username = $db['username'] ?? '';
         $password = $db['password'] ?? '';
 
+        // Write credentials to a temp file so they never appear in ps aux
+        $cnfFile = tempnam(sys_get_temp_dir(), 'mybackup_');
+        file_put_contents($cnfFile, implode("\n", [
+            '[client]',
+            "host={$host}",
+            "port={$port}",
+            "user={$username}",
+            "password={$password}",
+        ]));
+        chmod($cnfFile, 0600);
+
         $tmpSql = $path.'.tmp.sql';
+
         $command = sprintf(
-            'mysqldump --host=%s --port=%s --user=%s --password=%s --single-transaction %s > %s 2>&1',
-            escapeshellarg($host),
-            escapeshellarg((string) $port),
-            escapeshellarg($username),
-            escapeshellarg($password),
+            'mysqldump --defaults-file=%s --single-transaction %s > %s 2>&1',
+            escapeshellarg($cnfFile),
             escapeshellarg($database),
             escapeshellarg($tmpSql),
         );
 
-        exec($command, $output, $code);
+        try {
+            exec($command, $output, $code);
+        } finally {
+            @unlink($cnfFile);
+        }
+
         if ($code !== 0 || ! is_file($tmpSql)) {
             @unlink($tmpSql);
+
             return false;
         }
 
@@ -208,6 +223,7 @@ class SuperAdminBackupService
                 gzclose($fpOut);
             }
             @unlink($tmpSql);
+
             return is_file($path);
         }
 

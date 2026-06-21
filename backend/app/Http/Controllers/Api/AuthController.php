@@ -57,6 +57,9 @@ class AuthController extends Controller
         }
 
         $user = User::query()
+            ->whereHas('tenants', function ($q) use ($tenant) {
+                $q->where('tenants.id', $tenant->id);
+            })
             ->where(function ($q) use ($usernameInput) {
                 $q->where('username', $usernameInput)
                     ->orWhere('email', $usernameInput);

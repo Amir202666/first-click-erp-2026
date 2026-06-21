@@ -22,7 +22,9 @@ class DisassemblyOrderController extends Controller
             ->when($request->filled('to_date'), fn ($q) => $q->whereDate('date', '<=', $request->string('to_date')))
             ->when($request->filled('search'), fn ($q) => $q->where('number', 'like', '%'.$request->string('search').'%'))
             ->when($request->filled('warehouse_id'), fn ($q) => $q->where('warehouse_id', (int) $request->warehouse_id))
-            ->when($request->filled('item_id'), fn ($q) => $q->where('item_id', (int) $request->item_id));
+            ->when($request->filled('item_id'), fn ($q) => $q->where('item_id', (int) $request->item_id))
+            ->when($request->filled('branch_id'), fn ($q) => $q->where('branch_id', (int) $request->branch_id))
+            ->when($request->filled('cost_center_id'), fn ($q) => $q->where('cost_center_id', (int) $request->cost_center_id));
 
         $statsQuery = clone $baseQuery;
         $stats = [
@@ -33,7 +35,7 @@ class DisassemblyOrderController extends Controller
         ];
 
         $query = (clone $baseQuery)
-            ->with(['item', 'warehouse', 'createdByUser', 'lines'])
+            ->with(['item', 'warehouse', 'branch', 'costCenter', 'createdByUser', 'sourceLines', 'lines'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->orderByDesc('date')
             ->orderByDesc('id');
@@ -46,46 +48,82 @@ class DisassemblyOrderController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'item_id' => 'required|exists:items,id',
             'warehouse_id' => 'required|exists:warehouses,id',
-            'quantity' => 'required|numeric|min:0.0001',
             'date' => 'required|date',
+            'branch_id' => 'nullable|exists:branches,id',
+            'cost_center_id' => 'nullable|exists:cost_centers,id',
             'notes' => 'nullable|string',
+            'source_lines' => 'required|array|min:1',
+            'source_lines.*.item_id' => 'required|exists:items,id',
+            'source_lines.*.quantity' => 'required|numeric|min:0.0001',
+            'source_lines.*.unit_cost' => 'required|numeric|min:0',
+            'source_lines.*.total_cost' => 'nullable|numeric|min:0',
+            'source_lines.*.unit_id' => 'nullable|exists:item_units,id',
+            'source_lines.*.notes' => 'nullable|string',
             'lines' => 'required|array|min:1',
             'lines.*.item_id' => 'required|exists:items,id',
             'lines.*.warehouse_id' => 'required|exists:warehouses,id',
             'lines.*.quantity' => 'required|numeric|min:0.0001',
+            'lines.*.unit_cost' => 'required|numeric|min:0',
+            'lines.*.total_cost' => 'nullable|numeric|min:0',
             'lines.*.unit_id' => 'nullable|exists:item_units,id',
             'lines.*.notes' => 'nullable|string',
         ]);
 
         $tenantId = (int) $request->tenant_id;
-        Item::where('tenant_id', $tenantId)->findOrFail($validated['item_id']);
         Warehouse::where('tenant_id', $tenantId)->findOrFail($validated['warehouse_id']);
 
+        foreach ($validated['source_lines'] as $line) {
+            Item::where('tenant_id', $tenantId)->findOrFail($line['item_id']);
+        }
         foreach ($validated['lines'] as $line) {
             Item::where('tenant_id', $tenantId)->findOrFail($line['item_id']);
             Warehouse::where('tenant_id', $tenantId)->findOrFail($line['warehouse_id']);
         }
 
-        $number = $this->disassemblyService->nextDisassemblyOrderNumber($tenantId);
+        try {
+            $this->disassemblyService->assertPayloadTotalsBalanced(
+                $validated['source_lines'],
+                $validated['lines'],
+                $tenantId,
+            );
 
-        $order = DB::transaction(function () use ($request, $tenantId, $validated, $number) {
-            $order = DisassemblyOrder::create([
-                'tenant_id' => $tenantId,
-                'number' => $number,
-                'item_id' => $validated['item_id'],
-                'warehouse_id' => $validated['warehouse_id'],
-                'quantity' => $validated['quantity'],
-                'date' => $validated['date'],
-                'status' => DisassemblyOrder::STATUS_DRAFT,
-                'notes' => $validated['notes'] ?? null,
-                'created_by' => $request->user()?->id,
-            ]);
-            $this->disassemblyService->syncLines($order, $validated['lines']);
+            $firstSource = $validated['source_lines'][0];
+            $number = $this->disassemblyService->nextDisassemblyOrderNumber($tenantId);
 
-            return $order->fresh(['item', 'warehouse', 'lines.item', 'lines.warehouse', 'lines.unit', 'createdByUser']);
-        });
+            $order = DB::transaction(function () use ($request, $tenantId, $validated, $number, $firstSource) {
+                $order = DisassemblyOrder::create([
+                    'tenant_id' => $tenantId,
+                    'number' => $number,
+                    'item_id' => (int) $firstSource['item_id'],
+                    'warehouse_id' => $validated['warehouse_id'],
+                    'branch_id' => $validated['branch_id'] ?? null,
+                    'cost_center_id' => $validated['cost_center_id'] ?? null,
+                    'quantity' => (float) $firstSource['quantity'],
+                    'date' => $validated['date'],
+                    'status' => DisassemblyOrder::STATUS_DRAFT,
+                    'notes' => $validated['notes'] ?? null,
+                    'created_by' => $request->user()?->id,
+                ]);
+                $this->disassemblyService->syncSourceLines($order, $validated['source_lines']);
+                $this->disassemblyService->syncLines($order, $validated['lines']);
+
+                return $order->fresh([
+                    'item',
+                    'warehouse',
+                    'branch',
+                    'costCenter',
+                    'sourceLines.item',
+                    'sourceLines.unit',
+                    'lines.item',
+                    'lines.warehouse',
+                    'lines.unit',
+                    'createdByUser',
+                ]);
+            });
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response()->json($order, 201);
     }
@@ -93,7 +131,19 @@ class DisassemblyOrderController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $order = DisassemblyOrder::where('tenant_id', $request->tenant_id)
-            ->with(['item', 'warehouse', 'lines.item', 'lines.warehouse', 'lines.unit', 'createdByUser', 'confirmedByUser'])
+            ->with([
+                'item',
+                'warehouse',
+                'branch',
+                'costCenter',
+                'sourceLines.item',
+                'sourceLines.unit',
+                'lines.item',
+                'lines.warehouse',
+                'lines.unit',
+                'createdByUser',
+                'confirmedByUser',
+            ])
             ->findOrFail($id);
 
         return response()->json($order);
@@ -107,28 +157,40 @@ class DisassemblyOrderController extends Controller
         }
 
         $validated = $request->validate([
-            'item_id' => 'sometimes|exists:items,id',
             'warehouse_id' => 'sometimes|exists:warehouses,id',
-            'quantity' => 'sometimes|numeric|min:0.0001',
             'date' => 'sometimes|date',
+            'branch_id' => 'nullable|exists:branches,id',
+            'cost_center_id' => 'nullable|exists:cost_centers,id',
             'notes' => 'nullable|string',
+            'source_lines' => 'sometimes|array|min:1',
+            'source_lines.*.item_id' => 'required_with:source_lines|exists:items,id',
+            'source_lines.*.quantity' => 'required_with:source_lines|numeric|min:0.0001',
+            'source_lines.*.unit_cost' => 'required_with:source_lines|numeric|min:0',
+            'source_lines.*.total_cost' => 'nullable|numeric|min:0',
+            'source_lines.*.unit_id' => 'nullable|exists:item_units,id',
+            'source_lines.*.notes' => 'nullable|string',
             'lines' => 'sometimes|array|min:1',
             'lines.*.item_id' => 'required_with:lines|exists:items,id',
             'lines.*.warehouse_id' => 'required_with:lines|exists:warehouses,id',
             'lines.*.quantity' => 'required_with:lines|numeric|min:0.0001',
+            'lines.*.unit_cost' => 'required_with:lines|numeric|min:0',
+            'lines.*.total_cost' => 'nullable|numeric|min:0',
             'lines.*.unit_id' => 'nullable|exists:item_units,id',
             'lines.*.notes' => 'nullable|string',
         ]);
 
         $tenantId = (int) $request->tenant_id;
+        $sourceLinesPayload = $validated['source_lines'] ?? null;
         $linesPayload = $validated['lines'] ?? null;
-        unset($validated['lines']);
+        unset($validated['source_lines'], $validated['lines']);
 
-        if (isset($validated['item_id'])) {
-            Item::where('tenant_id', $tenantId)->findOrFail($validated['item_id']);
-        }
         if (isset($validated['warehouse_id'])) {
             Warehouse::where('tenant_id', $tenantId)->findOrFail($validated['warehouse_id']);
+        }
+        if (is_array($sourceLinesPayload)) {
+            foreach ($sourceLinesPayload as $line) {
+                Item::where('tenant_id', $tenantId)->findOrFail($line['item_id']);
+            }
         }
         if (is_array($linesPayload)) {
             foreach ($linesPayload as $line) {
@@ -137,16 +199,42 @@ class DisassemblyOrderController extends Controller
             }
         }
 
-        $order = DB::transaction(function () use ($order, $validated, $linesPayload) {
-            if ($validated !== []) {
-                $order->update($validated);
+        if (is_array($sourceLinesPayload) && is_array($linesPayload)) {
+            try {
+                $this->disassemblyService->assertPayloadTotalsBalanced($sourceLinesPayload, $linesPayload, $tenantId);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
             }
-            if (is_array($linesPayload)) {
-                $this->disassemblyService->syncLines($order->fresh(), $linesPayload);
-            }
+        }
 
-            return $order->fresh(['item', 'warehouse', 'lines.item', 'lines.warehouse', 'lines.unit', 'createdByUser']);
-        });
+        try {
+            $order = DB::transaction(function () use ($order, $validated, $sourceLinesPayload, $linesPayload) {
+                if ($validated !== []) {
+                    $order->update($validated);
+                }
+                if (is_array($sourceLinesPayload)) {
+                    $this->disassemblyService->syncSourceLines($order->fresh(), $sourceLinesPayload);
+                }
+                if (is_array($linesPayload)) {
+                    $this->disassemblyService->syncLines($order->fresh(), $linesPayload);
+                }
+
+                return $order->fresh([
+                    'item',
+                    'warehouse',
+                    'branch',
+                    'costCenter',
+                    'sourceLines.item',
+                    'sourceLines.unit',
+                    'lines.item',
+                    'lines.warehouse',
+                    'lines.unit',
+                    'createdByUser',
+                ]);
+            });
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response()->json($order);
     }
@@ -154,11 +242,11 @@ class DisassemblyOrderController extends Controller
     public function destroy(Request $request, int $id): JsonResponse
     {
         $order = DisassemblyOrder::where('tenant_id', $request->tenant_id)->findOrFail($id);
-        if ($order->status !== DisassemblyOrder::STATUS_DRAFT) {
-            return response()->json(['message' => 'لا يمكن حذف أمر تفكيك مكتمل أو ملغى.'], 422);
+        try {
+            $this->disassemblyService->forceDelete($order);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
-
-        $order->delete();
 
         return response()->json(null, 204);
     }

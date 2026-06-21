@@ -1308,6 +1308,20 @@ export interface DisassemblyOrderLine {
   unit?: ItemUnit | null
 }
 
+export interface DisassemblyOrderSourceLine {
+  id?: number
+  disassembly_order_id?: number
+  item_id: number
+  quantity: number
+  unit_cost?: number
+  total_cost?: number
+  unit_id?: number | null
+  notes?: string | null
+  sort_order?: number
+  item?: Item
+  unit?: ItemUnit | null
+}
+
 export interface DisassemblyOrderStats {
   total: number
   draft: number
@@ -1321,6 +1335,8 @@ export interface DisassemblyOrder {
   number: string
   item_id: number
   warehouse_id: number
+  branch_id?: number | null
+  cost_center_id?: number | null
   quantity: number
   unit_cost: number
   total_cost: number
@@ -1332,6 +1348,11 @@ export interface DisassemblyOrder {
   confirmed_at?: string | null
   item?: Item
   warehouse?: Warehouse | null
+  branch?: { id: number; name: string } | null
+  costCenter?: { id: number; name: string; name_en?: string | null } | null
+  cost_center?: { id: number; name: string; name_en?: string | null } | null
+  source_lines?: DisassemblyOrderSourceLine[]
+  sourceLines?: DisassemblyOrderSourceLine[]
   lines?: DisassemblyOrderLine[]
   createdByUser?: { id: number; name: string } | null
   created_by_user?: { id: number; name: string } | null

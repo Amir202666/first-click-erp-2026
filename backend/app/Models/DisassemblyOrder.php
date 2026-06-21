@@ -24,6 +24,8 @@ class DisassemblyOrder extends Model
         'number',
         'item_id',
         'warehouse_id',
+        'branch_id',
+        'cost_center_id',
         'quantity',
         'unit_cost',
         'total_cost',
@@ -53,9 +55,24 @@ class DisassemblyOrder extends Model
         return $this->belongsTo(Warehouse::class);
     }
 
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function costCenter(): BelongsTo
+    {
+        return $this->belongsTo(CostCenter::class);
+    }
+
     public function lines(): HasMany
     {
         return $this->hasMany(DisassemblyOrderLine::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function sourceLines(): HasMany
+    {
+        return $this->hasMany(DisassemblyOrderSourceLine::class)->orderBy('sort_order')->orderBy('id');
     }
 
     public function createdByUser(): BelongsTo

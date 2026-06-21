@@ -21,12 +21,16 @@ import {
   ledgerCanOpenPreview,
   ledgerVoucherNumberFromMovement,
   ledgerVoucherTypeFromMovement,
+  movementInboundUnitPrice,
+  movementOutboundUnitPrice,
+  movementSourceNavigatePath,
 } from './itemLedgerHelpers'
 import type { Branch, CostCenter, TenantUserItem, Warehouse } from '../../types'
 import PageSizeSelect from '../../components/ui/PageSizeSelect'
 import ReportFooter from '../../components/ui/ReportFooter'
 import { asArray } from '../../utils/asArray'
 import { getDefaultDateRange, getReportPeriodRange, formatDisplayDate, type ReportPeriodKey } from '../../utils/date'
+import { formatAmount, coerceDecimalPlaces } from '../../utils/currency'
 import { ArrowRight, Eye, Printer, Columns3, FileSpreadsheet, FileText } from 'lucide-react'
 import { usePersistedColumnVisibility } from '../../hooks/usePersistedColumnVisibility'
 
@@ -35,7 +39,9 @@ type LedgerColumnKey =
   | 'voucher'
   | 'voucher_number'
   | 'quantity_in'
+  | 'inbound_price'
   | 'quantity_out'
+  | 'outbound_price'
   | 'running_balance'
   | 'created_by'
   | 'actions'
@@ -44,13 +50,15 @@ const LEDGER_COLUMN_KEYS: LedgerColumnKey[] = [
   'voucher',
   'voucher_number',
   'quantity_in',
+  'inbound_price',
   'quantity_out',
+  'outbound_price',
   'running_balance',
   'created_by',
   'actions',
 ]
-/** إصدار المفتاح: تغيير أسماء الأعمدة (المصدر → السند + رقم السند) */
-const LEDGER_COLUMNS_STORAGE_KEY = 'itemLedgerVisibleColumns_v2'
+/** إصدار المفتاح: إضافة أعمدة سعر الوارد / سعر الصادر */
+const LEDGER_COLUMNS_STORAGE_KEY = 'itemLedgerVisibleColumns_v3'
 
 const periodOptions: { value: ReportPeriodKey | 'custom'; labelAr: string; labelEn: string }[] = [
   { value: 'custom', labelAr: 'تاريخ مخصص', labelEn: 'Custom Date' },
@@ -157,8 +165,10 @@ export default function ItemLedger() {
 
   const locale = lang === 'ar' ? 'ar-u-nu-latn' : 'en-US'
   const qtyDecimals = Math.min(6, Math.max(0, Math.floor(Number(settings?.doc_quantity_decimals ?? 2))))
+  const amountDecimals = coerceDecimalPlaces(settings?.doc_amount_decimals, 2)
   const fmtQty = (n: number) =>
     Number(n).toLocaleString(locale, { minimumFractionDigits: qtyDecimals, maximumFractionDigits: qtyDecimals })
+  const fmtPrice = (n: number) => formatAmount(n, { decimal_places: amountDecimals }, locale)
   /** محاذاة رؤوس الجدول */
   const textAlign = isRtl ? 'text-right' : 'text-left'
 
@@ -187,7 +197,9 @@ export default function ItemLedger() {
     voucher: inv.ledgerVoucher ?? (lang === 'ar' ? 'السند' : 'Voucher'),
     voucher_number: inv.ledgerVoucherNumber ?? (lang === 'ar' ? 'رقم السند' : 'Voucher no.'),
     quantity_in: inv.quantityIn,
+    inbound_price: inv.inboundUnitPrice ?? (lang === 'ar' ? 'سعر الوارد' : 'Inbound price'),
     quantity_out: inv.quantityOut,
+    outbound_price: inv.outboundUnitPrice ?? (lang === 'ar' ? 'سعر الصنف الصادر' : 'Outbound price'),
     running_balance: inv.runningBalance,
     created_by: inv.createdBy,
     actions: t.actions,
@@ -206,7 +218,9 @@ export default function ItemLedger() {
 
   const ledgerTfoot = useMemo(() => {
     const keys = visibleColumnKeys
-    const hasQtyCol = keys.some((k) => k === 'quantity_in' || k === 'quantity_out' || k === 'running_balance')
+    const hasQtyCol = keys.some((k) =>
+      k === 'quantity_in' || k === 'quantity_out' || k === 'running_balance' || k === 'inbound_price' || k === 'outbound_price',
+    )
     if (!hasQtyCol) return null
 
     let sumIn = 0
@@ -245,6 +259,16 @@ export default function ItemLedger() {
           </td>,
         )
         i += 1
+      } else if (k === 'inbound_price' || k === 'outbound_price') {
+        cells.push(
+          <td
+            key={`tf-${i}`}
+            className={`${textAlign} px-3 py-2.5 text-xs text-slate-500 ${baseTd}`}
+          >
+            —
+          </td>,
+        )
+        i += 1
       } else if (k === 'running_balance') {
         cells.push(
           <td
@@ -262,14 +286,16 @@ export default function ItemLedger() {
           j < keys.length &&
           keys[j] !== 'quantity_in' &&
           keys[j] !== 'quantity_out' &&
-          keys[j] !== 'running_balance'
+          keys[j] !== 'running_balance' &&
+          keys[j] !== 'inbound_price' &&
+          keys[j] !== 'outbound_price'
         ) {
           j += 1
         }
         const span = Math.max(1, j - i)
         const hasQtyAfter = keys
           .slice(j)
-          .some((kk) => kk === 'quantity_in' || kk === 'quantity_out' || kk === 'running_balance')
+          .some((kk) => kk === 'quantity_in' || kk === 'quantity_out' || kk === 'running_balance' || kk === 'inbound_price' || kk === 'outbound_price')
         cells.push(
           <td
             key={`tf-p-${i}`}
@@ -317,7 +343,15 @@ export default function ItemLedger() {
         if (k === 'voucher') return `<td>${escHtml(ledgerVoucherTypeFromMovement(m, inv))}</td>`
         if (k === 'voucher_number') return `<td>${escHtml(ledgerVoucherNumberFromMovement(m))}</td>`
         if (k === 'quantity_in') return `<td class="num">${m.quantity_in ? escHtml(fmtQty(m.quantity_in)) : '—'}</td>`
+        if (k === 'inbound_price') {
+          const p = movementInboundUnitPrice(m)
+          return `<td class="num">${p != null ? escHtml(fmtPrice(p)) : '—'}</td>`
+        }
         if (k === 'quantity_out') return `<td class="num">${m.quantity_out ? escHtml(fmtQty(m.quantity_out)) : '—'}</td>`
+        if (k === 'outbound_price') {
+          const p = movementOutboundUnitPrice(m)
+          return `<td class="num">${p != null ? escHtml(fmtPrice(p)) : '—'}</td>`
+        }
         if (k === 'running_balance') return `<td class="num">${escHtml(fmtQty(m.balance_after))}</td>`
         if (k === 'created_by') return `<td>${escHtml(m.created_by_name ?? '—')}</td>`
         if (k === 'actions') return '<td></td>'
@@ -355,7 +389,15 @@ export default function ItemLedger() {
           return num === '—' ? '' : num
         }
         if (k === 'quantity_in') return m.quantity_in ? String(m.quantity_in) : ''
+        if (k === 'inbound_price') {
+          const p = movementInboundUnitPrice(m)
+          return p != null ? String(p) : ''
+        }
         if (k === 'quantity_out') return m.quantity_out ? String(m.quantity_out) : ''
+        if (k === 'outbound_price') {
+          const p = movementOutboundUnitPrice(m)
+          return p != null ? String(p) : ''
+        }
         if (k === 'running_balance') return String(m.balance_after)
         if (k === 'created_by') return m.created_by_name ?? ''
         if (k === 'actions') return ''
@@ -589,7 +631,7 @@ export default function ItemLedger() {
                     if (k === 'date') return <th key={k} className={`${base} w-24`}>{columnLabels[k]}</th>
                     if (k === 'voucher') return <th key={k} className={`${base} min-w-[120px]`}>{columnLabels[k]}</th>
                     if (k === 'voucher_number') return <th key={k} className={`${base} min-w-[120px]`}>{columnLabels[k]}</th>
-                    if (k === 'quantity_in' || k === 'quantity_out' || k === 'running_balance') {
+                    if (k === 'quantity_in' || k === 'quantity_out' || k === 'running_balance' || k === 'inbound_price' || k === 'outbound_price') {
                       return <th key={k} className={`${textAlign} px-3 py-3 font-normal text-[11px] uppercase tracking-wider w-28 tabular-nums`}>{columnLabels[k]}</th>
                     }
                     if (k === 'created_by') return <th key={k} className={`${base} min-w-[100px]`}>{columnLabels[k]}</th>
@@ -621,9 +663,22 @@ export default function ItemLedger() {
                         )
                       }
                       if (k === 'voucher_number') {
+                        const num = ledgerVoucherNumberFromMovement(m)
+                        const navPath = movementSourceNavigatePath(m)
                         return (
-                          <td key={k} className="px-3 py-3.5 font-normal text-slate-800 font-mono text-[11px]">
-                            {ledgerVoucherNumberFromMovement(m)}
+                          <td key={k} className="px-3 py-3.5 font-normal font-mono text-[11px]">
+                            {navPath && num !== '—' ? (
+                              <Link
+                                to={navPath}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-600 hover:text-primary-500 underline underline-offset-2"
+                              >
+                                {num}
+                              </Link>
+                            ) : (
+                              <span className="text-slate-800">{num}</span>
+                            )}
                           </td>
                         )
                       }
@@ -634,10 +689,26 @@ export default function ItemLedger() {
                           </td>
                         )
                       }
+                      if (k === 'inbound_price') {
+                        const p = movementInboundUnitPrice(m)
+                        return (
+                          <td key={k} className="px-3 py-3.5 font-normal text-slate-700 tabular-nums text-xs">
+                            {p != null ? fmtPrice(p) : '—'}
+                          </td>
+                        )
+                      }
                       if (k === 'quantity_out') {
                         return (
                           <td key={k} className="px-3 py-3.5 font-normal text-red-600 tabular-nums text-xs">
                             {m.quantity_out ? fmtQty(m.quantity_out) : '—'}
+                          </td>
+                        )
+                      }
+                      if (k === 'outbound_price') {
+                        const p = movementOutboundUnitPrice(m)
+                        return (
+                          <td key={k} className="px-3 py-3.5 font-normal text-slate-700 tabular-nums text-xs">
+                            {p != null ? fmtPrice(p) : '—'}
                           </td>
                         )
                       }

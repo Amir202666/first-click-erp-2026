@@ -100,19 +100,21 @@ Route::prefix('v1')->middleware(['throttle:1000,1', 'api.key'])->group(function 
 
 // ──── Auth (Public) ────
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::get('/subscription-plans', [SubscriptionPlanController::class, 'index']);
 Route::get('/login-page', [\App\Http\Controllers\Api\LoginPageController::class, 'show']);
 
 // ──── Public restaurant menu (QR — بدون auth) ────
 Route::prefix('public/menu')->group(function () {
     Route::get('/{slug}', [PublicMenuController::class, 'show']);
-    Route::post('/{slug}/orders', [PublicMenuController::class, 'placeOrder']);
-    Route::get('/{slug}/orders/{orderNumber}', [PublicMenuController::class, 'trackOrder']);
+    Route::post('/{slug}/orders', [PublicMenuController::class, 'placeOrder'])
+        ->middleware('throttle:20,1');
+    Route::get('/{slug}/orders/{orderNumber}', [PublicMenuController::class, 'trackOrder'])
+        ->middleware('throttle:30,1');
 });
 
 // ──── Auth (Protected) ────
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/register', [AuthController::class, 'register'])->middleware('super_admin');
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
     Route::get('/tenants', [TenantController::class, 'index']);
@@ -173,7 +175,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // قوالب المستندات (فواتير، سندات، ... )
         Route::get('/document-templates', [DocumentTemplateController::class, 'index']);
-        Route::post('/document-templates/convert-php', [DocumentTemplateController::class, 'convertPhpSerialized']);
+        Route::post('/document-templates/convert-php', [DocumentTemplateController::class, 'convertPhpSerialized'])
+            ->middleware('permission:settings.edit');
         Route::get('/document-templates/{id}', [DocumentTemplateController::class, 'show']);
         Route::post('/document-templates', [DocumentTemplateController::class, 'store']);
         Route::put('/document-templates/{id}', [DocumentTemplateController::class, 'update']);
@@ -632,7 +635,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/hr/payroll/{id}/approve', [PayrollController::class, 'approve'])->middleware('permission:hr.payroll.approve');
 
         // Reports
-        Route::prefix('reports')->group(function () {
+        Route::prefix('reports')->middleware('permission:reports.view')->group(function () {
             Route::get('/trial-balance', [ReportController::class, 'trialBalance']);
             Route::get('/income-statement', [ReportController::class, 'incomeStatement']);
             Route::get('/balance-sheet', [ReportController::class, 'balanceSheet']);

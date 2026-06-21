@@ -8,6 +8,10 @@ export interface MovementRow {
   quantity_in: number
   quantity_out: number
   unit_cost: number
+  /** سعر الوحدة عند حركة الوارد (من الفاتورة أو unit_cost) */
+  inbound_unit_price?: number | null
+  /** سعر الوحدة عند حركة الصادر (من الفاتورة أو unit_cost) */
+  outbound_unit_price?: number | null
   total_cost: number
   balance_before: number
   balance_after: number
@@ -126,6 +130,19 @@ export function ledgerVoucherNumberFromMovement(m: MovementRow): string {
   const mAr = /رقم:\s*(.+)$/.exec(lb)
   if (mAr) return mAr[1].trim()
   return '—'
+}
+
+/** للانتقال إلى مصدر الحركة */
+export function movementInboundUnitPrice(m: MovementRow): number | null {
+  if (!m.quantity_in || m.quantity_in <= 0) return null
+  const p = m.inbound_unit_price ?? m.unit_cost
+  return p != null && Number(p) > 0 ? Number(p) : null
+}
+
+export function movementOutboundUnitPrice(m: MovementRow): number | null {
+  if (!m.quantity_out || m.quantity_out <= 0) return null
+  const p = m.outbound_unit_price ?? m.unit_cost
+  return p != null && Number(p) > 0 ? Number(p) : null
 }
 
 /** للانتقال إلى مصدر الحركة */

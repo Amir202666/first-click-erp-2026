@@ -499,6 +499,16 @@ class InventoryService
             }
         }
 
+        $invoiceIds = $movements
+            ->where('reference_type', Invoice::class)
+            ->pluck('reference_id')
+            ->unique()
+            ->filter()
+            ->values();
+        $invoicesById = $invoiceIds->isEmpty()
+            ? collect()
+            : Invoice::with('lines')->whereIn('id', $invoiceIds)->get()->keyBy('id');
+
         $runningBalance = 0.0;
         $movementsWithBalance = [];
 
@@ -510,6 +520,7 @@ class InventoryService
 
             $qtyIn = $qty > 0 ? $qty : 0.0;
             $qtyOut = $qty < 0 ? abs($qty) : 0.0;
+            $unitPrices = $this->resolveMovementUnitPrices($m, $invoicesById);
 
             $movementsWithBalance[] = [
                 'id' => $m->id,
@@ -521,6 +532,8 @@ class InventoryService
                 'quantity_in' => $qtyIn,
                 'quantity_out' => $qtyOut,
                 'unit_cost' => (float) $m->unit_cost,
+                'inbound_unit_price' => $unitPrices['inbound_unit_price'],
+                'outbound_unit_price' => $unitPrices['outbound_unit_price'],
                 'total_cost' => (float) $m->total_cost,
                 'balance_before' => $balanceBefore,
                 'balance_after' => $balanceAfter,
@@ -535,6 +548,75 @@ class InventoryService
         }
 
         return $movementsWithBalance;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Invoice>  $invoicesById
+     * @return array{inbound_unit_price: ?float, outbound_unit_price: ?float}
+     */
+    private function resolveMovementUnitPrices(InventoryMovement $m, $invoicesById): array
+    {
+        $qty = (float) $m->quantity;
+        $unitCost = (float) $m->unit_cost;
+        $invoiceLinePrice = $this->resolveInvoiceLineUnitPrice($m, $invoicesById);
+
+        $inbound = null;
+        $outbound = null;
+
+        if ($qty > 0) {
+            $price = $invoiceLinePrice ?? ($unitCost > 0 ? $unitCost : null);
+            $inbound = $price !== null ? (float) $price : null;
+        } elseif ($qty < 0) {
+            $price = $invoiceLinePrice ?? ($unitCost > 0 ? $unitCost : null);
+            $outbound = $price !== null ? (float) $price : null;
+        }
+
+        return [
+            'inbound_unit_price' => $inbound,
+            'outbound_unit_price' => $outbound,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, Invoice>  $invoicesById
+     */
+    private function resolveInvoiceLineUnitPrice(InventoryMovement $m, $invoicesById): ?float
+    {
+        if ($m->reference_type !== Invoice::class || ! $m->reference_id) {
+            return null;
+        }
+
+        $invoice = null;
+        if ($m->relationLoaded('reference') && $m->reference instanceof Invoice) {
+            $invoice = $m->reference;
+        } elseif ($invoicesById->has($m->reference_id)) {
+            $invoice = $invoicesById->get($m->reference_id);
+        }
+
+        if (! $invoice) {
+            return null;
+        }
+
+        if (! $invoice->relationLoaded('lines')) {
+            $invoice->load('lines');
+        }
+
+        $lines = $invoice->lines->filter(function ($line) use ($m) {
+            if ((int) $line->item_id !== (int) $m->item_id) {
+                return false;
+            }
+            if ($m->item_variant_id !== null && (int) $line->item_variant_id !== (int) $m->item_variant_id) {
+                return false;
+            }
+
+            return true;
+        });
+
+        if ($lines->isEmpty()) {
+            return null;
+        }
+
+        return (float) $lines->first()->unit_price;
     }
 
     /**

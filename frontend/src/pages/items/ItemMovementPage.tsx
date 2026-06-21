@@ -21,6 +21,8 @@ import {
   ledgerCanOpenPreview,
   ledgerVoucherNumberFromMovement,
   ledgerVoucherTypeFromMovement,
+  movementInboundUnitPrice,
+  movementOutboundUnitPrice,
   movementSourceNavigatePath,
   voucherKindLabel,
 } from './itemLedgerHelpers'
@@ -41,7 +43,9 @@ type ItemMovementColumnKey =
   | 'docType'
   | 'docNumber'
   | 'qtyIn'
+  | 'inboundPrice'
   | 'qtyOut'
+  | 'outboundPrice'
   | 'balance'
   | 'cost'
   | 'createdBy'
@@ -52,13 +56,15 @@ const ITEM_MOVEMENT_COLUMN_KEYS: ItemMovementColumnKey[] = [
   'docType',
   'docNumber',
   'qtyIn',
+  'inboundPrice',
   'qtyOut',
+  'outboundPrice',
   'balance',
   'cost',
   'createdBy',
   'actions',
 ]
-const ITEM_MOVEMENT_COLUMNS_STORAGE = 'itemMovementPageVisibleColumns'
+const ITEM_MOVEMENT_COLUMNS_STORAGE = 'itemMovementPageVisibleColumns_v2'
 
 const periodOptions: { value: ReportPeriodKey | 'custom'; labelAr: string; labelEn: string }[] = [
   { value: 'custom', labelAr: 'تاريخ مخصص', labelEn: 'Custom Date' },
@@ -395,7 +401,9 @@ export default function ItemMovementPage() {
     if (visibleColumns.docType) n++
     if (visibleColumns.docNumber) n++
     if (visibleColumns.qtyIn) n++
+    if (visibleColumns.inboundPrice) n++
     if (visibleColumns.qtyOut) n++
+    if (visibleColumns.outboundPrice) n++
     if (visibleColumns.balance) n++
     if (canViewCost && visibleColumns.cost) n++
     if (visibleColumns.createdBy) n++
@@ -463,8 +471,12 @@ export default function ItemMovementPage() {
         return inv.documentNumberCol ?? (lang === 'ar' ? 'رقم المستند' : 'Document no.')
       case 'qtyIn':
         return inv.quantityIn
+      case 'inboundPrice':
+        return inv.inboundUnitPrice ?? (lang === 'ar' ? 'سعر الوارد' : 'Inbound price')
       case 'qtyOut':
         return inv.quantityOut
+      case 'outboundPrice':
+        return inv.outboundUnitPrice ?? (lang === 'ar' ? 'سعر الصنف الصادر' : 'Outbound price')
       case 'balance':
         return inv.cumulativeBalance ?? t.accounts?.runningBalance ?? inv.runningBalance
       case 'cost':
@@ -510,10 +522,16 @@ export default function ItemMovementPage() {
         <td key="tf-in" className={`${numAlign} ${baseTd} text-emerald-700 dark:text-emerald-400`}>{fmtQty(sumIn)}</td>,
       )
     }
+    if (visibleColumns.inboundPrice) {
+      cells.push(<td key="tf-in-price" className={`${numAlign} ${baseTd} text-slate-500`}>—</td>)
+    }
     if (visibleColumns.qtyOut) {
       cells.push(
         <td key="tf-out" className={`${numAlign} ${baseTd} text-red-700 dark:text-red-400`}>{fmtQty(sumOut)}</td>,
       )
+    }
+    if (visibleColumns.outboundPrice) {
+      cells.push(<td key="tf-out-price" className={`${numAlign} ${baseTd} text-slate-500`}>—</td>)
     }
     if (visibleColumns.balance) {
       cells.push(
@@ -565,7 +583,9 @@ export default function ItemMovementPage() {
       inv.documentTypeCol ?? (lang === 'ar' ? 'نوع المستند' : 'Document type'),
       inv.documentNumberCol ?? (lang === 'ar' ? 'رقم المستند' : 'Document no.'),
       inv.quantityIn,
+      inv.inboundUnitPrice ?? (lang === 'ar' ? 'سعر الوارد' : 'Inbound price'),
       inv.quantityOut,
+      inv.outboundUnitPrice ?? (lang === 'ar' ? 'سعر الصنف الصادر' : 'Outbound price'),
       inv.cumulativeBalance ?? t.accounts?.runningBalance ?? inv.runningBalance,
       ...(canViewCost ? [inv.movementFinancialValue ?? (lang === 'ar' ? 'التكلفة / القيمة' : 'Cost / value')] : []),
       inv.itemMovementUserCol ?? (lang === 'ar' ? 'المستخدم' : 'User'),
@@ -577,7 +597,15 @@ export default function ItemMovementPage() {
         ledgerVoucherTypeFromMovement(m, inv),
         ledgerVoucherNumberFromMovement(m),
         m.quantity_in ? String(m.quantity_in) : '',
+        (() => {
+          const p = movementInboundUnitPrice(m)
+          return p != null ? String(p) : ''
+        })(),
         m.quantity_out ? String(m.quantity_out) : '',
+        (() => {
+          const p = movementOutboundUnitPrice(m)
+          return p != null ? String(p) : ''
+        })(),
         String(m.balance_after),
         ...(canViewCost ? [String(m.total_cost ?? '')] : []),
         m.created_by_name?.trim() ?? '',
@@ -630,7 +658,9 @@ export default function ItemMovementPage() {
       inv.documentTypeCol ?? (lang === 'ar' ? 'نوع المستند' : 'Document type'),
       inv.documentNumberCol ?? (lang === 'ar' ? 'رقم المستند' : 'Document no.'),
       inv.quantityIn,
+      inv.inboundUnitPrice ?? (lang === 'ar' ? 'سعر الوارد' : 'Inbound price'),
       inv.quantityOut,
+      inv.outboundUnitPrice ?? (lang === 'ar' ? 'سعر الصنف الصادر' : 'Outbound price'),
       inv.cumulativeBalance ?? t.accounts?.runningBalance ?? inv.runningBalance,
     ]
     const headerHtml = headers.map((h) => `<th>${escHtml(h)}</th>`).join('') + thCost + thUser
@@ -638,7 +668,11 @@ export default function ItemMovementPage() {
     const rowsHtml = movements
       .map((m) => {
         const qin = m.quantity_in ? escHtml(fmtQty(m.quantity_in)) : '—'
+        const inPrice = movementInboundUnitPrice(m)
+        const inPriceCell = inPrice != null ? escHtml(fmtMoney(inPrice)) : '—'
         const qout = m.quantity_out ? escHtml(fmtQty(m.quantity_out)) : '—'
+        const outPrice = movementOutboundUnitPrice(m)
+        const outPriceCell = outPrice != null ? escHtml(fmtMoney(outPrice)) : '—'
         const costCell = canViewCost ? `<td class="num">${escHtml(fmtMoney(Number(m.total_cost || 0)))}</td>` : ''
         const userCell = `<td>${escHtml(m.created_by_name?.trim() ? m.created_by_name : '—')}</td>`
         return `<tr>
@@ -646,7 +680,9 @@ export default function ItemMovementPage() {
 <td>${escHtml(ledgerVoucherTypeFromMovement(m, inv))}</td>
 <td class="mono">${escHtml(ledgerVoucherNumberFromMovement(m))}</td>
 <td class="num in">${qin}</td>
+<td class="num">${inPriceCell}</td>
 <td class="num out">${qout}</td>
+<td class="num">${outPriceCell}</td>
 <td class="num">${escHtml(fmtQty(m.balance_after))}</td>
 ${costCell}
 ${userCell}
@@ -1048,8 +1084,14 @@ td.mono{font-family:ui-monospace,monospace;font-size:10pt;}
                     {visibleColumns.qtyIn && (
                       <th className={`${numAlign} px-3 py-3 font-medium w-28`}>{itemMovementColumnLabel('qtyIn')}</th>
                     )}
+                    {visibleColumns.inboundPrice && (
+                      <th className={`${numAlign} px-3 py-3 font-medium w-28`}>{itemMovementColumnLabel('inboundPrice')}</th>
+                    )}
                     {visibleColumns.qtyOut && (
                       <th className={`${numAlign} px-3 py-3 font-medium w-28`}>{itemMovementColumnLabel('qtyOut')}</th>
+                    )}
+                    {visibleColumns.outboundPrice && (
+                      <th className={`${numAlign} px-3 py-3 font-medium w-28`}>{itemMovementColumnLabel('outboundPrice')}</th>
                     )}
                     {visibleColumns.balance && (
                       <th className={`${numAlign} px-3 py-3 font-medium w-32`}>{itemMovementColumnLabel('balance')}</th>
@@ -1100,22 +1142,24 @@ td.mono{font-family:ui-monospace,monospace;font-size:10pt;}
                             </td>
                           )}
                           {visibleColumns.docNumber && (
-                            <td className={`px-3 py-3 ${textAlign}`}>
-                              <button
-                                type="button"
-                                disabled={!canPrev}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  if (canPrev) setPreviewMovement(m)
-                                }}
-                                className={`font-mono text-xs underline-offset-2 ${
-                                  canPrev
-                                    ? 'text-primary-600 hover:text-primary-500 underline'
-                                    : 'text-slate-400 cursor-default no-underline'
-                                }`}
-                              >
-                                {ledgerVoucherNumberFromMovement(m)}
-                              </button>
+                            <td className={`px-3 py-3 ${textAlign}`} onClick={(e) => e.stopPropagation()}>
+                              {(() => {
+                                const num = ledgerVoucherNumberFromMovement(m)
+                                const navPath = movementSourceNavigatePath(m)
+                                if (navPath && num !== '—') {
+                                  return (
+                                    <Link
+                                      to={navPath}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-mono text-xs text-primary-600 hover:text-primary-500 underline underline-offset-2"
+                                    >
+                                      {num}
+                                    </Link>
+                                  )
+                                }
+                                return <span className="font-mono text-xs text-slate-400">{num}</span>
+                              })()}
                             </td>
                           )}
                           {visibleColumns.qtyIn && (
@@ -1123,9 +1167,25 @@ td.mono{font-family:ui-monospace,monospace;font-size:10pt;}
                               {m.quantity_in ? fmtQty(m.quantity_in) : '—'}
                             </td>
                           )}
+                          {visibleColumns.inboundPrice && (
+                            <td className={`px-3 py-3 tabular-nums text-xs text-slate-700 dark:text-slate-200 ${numAlign}`}>
+                              {(() => {
+                                const p = movementInboundUnitPrice(m)
+                                return p != null ? fmtMoney(p) : '—'
+                              })()}
+                            </td>
+                          )}
                           {visibleColumns.qtyOut && (
                             <td className={`px-3 py-3 tabular-nums text-xs font-medium text-red-600 dark:text-red-400 ${numAlign}`}>
                               {m.quantity_out ? fmtQty(m.quantity_out) : '—'}
+                            </td>
+                          )}
+                          {visibleColumns.outboundPrice && (
+                            <td className={`px-3 py-3 tabular-nums text-xs text-slate-700 dark:text-slate-200 ${numAlign}`}>
+                              {(() => {
+                                const p = movementOutboundUnitPrice(m)
+                                return p != null ? fmtMoney(p) : '—'
+                              })()}
                             </td>
                           )}
                           {visibleColumns.balance && (
