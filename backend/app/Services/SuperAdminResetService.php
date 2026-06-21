@@ -81,6 +81,17 @@ class SuperAdminResetService
     {
         $count = 0;
         $tables = $this->moduleMap[$module];
+        if ($module === 'invoices' && Schema::hasTable('inventory_movements')) {
+            $invoiceIds = DB::table('invoices')
+                ->where('tenant_id', $tenantId)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            if ($invoiceIds !== []) {
+                $count += app(InvoiceInventoryMovementService::class)
+                    ->deleteForInvoiceIds($tenantId, $invoiceIds);
+            }
+        }
         foreach (array_reverse($tables) as $table) {
             if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'tenant_id')) {
                 continue;

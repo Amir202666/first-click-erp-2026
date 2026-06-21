@@ -177,6 +177,7 @@ const en: Translations = {
     settingsAccounting: 'Accounting System Settings',
     settingsAccountingTabFiscalClose: 'Fiscal year closing',
     settingsPOS: 'POS Settings',
+    settingsRestaurantPOS: 'Restaurant POS Settings',
     settingsManufacturing: 'Manufacturing Settings',
     settingsGeneral: 'General Settings',
     settingsInstallments: 'Installment Settings',

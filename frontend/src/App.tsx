@@ -92,6 +92,7 @@ import Branches from './pages/settings/Branches'
 import CostCenters from './pages/settings/CostCenters'
 import SettingsAccounting from './pages/settings/SettingsAccounting'
 import SettingsPOS from './pages/settings/SettingsPOS'
+import SettingsRestaurantPOS from './pages/settings/SettingsRestaurantPOS'
 import SettingsGeneral from './pages/settings/SettingsGeneral'
 import SettingsInstallments from './pages/settings/SettingsInstallments'
 import SettingsMessages from './pages/settings/SettingsMessages'
@@ -333,6 +334,7 @@ function App() {
                     <Route path="/settings/print-templates/new" element={<Navigate to="/settings/print-templates/designer" replace />} />
                     <Route path="/settings/print-templates" element={<PrintTemplates />} />
                     <Route path="/settings/pos" element={<SettingsPOS />} />
+                    <Route path="/settings/restaurant-pos" element={<SettingsRestaurantPOS />} />
                     <Route path="/settings/manufacturing" element={<SettingsManufacturing />} />
                     <Route path="/settings/general" element={<SettingsGeneral />} />
                     <Route path="/settings/installments" element={<SettingsInstallments />} />

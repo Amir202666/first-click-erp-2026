@@ -16,6 +16,7 @@ use App\Models\RestaurantOrderLine;
 use App\Models\RestaurantTable;
 use App\Services\DeliveryService;
 use App\Services\InvoiceService;
+use App\Services\InvoiceStatusResolver;
 use App\Services\LoyaltyService;
 use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
@@ -47,6 +48,7 @@ class PosRestaurantController extends Controller
             'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'lines.*.tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'lines.*.description' => ['nullable', 'string', 'max:500'],
+            'lines.*.kitchen_note' => ['nullable', 'string', 'max:500'],
         ]);
 
         return DB::transaction(function () use ($data, $tenantId) {
@@ -68,6 +70,9 @@ class PosRestaurantController extends Controller
                     'restaurant_order_id' => $order->id,
                     'item_id' => $item->id,
                     'description' => $lineInput['description'] ?? $item->name,
+                    'kitchen_note' => isset($lineInput['kitchen_note']) && trim((string) $lineInput['kitchen_note']) !== ''
+                        ? trim((string) $lineInput['kitchen_note'])
+                        : null,
                     'quantity' => $lineInput['quantity'],
                     'unit_price' => $lineInput['unit_price'],
                     'discount_percent' => $lineInput['discount_percent'] ?? 0,
@@ -96,7 +101,7 @@ class PosRestaurantController extends Controller
                     'item_name' => $line->description ?? optional($line->item)->name ?? '',
                     'quantity' => $line->quantity,
                     'modifiers_text' => null,
-                    'kitchen_note' => null,
+                    'kitchen_note' => $line->kitchen_note,
                 ]);
             }
 
@@ -261,7 +266,7 @@ class PosRestaurantController extends Controller
 
         $query = RestaurantOrder::where('tenant_id', $tenantId)
             ->where('status', 'ready')
-            ->with(['table:id,name', 'lines.item']);
+            ->with(['table:id,name', 'lines.item', 'customer:id,name,phone']);
 
         if ($branchId) {
             $query->where('branch_id', $branchId);
@@ -324,9 +329,34 @@ class PosRestaurantController extends Controller
 
         $paymentsInput = $request->input('payments');
         $useSplit = is_array($paymentsInput) && count($paymentsInput) > 0;
+        $creditSale = $request->boolean('credit_sale');
 
-        if ($useSplit) {
-            $validated = $request->validate([
+        $checkoutCommonRules = [
+            'date' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'shift_id' => ['nullable', 'integer', 'exists:pos_shifts,id'],
+            'delivery_driver_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('delivery_drivers', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
+            'redeem_points' => ['nullable', 'numeric', 'min:0'],
+            'loyalty_program_id' => ['nullable', 'integer', 'min:1'],
+            'promotion_id' => ['nullable', 'integer', 'exists:promotions,id'],
+            'customer_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('customers', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
+            ],
+            'credit_sale' => ['sometimes', 'boolean'],
+        ];
+
+        if ($creditSale) {
+            $validated = $request->validate($checkoutCommonRules);
+            $amount = 0.0;
+            $useSplit = false;
+        } elseif ($useSplit) {
+            $validated = $request->validate(array_merge($checkoutCommonRules, [
                 'payments' => ['required', 'array', 'min:1'],
                 'payments.*.payment_method_id' => [
                     'required',
@@ -334,36 +364,20 @@ class PosRestaurantController extends Controller
                     Rule::exists('payment_methods', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
                 ],
                 'payments.*.amount' => ['required', 'numeric', 'min:0.001'],
-                'date' => ['required', 'date'],
-                'notes' => ['nullable', 'string', 'max:500'],
-                'shift_id' => ['nullable', 'integer', 'exists:pos_shifts,id'],
-                'delivery_driver_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('delivery_drivers', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
-                ],
-                'redeem_points' => ['nullable', 'numeric', 'min:0'],
-                'loyalty_program_id' => ['nullable', 'integer', 'min:1'],
-                'promotion_id' => ['nullable', 'integer', 'exists:promotions,id'],
-            ]);
+            ]));
             $amount = round(collect($validated['payments'])->sum(fn ($p) => (float) $p['amount']), 3);
         } else {
-            $validated = $request->validate([
-                'amount' => ['required', 'numeric', 'min:0.01'],
-                'date' => ['required', 'date'],
+            $validated = $request->validate(array_merge($checkoutCommonRules, [
+                'amount' => ['required', 'numeric', 'min:0'],
                 'payment_method_id' => ['nullable', 'integer', 'exists:payment_methods,id'],
-                'notes' => ['nullable', 'string', 'max:500'],
-                'shift_id' => ['nullable', 'integer', 'exists:pos_shifts,id'],
-                'delivery_driver_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('delivery_drivers', 'id')->where(fn ($q) => $q->where('tenant_id', $tenantId)),
-                ],
-                'redeem_points' => ['nullable', 'numeric', 'min:0'],
-                'loyalty_program_id' => ['nullable', 'integer', 'min:1'],
-                'promotion_id' => ['nullable', 'integer', 'exists:promotions,id'],
-            ]);
+            ]));
             $amount = round((float) $validated['amount'], 3);
+        }
+
+        if (! empty($validated['customer_id'])) {
+            $order->customer_id = (int) $validated['customer_id'];
+            $order->save();
+            $order->load('customer');
         }
 
         // Loyalty: allow redeeming points as invoice discount (optional)
@@ -416,8 +430,8 @@ class PosRestaurantController extends Controller
         }
 
         $netTotal = round(max(0, $orderTotal - $redeemDiscount - $promoDiscount), 3);
-        if ($amount + 0.0005 < $netTotal) {
-            return response()->json(['message' => 'المبلغ المدفوع أقل من إجمالي الطلب'], 422);
+        if ($amount > $netTotal + 0.0005) {
+            return response()->json(['message' => 'المبلغ المدفوع أكبر من إجمالي الطلب'], 422);
         }
 
         $shift = PosShift::where('tenant_id', $tenantId)
@@ -444,13 +458,28 @@ class PosRestaurantController extends Controller
             return response()->json(['message' => 'لا يمكن تسجيل دفعات متعددة في الصندوق عند تعيين سائق للتحصيل لاحقاً.'], 422);
         }
 
+        if ($creditSale && $skipCashierForDriver) {
+            return response()->json(['message' => 'لا يمكن البيع الآجل عند تعيين سائق للتحصيل لاحقاً.'], 422);
+        }
+
+        $isCreditSale = $creditSale || (! $skipCashierForDriver && $amount <= 0.0005);
+        $isPartialPayment = ! $skipCashierForDriver && ! $isCreditSale && $amount + 0.0005 < $netTotal;
+
+        if (($isCreditSale || $isPartialPayment) && empty($order->customer_id)) {
+            return response()->json(['message' => 'يرجى اختيار عميل عند البيع الآجل أو الدفع الجزئي.'], 422);
+        }
+
+        if (! $isCreditSale && ! $skipCashierForDriver && $amount <= 0.0005) {
+            return response()->json(['message' => 'أدخل مبلغ الدفع أو اختر البيع الآجل.'], 422);
+        }
+
         $primaryPaymentMethodId = $skipCashierForDriver
             ? null
             : ($useSplit
                 ? (int) $validated['payments'][0]['payment_method_id']
                 : ($validated['payment_method_id'] ?? null));
 
-        return DB::transaction(function () use ($order, $tenantId, $validated, $amount, $invoiceService, $paymentService, $shift, $session, $skipCashierForDriver, $checkoutDriverId, $useSplit, $primaryPaymentMethodId, $redeemDiscount, $redeemPoints, $appliedPromo, $promoDiscount, $promoSubtotal, $request) {
+        return DB::transaction(function () use ($order, $tenantId, $validated, $amount, $invoiceService, $paymentService, $shift, $session, $skipCashierForDriver, $checkoutDriverId, $useSplit, $primaryPaymentMethodId, $redeemDiscount, $redeemPoints, $appliedPromo, $promoDiscount, $promoSubtotal, $request, $isCreditSale) {
             $headerDiscount = round($redeemDiscount + $promoDiscount, 3);
             $invoiceData = [
                 'tenant_id' => $tenantId,
@@ -466,8 +495,8 @@ class PosRestaurantController extends Controller
                 'promotion_discount' => $promoDiscount,
                 'discount_amount' => $headerDiscount > 0.0005 ? $headerDiscount : 0,
                 'amount_paid' => $skipCashierForDriver ? 0 : $amount,
-                'payment_timing' => $skipCashierForDriver ? 'deferred' : 'paid',
-                'payment_method_id' => $primaryPaymentMethodId,
+                'payment_timing' => ($skipCashierForDriver || $isCreditSale) ? 'deferred' : 'paid',
+                'payment_method_id' => ($skipCashierForDriver || $isCreditSale) ? null : $primaryPaymentMethodId,
                 'delivery_driver_id' => $checkoutDriverId > 0 ? $checkoutDriverId : null,
                 'pos_shift_id' => $shift->id,
                 'pos_session_id' => $session?->id,
@@ -501,7 +530,7 @@ class PosRestaurantController extends Controller
                 );
             }
 
-            if (! $skipCashierForDriver) {
+            if (! $skipCashierForDriver && ! $isCreditSale) {
                 $baseNotes = $validated['notes'] ?? null;
                 if ($useSplit) {
                     foreach ($validated['payments'] as $idx => $p) {
@@ -558,6 +587,7 @@ class PosRestaurantController extends Controller
             }
 
             $invoice = $invoiceService->postInvoice($invoice->fresh(['lines.item', 'lines.item.category', 'customer', 'vendor']));
+            InvoiceStatusResolver::applyToModel($invoice->fresh());
 
             // Loyalty: redeem (optional) then award (optional). Do not break checkout.
             try {
@@ -621,9 +651,17 @@ class PosRestaurantController extends Controller
                 ->whereNotIn('status', ['done', 'cancelled'])
                 ->update(['status' => 'done']);
 
+            $freshInvoice = $invoice->fresh(['lines.item', 'customer', 'journalEntry.lines.account']);
+            $paymentStatus = (string) ($freshInvoice->payment_status ?? '');
+            $message = match ($paymentStatus) {
+                'partial' => 'تم ترحيل الفاتورة بدفع جزئي؛ المتبقي على حساب العميل.',
+                'deferred', 'unpaid' => 'تم ترحيل الفاتورة على حساب العميل الآجل.',
+                default => 'تم التحصيل وترحيل الفاتورة',
+            };
+
             return response()->json([
-                'message' => 'تم التحصيل وترحيل الفاتورة',
-                'invoice' => $invoice->fresh(['lines.item', 'customer', 'journalEntry.lines.account']),
+                'message' => $message,
+                'invoice' => $freshInvoice,
             ], 201);
         });
     }

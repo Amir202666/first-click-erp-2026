@@ -48,11 +48,8 @@ class Invoice extends Model
             // 1. حذف أسطر الفاتورة أولاً (المنتجات داخل الفاتورة)
             $invoice->lines()->delete();
 
-            // 2. حذف حركات المخزن المرتبطة (مبيعات، مشتريات، مرتجعات)
-            \App\Models\InventoryMovement::withoutGlobalScopes()
-                ->where('reference_type', get_class($invoice))
-                ->where('reference_id', $invoice->id)
-                ->delete();
+            // 2. حذف حركات المخزن المرتبطة (مبيعات، مشتريات، مرتجعات، تصنيع آلي)
+            app(\App\Services\InvoiceInventoryMovementService::class)->deleteForInvoice($invoice);
 
             // 3. حذف القيد المحاسبي المرتبط
             foreach (['journal_entry_id', 'manufacturing_journal_entry_id'] as $jeField) {

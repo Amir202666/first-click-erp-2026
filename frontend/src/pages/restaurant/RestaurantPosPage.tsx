@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -8,15 +9,23 @@ import type { Account, Branch, Customer, CustomerGroup, Item, ItemCategory, Item
 import { cn } from '../../lib/cn'
 import { getLocalizedName } from '../../utils/localizedName'
 import { formatAmount } from '../../utils/currency'
-import { ShoppingCart, Utensils, Truck, Send, Minus, Plus, LayoutGrid, Folder, X, UserPlus, Square, ClipboardList, Play, Lock, FileText, Receipt } from 'lucide-react'
+import { ShoppingCart, Utensils, Truck, Send, Minus, Plus, LayoutGrid, Folder, X, UserPlus, Square, ClipboardList, Play, Lock, FileText, Receipt, ChefHat } from 'lucide-react'
 import PaymentMethodBrandIcon from '../../components/PaymentMethodBrandIcon'
 import { RestaurantSplitPaymentForm, newLineId } from '../../components/restaurant/RestaurantSplitPaymentForm'
 import { LoyaltyPOSSection } from '../../components/loyalty/LoyaltyPOSSection'
+import PosShiftReportModals from '../../components/pos/PosShiftReportModals'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Toast, { type ToastType } from '../../components/ui/Toast'
 import { openInvoiceViewForPrint, posPrintOptionsFromSettings } from '../../utils/openInvoicePrintDialog'
 import WhatsAppButton from '../../components/WhatsAppButton'
 import { messageTemplateInvoice } from '../../utils/whatsapp'
+import { cacheSettings, readCachedSettings } from '../../utils/settingsStorage'
+import { subscribeKitchenSync } from '../../utils/restaurantKitchenSync'
+import {
+  readRestaurantPosDefaults,
+  readRestaurantPosDisplay,
+  restaurantSettingEnabled,
+} from './restaurantPosSettings'
 
 interface CartLine {
   item: PosItem
@@ -60,7 +69,8 @@ function pickPaymentMethodId(methods: PaymentMethod[], type: PaymentMethod['type
 }
 
 export default function RestaurantPosPage() {
-  const { currentTenant } = useAuth()
+  const { currentTenant, user } = useAuth()
+  const navigate = useNavigate()
   const { t, lang, isRtl, getDisplayName } = useLanguage()
   const tenantId = currentTenant?.id ?? 0
   const queryClient = useQueryClient()
@@ -105,7 +115,7 @@ export default function RestaurantPosPage() {
   const [kitchenNoteOpenItemId, setKitchenNoteOpenItemId] = useState<number | null>(null)
   const [payModalAmount, setPayModalAmount] = useState(0)
   /** تقسيم الدفع: عدة طرق على نفس الفاتورة */
-  const [splitPayMode, setSplitPayMode] = useState(false)
+  const [payModalMode, setPayModalMode] = useState<'split' | 'single' | 'credit'>('split')
   const [splitLines, setSplitLines] = useState<{ id: string; method: PaymentMethod; amount: number }[]>([])
   const [splitMethodId, setSplitMethodId] = useState<number | null>(null)
   const [splitCurrentAmount, setSplitCurrentAmount] = useState(0)
@@ -184,13 +194,36 @@ export default function RestaurantPosPage() {
     queryKey: ['restaurantOpenOrders', tenantId, branchId],
     queryFn: () => fetchRestaurantOpenOrders(tenantId, branchId ? { branch_id: branchId } : undefined),
     enabled: !!tenantId,
+    refetchInterval: 8_000,
   })
 
-  const { data: settings } = useQuery<TenantSettings>({
+  useEffect(() => {
+    if (!tenantId) return
+    return subscribeKitchenSync((event) => {
+      if (event.tenantId !== tenantId) return
+      if (event.branchId != null && branchId != null && event.branchId !== branchId) return
+      void refetchOpenOrders()
+    })
+  }, [tenantId, branchId, refetchOpenOrders])
+
+  const { data: settings, isFetched: settingsFetched } = useQuery<TenantSettings>({
     queryKey: ['settings', tenantId],
-    queryFn: () => fetchSettings(tenantId),
+    queryFn: async () => {
+      const data = await fetchSettings(tenantId)
+      cacheSettings(tenantId, data)
+      return data
+    },
     enabled: !!tenantId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    initialData: () => readCachedSettings(tenantId),
+    placeholderData: (prev) => prev ?? readCachedSettings(tenantId),
   })
+
+  const restaurantDefaults = useMemo(() => readRestaurantPosDefaults(settings), [settings])
+  const rposDisplay = useMemo(() => readRestaurantPosDisplay(settings), [settings])
+  const categoryIconSize = Math.round(Math.min(rposDisplay.categoryButtonWidth, rposDisplay.categoryIconHeight) * 0.45)
+  const categoryImageSize = Math.round(Math.min(rposDisplay.categoryButtonWidth, rposDisplay.categoryIconHeight) * 0.65)
   const amountDecimals = (() => {
     const n = Number(settings?.doc_amount_decimals)
     return Number.isFinite(n) ? Math.max(0, Math.min(3, Math.round(n))) : 2
@@ -215,34 +248,6 @@ export default function RestaurantPosPage() {
     : (paymentMethodsData && typeof paymentMethodsData === 'object' && 'data' in paymentMethodsData
       ? (paymentMethodsData as { data?: PaymentMethod[] }).data
       : undefined) ?? []
-
-  const applyQuickPayment = useCallback(
-    (type: PaymentMethod['type']) => {
-      const id = pickPaymentMethodId(paymentMethods, type)
-      if (id == null) {
-        setToast({
-          message: lang === 'ar' ? 'لا توجد طريقة دفع من هذا النوع في الإعدادات' : 'No active payment method of this type in settings',
-          type: 'info',
-        })
-        return
-      }
-      setPreferredPaymentMethodId(id)
-      if (type === 'cash' && orderToPay) {
-        const total = roundMoney(Number(orderToPay.total) || 0)
-        setCheckoutDriverId(null)
-        setSplitPayMode(true)
-        setSplitLines([])
-        setSplitMethodId(id)
-        setSplitCurrentAmount(total)
-        setPaymentMethodId(id)
-        setPayModalAmount(total)
-        setShowPayModal(true)
-        return
-      }
-      if (showPayModal && orderToPay) setPaymentMethodId(id)
-    },
-    [paymentMethods, orderToPay, lang, roundMoney],
-  )
 
   const { data: customersData } = useQuery({
     queryKey: ['customers', tenantId, 'restaurant-pos', branchId],
@@ -344,31 +349,96 @@ export default function RestaurantPosPage() {
     [itemCategories, branchId],
   )
 
-  const allowNegativeSale = (settings as { allow_negative_sale?: boolean } | undefined)?.allow_negative_sale !== false
+  const allowNegativeSale = (() => {
+    const s = settings as Record<string, unknown> | undefined
+    if (s?.rpos_allow_negative_sale === true || s?.rpos_allow_negative_sale === '1') return true
+    if (s?.rpos_allow_negative_sale === false || s?.rpos_allow_negative_sale === '0') return false
+    return s?.allow_negative_sale !== false
+  })()
+
+  const requireOpenShift = (settings as Record<string, unknown> | undefined)?.rpos_require_open_shift !== false
+    && (settings as Record<string, unknown> | undefined)?.rpos_require_open_shift !== '0'
+  const autoPrintOnCheckout = (settings as Record<string, unknown> | undefined)?.rpos_auto_print_on_checkout !== false
+    && (settings as Record<string, unknown> | undefined)?.rpos_auto_print_on_checkout !== '0'
+  const kitchenNotesEnabled = (settings as Record<string, unknown> | undefined)?.rpos_kitchen_notes_enabled !== false
+    && (settings as Record<string, unknown> | undefined)?.rpos_kitchen_notes_enabled !== '0'
+  const kitchenLinkEnabled = restaurantSettingEnabled(
+    (settings as Record<string, unknown> | undefined)?.rpos_show_kitchen_link,
+  )
+  const splitPaymentEnabled = (settings as Record<string, unknown> | undefined)?.rpos_split_payment_enabled !== false
+    && (settings as Record<string, unknown> | undefined)?.rpos_split_payment_enabled !== '0'
+
+  const useDefaultCustomer = restaurantDefaults.customerId != null
+
+  const { data: defaultCustomersData } = useQuery({
+    queryKey: ['customers', tenantId, 'rpos-default-apply', restaurantDefaults.customerId],
+    queryFn: () => fetchCustomers(tenantId, { per_page: '500' }),
+    enabled: !!tenantId && useDefaultCustomer,
+  })
+  const defaultCustomersList: Customer[] = defaultCustomersData?.data ?? []
+
+  const orderTypeDefaultAppliedRef = useRef(false)
+  const customerDefaultsAppliedRef = useRef(false)
+
+  useEffect(() => {
+    orderTypeDefaultAppliedRef.current = false
+    customerDefaultsAppliedRef.current = false
+    setBranchId(null)
+    setWarehouseId(null)
+    setSelectedCustomer(null)
+  }, [tenantId])
+
+  useEffect(() => {
+    if (!tenantId || !settingsFetched || orderTypeDefaultAppliedRef.current) return
+    if (restaurantDefaults.orderType) {
+      setOrderType(restaurantDefaults.orderType)
+    }
+    orderTypeDefaultAppliedRef.current = true
+  }, [tenantId, settingsFetched, restaurantDefaults.orderType])
+
+  useEffect(() => {
+    if (!tenantId || !settingsFetched) return
+    if (branches.length === 0 || branchId !== null) return
+    if (restaurantDefaults.branchId == null) return
+    const match = branches.find(
+      (b) => Number(b.id) === restaurantDefaults.branchId && b.is_active !== false,
+    )
+    if (match) setBranchId(Number(match.id))
+  }, [tenantId, settingsFetched, branches, branchId, restaurantDefaults.branchId])
+
+  useEffect(() => {
+    if (!tenantId || !settingsFetched) return
+    if (warehouses.length === 0 || warehouseId !== null) return
+    if (restaurantDefaults.warehouseId == null) return
+    const match = warehouses.find(
+      (w) => Number(w.id) === restaurantDefaults.warehouseId && w.is_active !== false,
+    )
+    if (match) setWarehouseId(Number(match.id))
+  }, [tenantId, settingsFetched, warehouses, warehouseId, restaurantDefaults.warehouseId])
+
+  useEffect(() => {
+    customerDefaultsAppliedRef.current = false
+  }, [useDefaultCustomer, restaurantDefaults.customerId])
+
+  useEffect(() => {
+    if (!tenantId || !settingsFetched || customerDefaultsAppliedRef.current) return
+    if (!useDefaultCustomer) {
+      customerDefaultsAppliedRef.current = true
+      return
+    }
+    if (restaurantDefaults.customerId == null) {
+      customerDefaultsAppliedRef.current = true
+      return
+    }
+    if (defaultCustomersList.length === 0) return
+    const c = defaultCustomersList.find((x) => Number(x.id) === restaurantDefaults.customerId)
+    if (c) {
+      setSelectedCustomer({ id: c.id, name: c.name, phone: c.phone ?? null })
+    }
+    customerDefaultsAppliedRef.current = true
+  }, [tenantId, settingsFetched, useDefaultCustomer, restaurantDefaults.customerId, defaultCustomersList])
 
   const selectedTable = useMemo(() => tables?.find((t) => t.id === selectedTableId) ?? null, [tables, selectedTableId])
-
-  const tableStripItems = useMemo(() => {
-    const list = tables ?? []
-    return [...list]
-      .sort(
-        (a, b) =>
-          (a.sort_order ?? 999) - (b.sort_order ?? 999) || (a.name || '').localeCompare(b.name || '', undefined, { numeric: true }),
-      )
-      .map((tbl) => {
-        const openOrder = openOrders.find((o) => o.table_id === tbl.id)
-        const isCurrent = selectedTableId === tbl.id
-        let status: 'free' | 'occupied' | 'current' = 'free'
-        if (isCurrent) status = 'current'
-        else if (tbl.status === 'occupied' || openOrder) status = 'occupied'
-        return {
-          id: tbl.id,
-          label: tbl.name,
-          status,
-          orderTotal: openOrder ? roundMoney(Number(openOrder.total) || 0) : undefined,
-        }
-      })
-  }, [tables, openOrders, selectedTableId])
 
   const tablesBySection = useMemo(() => {
     let list = tables ?? []
@@ -556,18 +626,6 @@ export default function RestaurantPosPage() {
     },
   })
 
-  const switchRestaurantTable = async (tableId: number) => {
-    if (tableId === selectedTableId) return
-    if (cart.length > 0 && branchId) {
-      try {
-        await holdRestaurantMut.mutateAsync()
-      } catch {
-        return
-      }
-    }
-    setSelectedTableId(tableId)
-  }
-
   const openShiftMut = useMutation({
     mutationFn: (cash: number) => openPosShift(tenantId, { branch_id: branchId!, opening_cash: cash }),
     onSuccess: () => {
@@ -626,21 +684,26 @@ export default function RestaurantPosPage() {
   const checkoutMut = useMutation({
     mutationFn: async (
       args:
-        | { orderId: number; amount: number; paymentMethodId: number | null; delivery_driver_id?: number | null }
-        | { orderId: number; payments: { payment_method_id: number; amount: number }[]; delivery_driver_id?: number | null },
+        | { orderId: number; credit_sale: true; customer_id?: number | null; delivery_driver_id?: number | null }
+        | { orderId: number; amount: number; paymentMethodId: number | null; customer_id?: number | null; delivery_driver_id?: number | null }
+        | { orderId: number; payments: { payment_method_id: number; amount: number }[]; customer_id?: number | null; delivery_driver_id?: number | null },
     ) => {
       const date = new Date().toISOString().slice(0, 10)
       const notes = lang === 'ar' ? 'دفع من نقطة بيع المطعم' : 'Restaurant POS payment'
+      const customerId = ('customer_id' in args ? args.customer_id : undefined) ?? orderToPay?.customer_id ?? selectedCustomer?.id ?? undefined
       const base = {
         date,
         notes,
         shift_id: currentShift?.id ?? undefined,
         ...(loyaltyProgramId != null ? { loyalty_program_id: loyaltyProgramId } : {}),
         ...(loyaltyRedeemPoints > 0 ? { redeem_points: loyaltyRedeemPoints } : {}),
+        ...(customerId ? { customer_id: customerId } : {}),
         ...('delivery_driver_id' in args && args.delivery_driver_id ? { delivery_driver_id: args.delivery_driver_id } : {}),
       }
       let res: Awaited<ReturnType<typeof checkoutRestaurantOrder>>
-      if ('payments' in args && args.payments.length > 0) {
+      if ('credit_sale' in args && args.credit_sale) {
+        res = await checkoutRestaurantOrder(tenantId, args.orderId, { ...base, credit_sale: true, amount: 0 })
+      } else if ('payments' in args && args.payments.length > 0) {
         const payments = args.payments.map((p) => ({
           payment_method_id: p.payment_method_id,
           amount: roundMoney(p.amount),
@@ -656,7 +719,7 @@ export default function RestaurantPosPage() {
           delivery_driver_id?: number | null
         }
         const paid = roundMoney(amount)
-        if (paid <= 0) throw new Error(lang === 'ar' ? 'أدخل مبلغ الدفع' : 'Enter payment amount')
+        if (paid <= 0) throw new Error(lang === 'ar' ? 'أدخل مبلغ الدفع أو اختر البيع الآجل' : 'Enter payment amount or choose credit sale')
         res = await checkoutRestaurantOrder(tenantId, orderId, {
           ...base,
           amount: paid,
@@ -674,15 +737,24 @@ export default function RestaurantPosPage() {
       setCheckoutDriverId(null)
       setPaymentMethodId(null)
       setPayModalAmount(0)
-      setSplitPayMode(false)
+      setPayModalMode('split')
       setSplitLines([])
       setSplitMethodId(null)
       setSplitCurrentAmount(0)
       setLoyaltyRedeemPoints(0)
       setLoyaltyRedeemDiscount(0)
       setLoyaltyProgramId(null)
+      const inv = data?.invoice as { payment_status?: string; status?: string } | undefined
+      const paymentStatus = inv?.payment_status ?? inv?.status ?? ''
+      const toastMsg =
+        data?.message ??
+        (paymentStatus === 'partial'
+          ? (lang === 'ar' ? 'تم ترحيل الفاتورة بدفع جزئي' : 'Invoice posted with partial payment')
+          : paymentStatus === 'deferred' || paymentStatus === 'sent'
+            ? (lang === 'ar' ? 'تم ترحيل الفاتورة على حساب العميل الآجل' : 'Invoice posted on customer credit')
+            : (lang === 'ar' ? 'تم التحصيل وترحيل الفاتورة' : 'Payment completed and invoice posted'))
       setToast({
-        message: lang === 'ar' ? 'تم التحصيل وترحيل الفاتورة' : 'Payment completed and invoice posted',
+        message: toastMsg,
         type: 'success',
       })
       if (data?.invoice) {
@@ -705,7 +777,7 @@ export default function RestaurantPosPage() {
         })
       }
       setTimeout(() => {
-        if (data.invoice?.id) {
+        if (data.invoice?.id && autoPrintOnCheckout) {
           openInvoiceViewForPrint(
             data.invoice.id,
             posPrintOptionsFromSettings(settings as Record<string, unknown>),
@@ -831,7 +903,7 @@ export default function RestaurantPosPage() {
 
   const handleTableActionCollect = async () => {
     if (!tableActionTarget) return
-    if (branchId && !currentShift) {
+    if (branchId && requireOpenShift && !currentShift) {
       setToast({ message: lang === 'ar' ? 'يجب فتح وردية قبل التحصيل' : 'Open a shift before collecting', type: 'error' })
       return
     }
@@ -940,6 +1012,33 @@ export default function RestaurantPosPage() {
     return Math.max(0, before - discount)
   }
 
+  const resolveOrderCustomerId = useCallback(
+    () => orderToPay?.customer_id ?? selectedCustomer?.id ?? null,
+    [orderToPay?.customer_id, selectedCustomer?.id],
+  )
+
+  const syncCustomerFromOrder = useCallback((order: RestaurantOrder) => {
+    if (order.customer) {
+      setSelectedCustomer({
+        id: order.customer.id,
+        name: order.customer.name,
+        phone: order.customer.phone ?? null,
+      })
+      return
+    }
+    if (order.customer_id) {
+      const c = customersList.find((x) => x.id === order.customer_id)
+      if (c) {
+        setSelectedCustomer({
+          id: c.id,
+          name: c.name,
+          phone: c.phone ?? null,
+          loyaltyPoints: (c as { loyalty_points?: number }).loyalty_points,
+        })
+      }
+    }
+  }, [customersList])
+
   const payTotalBase = orderToPay ? roundMoney(Number(orderToPay.total) || 0) : 0
   const payTotal = roundMoney(Math.max(0, payTotalBase - (loyaltyRedeemDiscount || 0)))
   const payRemaining = roundMoney(Math.max(0, payTotal - payModalAmount))
@@ -950,14 +1049,24 @@ export default function RestaurantPosPage() {
     [splitLines],
   )
   const splitChangeDue = useMemo(() => Math.max(0, roundMoney(splitPaySum - payTotal)), [splitPaySum, payTotal])
-  const splitPayReady = splitLines.length > 0 && splitPaySum + 0.0005 >= payTotal
+  const splitRemainingDue = useMemo(() => Math.max(0, roundMoney(payTotal - splitPaySum)), [payTotal, splitPaySum])
+  const hasOrderCustomer = resolveOrderCustomerId() != null
+  const splitPayReady =
+    splitLines.length > 0 &&
+    splitPaySum > 0.0005 &&
+    (splitPaySum + 0.0005 >= payTotal || hasOrderCustomer)
+  const singlePayReady =
+    payModalAmount > 0.0005 &&
+    (payModalAmount + 0.0005 >= payTotal || hasOrderCustomer) &&
+    (paymentMethods.length === 0 || paymentMethodId != null)
+  const creditPayReady = hasOrderCustomer && !deliveryDriverBlocksSplit
 
   const primeRestaurantPayModal = useCallback(
-    (order: RestaurantOrder) => {
+    (order: RestaurantOrder, mode: 'split' | 'single' | 'credit' = 'split') => {
       const total = roundMoney(Math.max(0, (Number(order.total) || 0) - (loyaltyRedeemDiscount || 0)))
       setPayModalAmount(total)
       setSplitLines([])
-      setSplitPayMode(true)
+      setPayModalMode(mode)
       const cashId = pickPaymentMethodId(paymentMethods, 'cash')
       const mid = preferredPaymentMethodId ?? cashId ?? paymentMethods.find((m) => m.is_active)?.id ?? null
       setSplitMethodId(mid)
@@ -968,16 +1077,17 @@ export default function RestaurantPosPage() {
   )
 
   const handleOpenOrderCollect = (order: RestaurantOrder) => {
-    if (!currentShift) {
+    if (requireOpenShift && !currentShift) {
       setToast({ message: lang === 'ar' ? 'يجب فتح وردية قبل التحصيل' : 'Open a shift before collecting', type: 'error' })
       return
     }
     setOrderToPay(order)
+    syncCustomerFromOrder(order)
     setCheckoutDriverId(null)
     setLoyaltyRedeemPoints(0)
     setLoyaltyRedeemDiscount(0)
     setLoyaltyProgramId(null)
-    primeRestaurantPayModal(order)
+    primeRestaurantPayModal(order, 'split')
     setShowOpenOrdersPanel(false)
     setTimeout(() => setShowPayModal(true), 0)
   }
@@ -991,7 +1101,7 @@ export default function RestaurantPosPage() {
     if (!orderToPay || orderToPay.order_type !== 'delivery') return
     const block = checkoutDriverId != null && checkoutDriverId > 0
     if (block) {
-      setSplitPayMode(false)
+      setPayModalMode('single')
       setSplitLines([])
       setSplitCurrentAmount(0)
         setPayModalAmount(roundMoney(Math.max(0, (Number(orderToPay.total) || 0) - (loyaltyRedeemDiscount || 0))))
@@ -999,7 +1109,7 @@ export default function RestaurantPosPage() {
       return
     }
     if (payModalDriverBlockRef.current) {
-      setSplitPayMode(true)
+      setPayModalMode('split')
       setSplitLines([])
         const total = roundMoney(Math.max(0, (Number(orderToPay.total) || 0) - (loyaltyRedeemDiscount || 0)))
       setSplitCurrentAmount(total)
@@ -1013,20 +1123,47 @@ export default function RestaurantPosPage() {
 
   const handleOpenPayModal = () => {
     if (!orderToPay) return
+    syncCustomerFromOrder(orderToPay)
     setCheckoutDriverId(null)
     setLoyaltyRedeemPoints(0)
     setLoyaltyRedeemDiscount(0)
     setLoyaltyProgramId(null)
-    primeRestaurantPayModal(orderToPay)
+    primeRestaurantPayModal(orderToPay, 'split')
     setShowPayModal(true)
     setTimeout(() => payModalInputRef.current?.focus(), 100)
   }
 
   const handleConfirmPay = () => {
     if (!orderToPay) return
+    const customerId = resolveOrderCustomerId()
     const driverExtra =
       orderToPay.order_type === 'delivery' && checkoutDriverId ? { delivery_driver_id: checkoutDriverId } : {}
-    if (splitPayMode && !deliveryDriverBlocksSplit) {
+
+    if (payModalMode === 'credit') {
+      if (!customerId) {
+        setToast({
+          message: lang === 'ar' ? 'يرجى اختيار عميل أولاً عند البيع الآجل' : 'Please select a customer first for credit sales',
+          type: 'error',
+        })
+        return
+      }
+      if (deliveryDriverBlocksSplit) {
+        setToast({
+          message: lang === 'ar' ? 'لا يمكن البيع الآجل عند تعيين سائق للتحصيل لاحقاً' : 'Credit sale is not available when a driver is assigned',
+          type: 'error',
+        })
+        return
+      }
+      checkoutMut.mutate({
+        orderId: orderToPay.id,
+        credit_sale: true,
+        customer_id: customerId,
+        ...driverExtra,
+      })
+      return
+    }
+
+    if (payModalMode === 'split' && !deliveryDriverBlocksSplit) {
       if (splitLines.length === 0) {
         setToast({
           message: lang === 'ar' ? 'أضف دفعة واحدة على الأقل' : 'Add at least one payment line',
@@ -1034,9 +1171,9 @@ export default function RestaurantPosPage() {
         })
         return
       }
-      if (splitPaySum + 0.0005 < payTotal) {
+      if (splitPaySum + 0.0005 < payTotal && !customerId) {
         setToast({
-          message: lang === 'ar' ? 'مجموع الدفعات أقل من إجمالي الطلب' : 'Total payments are less than the order total',
+          message: lang === 'ar' ? 'اختر عميلاً لتسجيل المتبقي على حسابه عند الدفع الجزئي' : 'Select a customer to post the remaining balance on credit',
           type: 'error',
         })
         return
@@ -1044,13 +1181,21 @@ export default function RestaurantPosPage() {
       checkoutMut.mutate({
         orderId: orderToPay.id,
         payments: splitLines.map((l) => ({ payment_method_id: l.method.id, amount: roundMoney(l.amount) })),
-        ...(loyaltyRedeemPoints > 0 ? { redeem_points: loyaltyRedeemPoints } : {}),
+        customer_id: customerId,
         ...driverExtra,
       })
       return
     }
-    if (payModalAmount < payTotal) {
-      setToast({ message: lang === 'ar' ? 'المبلغ المدفوع أقل من الإجمالي' : 'Amount paid is less than total', type: 'error' })
+
+    if (payModalAmount <= 0.0005) {
+      setToast({ message: lang === 'ar' ? 'أدخل مبلغ الدفع أو اختر البيع الآجل' : 'Enter payment amount or choose credit sale', type: 'error' })
+      return
+    }
+    if (payModalAmount + 0.0005 < payTotal && !customerId) {
+      setToast({
+        message: lang === 'ar' ? 'اختر عميلاً لتسجيل المتبقي على حسابه عند الدفع الجزئي' : 'Select a customer to post the remaining balance on credit',
+        type: 'error',
+      })
       return
     }
     if (!paymentMethodId && paymentMethods.length > 0) {
@@ -1061,16 +1206,17 @@ export default function RestaurantPosPage() {
       orderId: orderToPay.id,
       amount: payModalAmount,
       paymentMethodId,
-      ...(loyaltyRedeemPoints > 0 ? { redeem_points: loyaltyRedeemPoints } : {}),
+      customer_id: customerId,
       ...driverExtra,
     })
   }
 
   useEffect(() => {
     if (!showPayModal) return
-    if (splitPayMode && !deliveryDriverBlocksSplit) return
+    if (payModalMode === 'split' && !deliveryDriverBlocksSplit) return
+    if (payModalMode === 'credit') return
     payModalInputRef.current?.focus()
-  }, [showPayModal, splitPayMode, deliveryDriverBlocksSplit])
+  }, [showPayModal, payModalMode, deliveryDriverBlocksSplit])
 
   const handleConfirmPayRef = useRef(handleConfirmPay)
   handleConfirmPayRef.current = handleConfirmPay
@@ -1078,8 +1224,6 @@ export default function RestaurantPosPage() {
   handleOpenPayModalRef.current = handleOpenPayModal
   const handleSaveAndSendRef = useRef(handleSaveAndSend)
   handleSaveAndSendRef.current = handleSaveAndSend
-  const applyQuickPaymentRef = useRef(applyQuickPayment)
-  applyQuickPaymentRef.current = applyQuickPayment
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1120,21 +1264,6 @@ export default function RestaurantPosPage() {
         }
         return
       }
-      if (e.key === 'F5') {
-        e.preventDefault()
-        applyQuickPaymentRef.current('cash')
-        return
-      }
-      if (e.key === 'F6') {
-        e.preventDefault()
-        applyQuickPaymentRef.current('bank')
-        return
-      }
-      if (e.key === 'F9') {
-        e.preventDefault()
-        applyQuickPaymentRef.current('credit')
-        return
-      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -1142,7 +1271,7 @@ export default function RestaurantPosPage() {
 
   if (!tenantId) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-col h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-slate-100">
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         <div className="p-6 text-amber-600">{lang === 'ar' ? 'يرجى اختيار الشركة أولاً' : 'Please select a company first'}</div>
       </div>
@@ -1150,7 +1279,7 @@ export default function RestaurantPosPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-4rem)] min-h-0 overflow-hidden bg-slate-100">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {/* Header: الفرع/المخزن/الطاولة/الوردية/تقرير X/إغلاق */}
       <div
@@ -1158,16 +1287,29 @@ export default function RestaurantPosPage() {
         dir="ltr"
         style={{ paddingLeft: 20, paddingRight: 20, justifyContent: 'space-between' }}
       >
-        <button
-          type="button"
-          onClick={() => setShowOpenOrdersPanel((v) => !v)}
-          className={`flex items-center gap-2 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showOpenOrdersPanel ? 'bg-white/20 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
-          title={lang === 'ar' ? 'الطلبات المفتوحة' : 'Open orders'}
-        >
-          <ClipboardList size={18} />
-          <span className="hidden sm:inline">{lang === 'ar' ? 'الطلبات المفتوحة' : 'Open orders'}</span>
-          {openOrders.length > 0 && <span className="bg-white/30 rounded-full px-1.5 text-xs font-bold">{openOrders.length}</span>}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowOpenOrdersPanel((v) => !v)}
+            className={`flex items-center gap-2 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors ${showOpenOrdersPanel ? 'bg-white/20 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+            title={lang === 'ar' ? 'الطلبات المفتوحة' : 'Open orders'}
+          >
+            <ClipboardList size={18} />
+            <span className="hidden sm:inline">{lang === 'ar' ? 'الطلبات المفتوحة' : 'Open orders'}</span>
+            {openOrders.length > 0 && <span className="bg-white/30 rounded-full px-1.5 text-xs font-bold">{openOrders.length}</span>}
+          </button>
+          {kitchenLinkEnabled && (
+            <button
+              type="button"
+              onClick={() => navigate('/restaurant/kitchen')}
+              className="flex items-center gap-2 h-8 px-3 rounded-lg text-[13px] font-medium transition-colors bg-white/10 hover:bg-white/20 text-white"
+              title={lang === 'ar' ? 'شاشة المطبخ' : 'Kitchen display'}
+            >
+              <ChefHat size={18} />
+              <span className="hidden sm:inline">{lang === 'ar' ? 'المطبخ' : 'Kitchen'}</span>
+            </button>
+          )}
+        </div>
         {branchId && (
           currentShift ? (
             <div className="flex items-center gap-2">
@@ -1281,6 +1423,20 @@ export default function RestaurantPosPage() {
                         <span className="font-semibold text-slate-800">{tableName}</span>
                         <span className="text-sm font-medium text-primary-600" dir="ltr">{formatAmount(Number(order.total) || 0, { decimal_places: amountDecimals }, locale)}</span>
                       </div>
+                      {(order.lines ?? []).some((l) => (l.kitchen_note ?? '').trim()) && (
+                        <ul className="mb-2 space-y-1 text-[11px] text-amber-800">
+                          {(order.lines ?? [])
+                            .filter((l) => (l.kitchen_note ?? '').trim())
+                            .map((l) => (
+                              <li key={l.id} className="leading-snug">
+                                <span className="font-medium text-slate-700">
+                                  {l.item ? getLocalizedName(l.item, lang) : l.description ?? `#${l.item_id}`}
+                                </span>
+                                <span className="text-amber-700"> — {l.kitchen_note}</span>
+                              </li>
+                            ))}
+                        </ul>
+                      )}
                       <div className="flex gap-2 flex-wrap">
                         <button type="button" onClick={() => handleOpenOrderLoad(order)} className="flex-1 min-w-[70px] py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-500">
                           {lang === 'ar' ? 'فتح' : 'Open'}
@@ -1415,7 +1571,7 @@ export default function RestaurantPosPage() {
         <div className="flex flex-col min-h-0 overflow-hidden bg-slate-50/80 border-e border-slate-200">
           <div
             className="flex-1 overflow-y-auto p-1 grid gap-1 content-start min-h-0"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}
+            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${rposDisplay.itemCardWidth}px, ${rposDisplay.itemCardWidth}px))` }}
           >
             {posItems.map((item) => {
               const imgUrl = item.image_url || item.image || null
@@ -1434,7 +1590,7 @@ export default function RestaurantPosPage() {
                     if (!outOfStock) addItemToCart(item)
                   }}
                   className={cn(
-                    'relative flex flex-col rounded-lg border bg-white overflow-hidden transition-all aspect-square text-start',
+                    'relative flex flex-col rounded-lg border bg-white overflow-hidden transition-all text-start w-full',
                     outOfStock
                       ? 'cursor-not-allowed border-slate-200 opacity-60'
                       : 'border-slate-200 hover:border-primary-400 hover:shadow active:scale-95',
@@ -1458,7 +1614,10 @@ export default function RestaurantPosPage() {
                           ? 'متاح'
                           : 'OK'}
                   </span>
-                  <div className="relative h-[72px] w-full shrink-0 bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
+                  <div
+                    className="relative w-full shrink-0 bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100"
+                    style={{ height: rposDisplay.itemImageHeight }}
+                  >
                     <span className="absolute inset-0 flex items-center justify-center text-3xl select-none" aria-hidden>
                       {getCategoryEmoji(catName)}
                     </span>
@@ -1466,19 +1625,20 @@ export default function RestaurantPosPage() {
                       <img
                         src={imgUrl}
                         alt=""
-                        className="relative z-[1] max-h-[72px] max-w-full object-contain"
+                        className="relative z-[1] max-w-full object-contain"
+                        style={{ maxHeight: rposDisplay.itemImageHeight }}
                         onError={(e) => {
                           ;(e.target as HTMLImageElement).style.visibility = 'hidden'
                         }}
                       />
                     ) : null}
                   </div>
-                  <div className="flex-1 flex flex-col items-center justify-center p-1 min-w-0">
-                    <div className="text-[12px] font-semibold text-slate-800 line-clamp-2 leading-tight px-0.5 text-center">
+                  <div className="flex-shrink-0 flex flex-col items-center justify-center p-1.5 min-w-0 min-h-[2.25rem]">
+                    <div className="text-[12px] font-semibold text-slate-800 line-clamp-2 leading-tight px-0.5 text-center w-full">
                       {getLocalizedName(item, lang)}
                     </div>
                   </div>
-                  <div className="bg-primary-600 text-white text-[12px] font-semibold py-1 px-1 text-center rounded-b-[7px]" dir="ltr">
+                  <div className="flex-shrink-0 bg-primary-600 text-white text-[12px] font-semibold py-1.5 px-1 text-center rounded-b-[7px]" dir="ltr">
                     {fmt(unitPrice)}
                   </div>
                 </button>
@@ -1486,18 +1646,22 @@ export default function RestaurantPosPage() {
             })}
           </div>
           {/* فئات أصناف المطعم — أسفل الأصناف بالعرض (أيقونات وشريط أكبر + صورة الفئة) */}
-          <div className="flex-shrink-0 flex flex-wrap items-center gap-3 p-3 border-t-2 border-slate-200 bg-white min-h-[88px]">
+          <div
+            className="flex-shrink-0 flex flex-wrap items-center gap-3 p-3 border-t-2 border-slate-200 bg-white"
+            style={{ minHeight: rposDisplay.categoryIconHeight + 16 }}
+          >
             <button
               type="button"
               onClick={() => setSelectedCategoryId('all')}
-              className={`flex flex-col rounded-xl border-2 overflow-hidden transition-all active:scale-95 items-center justify-center gap-1 p-3 min-h-[72px] min-w-[100px] ${
+              className={`flex flex-col rounded-xl border-2 overflow-hidden transition-all active:scale-95 items-center justify-center gap-1 p-3 ${
                 selectedCategoryId === 'all'
                   ? 'bg-primary-600 text-white border-primary-600 shadow-md'
                   : 'bg-white text-slate-700 border-slate-200 hover:border-primary-400 hover:bg-slate-50'
               }`}
+              style={{ minWidth: rposDisplay.categoryButtonWidth, minHeight: rposDisplay.categoryIconHeight }}
               title={lang === 'ar' ? 'الكل' : 'All'}
             >
-              <LayoutGrid size={36} className="flex-shrink-0" />
+              <LayoutGrid size={categoryIconSize} className="flex-shrink-0" />
               <span className="text-[13px] font-semibold truncate w-full text-center leading-tight">
                 {lang === 'ar' ? 'الكل' : 'All'}
               </span>
@@ -1509,20 +1673,24 @@ export default function RestaurantPosPage() {
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`flex flex-col rounded-xl border-2 overflow-hidden transition-all active:scale-95 items-center justify-center gap-1 p-3 min-h-[72px] min-w-[100px] ${
+                  className={`flex flex-col rounded-xl border-2 overflow-hidden transition-all active:scale-95 items-center justify-center gap-1 p-3 ${
                     selectedCategoryId === cat.id
                       ? 'bg-primary-600 text-white border-primary-600 shadow-md'
                       : 'bg-white text-slate-700 border-slate-200 hover:border-primary-400 hover:bg-slate-50'
                   }`}
+                  style={{ minWidth: rposDisplay.categoryButtonWidth, minHeight: rposDisplay.categoryIconHeight }}
                   title={cat.name || (lang === 'ar' ? 'تصنيف' : 'Category')}
                 >
                   {catImageUrl ? (
-                    <div className="relative w-12 h-12 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0">
+                    <div
+                      className="relative rounded-xl bg-slate-100 overflow-hidden flex-shrink-0"
+                      style={{ width: categoryImageSize, height: categoryImageSize }}
+                    >
                       <img src={catImageUrl} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }} />
-                      <div className="hidden absolute inset-0 flex items-center justify-center bg-slate-100"><Folder size={28} className="text-slate-400" /></div>
+                      <div className="hidden absolute inset-0 flex items-center justify-center bg-slate-100"><Folder size={Math.round(categoryIconSize * 0.78)} className="text-slate-400" /></div>
                     </div>
                   ) : (
-                    <Folder size={36} className="flex-shrink-0" />
+                    <Folder size={categoryIconSize} className="flex-shrink-0" />
                   )}
                   <span className="text-[13px] font-semibold truncate w-full text-center leading-tight">
                     {cat.name || (lang === 'ar' ? 'تصنيف' : 'Category')}
@@ -1531,39 +1699,6 @@ export default function RestaurantPosPage() {
               )
             })}
           </div>
-          {tableStripItems.length > 0 && (
-            <div className="flex-shrink-0 border-t-2 border-slate-200 bg-white px-2 py-2">
-              <p className="text-[10px] font-semibold text-slate-500 mb-1.5">{lang === 'ar' ? 'الطاولات' : 'Tables'}</p>
-              <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5" dir={isRtl ? 'rtl' : 'ltr'}>
-                {tableStripItems.map((tbl) => (
-                  <button
-                    key={tbl.id}
-                    type="button"
-                    onClick={() => void switchRestaurantTable(tbl.id)}
-                    className={cn(
-                      'min-w-[56px] shrink-0 rounded-lg border px-2 py-1.5 text-center transition-colors',
-                      tbl.status === 'current' && 'border-primary-600 bg-primary-600 text-white shadow-sm',
-                      tbl.status === 'occupied' && 'border-red-300 bg-red-50 text-red-800',
-                      tbl.status === 'free' && 'border-emerald-300 bg-emerald-50 text-emerald-800',
-                    )}
-                  >
-                    <span className="block text-[11px] font-bold leading-tight truncate max-w-[72px]">{tbl.label}</span>
-                    <span className="mt-0.5 block text-[9px] font-medium tabular-nums" dir="ltr">
-                      {tbl.status === 'free'
-                        ? lang === 'ar'
-                          ? 'فارغة'
-                          : 'Free'
-                        : tbl.orderTotal != null
-                          ? fmt(tbl.orderTotal)
-                          : lang === 'ar'
-                            ? 'نشطة'
-                            : 'Busy'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Column 2 (40%): Cart — search above, fixed actions at bottom */}
@@ -1710,16 +1845,27 @@ export default function RestaurantPosPage() {
                 >
                 <div className="min-w-0 min-h-[40px] flex flex-col justify-center gap-0.5">
                   <div className="font-medium truncate text-[13px] py-0.5">{getLocalizedName(line.item, lang)}</div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setKitchenNoteOpenItemId((openId) => (openId === line.item.id ? null : line.item.id))
-                    }
-                    className="w-fit text-[10px] text-slate-400 hover:text-primary-600 px-0.5"
-                    title={lang === 'ar' ? 'ملاحظة للمطبخ' : 'Kitchen note'}
-                  >
-                    {(line.kitchen_note ?? '').trim() ? '📝' : lang === 'ar' ? '+ ملاحظة' : '+ Note'}
-                  </button>
+                  {(line.kitchen_note ?? '').trim() ? (
+                    <span className="text-[10px] text-amber-700 truncate" title={line.kitchen_note}>
+                      📝 {line.kitchen_note}
+                    </span>
+                  ) : null}
+                  {kitchenNotesEnabled && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setKitchenNoteOpenItemId((openId) => (openId === line.item.id ? null : line.item.id))
+                      }
+                      className="w-fit text-[10px] text-slate-400 hover:text-primary-600 px-0.5"
+                      title={lang === 'ar' ? 'ملاحظة للمطبخ' : 'Kitchen note'}
+                    >
+                      {(line.kitchen_note ?? '').trim()
+                        ? (lang === 'ar' ? 'تعديل الملاحظة' : 'Edit note')
+                        : lang === 'ar'
+                          ? '+ ملاحظة'
+                          : '+ Note'}
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center justify-center gap-1">
                   <button
@@ -1799,7 +1945,7 @@ export default function RestaurantPosPage() {
                   </button>
                 </div>
                 </div>
-                {kitchenNoteOpenItemId === line.item.id && (
+                {kitchenNotesEnabled && kitchenNoteOpenItemId === line.item.id && (
                   <div className="px-2 pb-2" style={{ paddingInlineStart: 8 }}>
                     <input
                       type="text"
@@ -1836,86 +1982,8 @@ export default function RestaurantPosPage() {
               <span className="font-extrabold text-primary-700 text-lg tabular-nums">{fmt(totals.total)}</span>
             </div>
           </div>
-          {/* طرق الدفع (أساسي) + إجراءات الطلب (ثانوي) */}
-          <div className="flex-shrink-0 space-y-2 border-t border-slate-200 bg-slate-50 p-2">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => applyQuickPayment('cash')}
-                className={cn(
-                  'rounded-xl border-2 py-3 text-[13px] font-bold shadow-sm transition-colors',
-                  preferredPaymentMethodId != null &&
-                    pickPaymentMethodId(paymentMethods, 'cash') === preferredPaymentMethodId
-                    ? 'border-primary-500 bg-primary-50 text-primary-800'
-                    : 'border-slate-200 bg-white text-slate-800 hover:border-primary-300',
-                )}
-                title="F5"
-              >
-                {lang === 'ar' ? 'نقدي — F5' : 'Cash — F5'}
-              </button>
-              <button
-                type="button"
-                onClick={() => applyQuickPayment('bank')}
-                className={cn(
-                  'rounded-xl border-2 py-3 text-[13px] font-bold shadow-sm transition-colors',
-                  preferredPaymentMethodId != null &&
-                    pickPaymentMethodId(paymentMethods, 'bank') === preferredPaymentMethodId
-                    ? 'border-primary-500 bg-primary-50 text-primary-800'
-                    : 'border-slate-200 bg-white text-slate-800 hover:border-primary-300',
-                )}
-                title="F6"
-              >
-                {lang === 'ar' ? 'بطاقة — F6' : 'Card — F6'}
-              </button>
-              <button
-                type="button"
-                onClick={() => applyQuickPayment('credit')}
-                className={cn(
-                  'rounded-xl border-2 py-3 text-[13px] font-bold shadow-sm transition-colors',
-                  preferredPaymentMethodId != null &&
-                    pickPaymentMethodId(paymentMethods, 'credit') === preferredPaymentMethodId
-                    ? 'border-primary-500 bg-primary-50 text-primary-800'
-                    : 'border-slate-200 bg-white text-slate-800 hover:border-primary-300',
-                )}
-                title="F9"
-              >
-                {lang === 'ar' ? 'آجل — F9' : 'Credit — F9'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!orderToPay) {
-                    setToast({
-                      message: lang === 'ar' ? 'يتوفر التقسيم عند وجود طلب للتحصيل' : 'Split is available when collecting an order',
-                      type: 'info',
-                    })
-                    return
-                  }
-                  if (!currentShift) {
-                    setToast({ message: lang === 'ar' ? 'يجب فتح وردية قبل التحصيل' : 'Open a shift before collecting', type: 'error' })
-                    return
-                  }
-                  if (!showPayModal) {
-                    handleOpenPayModal()
-                    return
-                  }
-                  if (deliveryDriverBlocksSplit) {
-                    setToast({
-                      message:
-                        lang === 'ar'
-                          ? 'لا يمكن تقسيم الدفع عند تعيين سائق للتحصيل لاحقاً'
-                          : 'Split payment is not available when a driver is assigned for deferred collection',
-                      type: 'info',
-                    })
-                    return
-                  }
-                  primeRestaurantPayModal(orderToPay)
-                }}
-                className="rounded-xl border-2 border-dashed border-slate-300 bg-white py-3 text-[12px] font-semibold text-slate-600 hover:border-primary-400 hover:bg-slate-50"
-              >
-                {lang === 'ar' ? 'تقسيم الدفع' : 'Split pay'}
-              </button>
-            </div>
+          {/* إجراءات الطلب */}
+          <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50 p-2">
             <div className="grid grid-cols-3 gap-1.5">
               <button
                 type="button"
@@ -2057,6 +2125,45 @@ export default function RestaurantPosPage() {
                 </div>
               )}
 
+              {!deliveryDriverBlocksSplit && (
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: 'split' as const, ar: 'تقسيم الدفع', en: 'Split pay' },
+                    { id: 'single' as const, ar: 'دفع واحد', en: 'Single pay' },
+                    { id: 'credit' as const, ar: 'بيع بالآجل', en: 'On credit' },
+                  ])
+                    .filter((mode) => mode.id !== 'split' || splitPaymentEnabled)
+                    .map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => {
+                        setPayModalMode(mode.id)
+                        if (mode.id === 'credit') {
+                          setSplitLines([])
+                        }
+                      }}
+                      className={cn(
+                        'py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all',
+                        payModalMode === mode.id
+                          ? 'border-primary-500 bg-primary-50 text-primary-800'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-primary-300',
+                      )}
+                    >
+                      {lang === 'ar' ? mode.ar : mode.en}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!hasOrderCustomer && (payModalMode === 'credit' || (payModalMode === 'split' && splitRemainingDue > 0.001) || (payModalMode === 'single' && payRemaining > 0.001)) && (
+                <p className="text-sm text-amber-800 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  {lang === 'ar'
+                    ? 'اختر عميلاً من الشريط الجانبي لتسجيل المتبقي أو البيع الآجل على حسابه.'
+                    : 'Select a customer in the sidebar to post the balance or credit sale to their account.'}
+                </p>
+              )}
+
               {deliveryDriverBlocksSplit && (
                 <p className="text-sm text-amber-800 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                   {lang === 'ar'
@@ -2065,7 +2172,26 @@ export default function RestaurantPosPage() {
                 </p>
               )}
 
-              {splitPayMode && !deliveryDriverBlocksSplit ? (
+              {payModalMode === 'credit' && !deliveryDriverBlocksSplit ? (
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-violet-900">
+                    {lang === 'ar' ? 'بيع بالآجل — كامل المبلغ على حساب العميل' : 'On credit — full amount on customer account'}
+                  </p>
+                  <p className="text-xs text-violet-800">
+                    {lang === 'ar'
+                      ? 'لن يُسجَّل قبض في الصندوق. تُرحَّل الفاتورة على حساب العميل ويمكن تحصيلها لاحقاً من سندات القبض.'
+                      : 'No cash receipt is recorded. The invoice posts to the customer receivable account for later collection.'}
+                  </p>
+                  {hasOrderCustomer && (
+                    <p className="text-sm text-slate-700">
+                      {lang === 'ar' ? 'العميل:' : 'Customer:'}{' '}
+                      <span className="font-semibold">
+                        {selectedCustomer?.name ?? orderToPay.customer?.name ?? `#${resolveOrderCustomerId()}`}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              ) : payModalMode === 'split' && !deliveryDriverBlocksSplit ? (
                 <RestaurantSplitPaymentForm
                   lang={lang === 'ar' ? 'ar' : 'en'}
                   isRtl={isRtl}
@@ -2075,6 +2201,7 @@ export default function RestaurantPosPage() {
                   selectedMethodId={splitMethodId}
                   currentAmount={splitCurrentAmount}
                   fmt={fmt}
+                  allowPartial
                   onSelectMethod={(id) => {
                     setSplitMethodId(id)
                     setPaymentMethodId(id)
@@ -2135,6 +2262,13 @@ export default function RestaurantPosPage() {
                       className="w-full border-2 border-slate-300 rounded-xl px-4 py-3 text-lg font-semibold text-right tabular-nums focus:ring-2 focus:ring-inset focus:ring-primary-500 focus:border-primary-500"
                       placeholder="0"
                     />
+                    {payRemaining > 0.001 && hasOrderCustomer && (
+                      <p className="text-[11px] text-violet-700 mt-1">
+                        {lang === 'ar'
+                          ? `المتبقي ${fmt(payRemaining)} يُسجَّل على حساب العميل (دفع جزئي).`
+                          : `Remaining ${fmt(payRemaining)} will post to the customer account (partial payment).`}
+                      </p>
+                    )}
                   </div>
                   <div className="flex justify-between items-center rounded-xl bg-slate-100 px-4 py-3">
                     <span className="text-sm font-medium text-slate-600">{lang === 'ar' ? 'المتبقي' : 'Remaining'}</span>
@@ -2146,10 +2280,16 @@ export default function RestaurantPosPage() {
               )}
             </div>
             <div className="p-4 border-t border-slate-200 flex flex-col gap-2 flex-shrink-0">
-              {splitPayMode && !deliveryDriverBlocksSplit && splitChangeDue > 0.001 && (
+              {payModalMode === 'split' && !deliveryDriverBlocksSplit && splitChangeDue > 0.001 && (
                 <div className="flex justify-between text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                   <span>{lang === 'ar' ? 'الباقي للعميل' : 'Change due'}</span>
                   <span className="font-bold tabular-nums" dir="ltr">{fmt(splitChangeDue)}</span>
+                </div>
+              )}
+              {payModalMode === 'split' && !deliveryDriverBlocksSplit && splitRemainingDue > 0.001 && hasOrderCustomer && (
+                <div className="flex justify-between text-sm text-violet-800 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+                  <span>{lang === 'ar' ? 'على حساب العميل (جزئي)' : 'On customer account (partial)'}</span>
+                  <span className="font-bold tabular-nums" dir="ltr">{fmt(splitRemainingDue)}</span>
                 </div>
               )}
               <div className="flex gap-2">
@@ -2158,17 +2298,23 @@ export default function RestaurantPosPage() {
                   onClick={handleConfirmPay}
                   disabled={
                     checkoutMut.isPending ||
-                    (splitPayMode && !deliveryDriverBlocksSplit
-                      ? !splitPayReady
-                      : payModalAmount < payTotal || (paymentMethods.length > 0 && !paymentMethodId))
+                    (payModalMode === 'credit'
+                      ? !creditPayReady
+                      : payModalMode === 'split' && !deliveryDriverBlocksSplit
+                        ? !splitPayReady
+                        : !singlePayReady)
                   }
                   className="flex-1 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {checkoutMut.isPending
                     ? (t.saving ?? (lang === 'ar' ? 'جارٍ...' : 'Saving...'))
-                    : lang === 'ar'
-                      ? `تأكيد الدفع — ${fmt(payTotal)}`
-                      : `Confirm — ${fmt(payTotal)}`}
+                    : payModalMode === 'credit'
+                      ? (lang === 'ar' ? `ترحيل بالآجل — ${fmt(payTotal)}` : `Post on credit — ${fmt(payTotal)}`)
+                      : payModalMode === 'split' && splitRemainingDue > 0.001 && hasOrderCustomer
+                        ? (lang === 'ar' ? `تأكيد دفع جزئي — ${fmt(splitPaySum)}` : `Confirm partial — ${fmt(splitPaySum)}`)
+                        : lang === 'ar'
+                          ? `تأكيد الدفع — ${fmt(payTotal)}`
+                          : `Confirm — ${fmt(payTotal)}`}
                 </button>
                 <button
                   type="button"
@@ -2557,108 +2703,33 @@ export default function RestaurantPosPage() {
         </div>
       )}
 
-      {/* تقرير X */}
-      {showXReport && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-auto">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
-              <h3 className="text-lg font-semibold">{lang === 'ar' ? 'تقرير X (لحظة الحالية)' : 'X Report (current)'}</h3>
-              <button type="button" onClick={() => setShowXReport(false)} className="p-2 rounded-lg hover:bg-slate-100">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              {xReportData ? (
-                <>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <span className="text-slate-600">{lang === 'ar' ? 'عدد الفواتير' : 'Invoices count'}</span>
-                    <span className="font-mono text-right">{xReportData.invoices_count}</span>
-                    <span className="text-slate-600">{lang === 'ar' ? 'إجمالي المبيعات' : 'Total sales'}</span>
-                    <span className="font-mono text-right font-semibold" dir="ltr">{formatAmount(xReportData.total_sales ?? 0, { decimal_places: amountDecimals }, locale)}</span>
-                    <span className="text-slate-600">{lang === 'ar' ? 'رصيد افتتاحي' : 'Opening cash'}</span>
-                    <span className="font-mono text-right" dir="ltr">{formatAmount(xReportData.opening_cash ?? 0, { decimal_places: amountDecimals }, locale)}</span>
-                    <span className="text-slate-600">{lang === 'ar' ? 'نقداً مستلم' : 'Cash received'}</span>
-                    <span className="font-mono text-right" dir="ltr">{formatAmount(xReportData.cash_received ?? 0, { decimal_places: amountDecimals }, locale)}</span>
-                    <span className="text-slate-600">{lang === 'ar' ? 'المتوقع في الصندوق' : 'Expected cash'}</span>
-                    <span className="font-mono text-right font-semibold" dir="ltr">{formatAmount(xReportData.expected_cash ?? 0, { decimal_places: amountDecimals }, locale)}</span>
-                  </div>
-                  {xReportData.by_payment_method?.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200">
-                      <h4 className="text-sm font-medium text-slate-700 mb-2">{lang === 'ar' ? 'حسب طريقة الدفع' : 'By payment method'}</h4>
-                      <ul className="space-y-1 text-sm">
-                        {xReportData.by_payment_method.map((pm) => (
-                          <li key={pm.payment_method_id} className="flex justify-between">
-                            <span>{lang === 'ar' ? pm.name : pm.name}</span>
-                            <span dir="ltr">{formatAmount(pm.amount ?? 0, { decimal_places: amountDecimals }, locale)} ({pm.count})</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-slate-500 text-sm">{lang === 'ar' ? 'لا توجد وردية مفتوحة أو لا توجد بيانات.' : 'No open shift or no data.'}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* إغلاق الوردية — إدخال المبلغ النقدي الفعلي */}
-      {showCloseShift && currentShift && branchId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">{lang === 'ar' ? 'إغلاق الوردية' : 'Close shift'}</h3>
-            <p className="text-slate-600 text-sm mb-4">{lang === 'ar' ? 'أدخل المبلغ النقدي الفعلي الموجود في الدرج. سيتم مقارنته مع المتوقع وإظهار العجز أو الزيادة.' : 'Enter the actual cash in the drawer. It will be compared with expected and show shortage/surplus.'}</p>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{lang === 'ar' ? 'المبلغ النقدي الفعلي' : 'Actual cash in drawer'}</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={closingCash}
-                onChange={(e) => setClosingCash(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg px-4 py-3 text-lg"
-                placeholder="0.00"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button type="button" onClick={() => closeShiftMut.mutate(parseFloat(closingCash) || 0)} disabled={closeShiftMut.isPending} className="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-500 disabled:opacity-50">
-                {closeShiftMut.isPending ? (lang === 'ar' ? 'جاري الإغلاق...' : 'Closing...') : (lang === 'ar' ? 'إغلاق الوردية' : 'Close shift')}
-              </button>
-              <button type="button" onClick={() => setShowCloseShift(false)} className="px-4 py-3 border border-slate-300 rounded-lg text-slate-700">{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* طباعة تقرير Z بعد الإغلاق */}
-      {showZReportPrint && lastZReport && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">{lang === 'ar' ? 'تقرير إغلاق الوردية (Z)' : 'Shift closing report (Z)'}</h3>
-              <button type="button" onClick={() => { setShowZReportPrint(false); setLastZReport(null) }} className="p-2 rounded-lg hover:bg-slate-100">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-slate-600">{lang === 'ar' ? 'إجمالي المبيعات' : 'Total sales'}</span><span dir="ltr">{formatAmount(lastZReport.total_sales ?? 0, { decimal_places: amountDecimals }, locale)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-600">{lang === 'ar' ? 'رصيد افتتاحي' : 'Opening cash'}</span><span dir="ltr">{formatAmount(lastZReport.opening_cash ?? 0, { decimal_places: amountDecimals }, locale)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-600">{lang === 'ar' ? 'المبلغ الفعلي المدخل' : 'Entered closing cash'}</span><span dir="ltr">{formatAmount(lastZReport.closing_cash ?? 0, { decimal_places: amountDecimals }, locale)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-600">{lang === 'ar' ? 'المتوقع في الصندوق' : 'Expected cash'}</span><span dir="ltr">{formatAmount(lastZReport.expected_cash ?? 0, { decimal_places: amountDecimals }, locale)}</span></div>
-              <div className="flex justify-between font-semibold pt-2 border-t border-slate-200">
-                <span>{lang === 'ar' ? 'الفرق (عجز/زيادة)' : 'Difference (shortage/surplus)'}</span>
-                <span dir="ltr" className={Number(lastZReport.difference ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}>{formatAmount(Number(lastZReport.difference ?? 0), { decimal_places: amountDecimals }, locale)}</span>
-              </div>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button type="button" onClick={() => window.print()} className="flex-1 py-2 rounded-lg bg-primary-600 text-white font-medium">{lang === 'ar' ? 'طباعة' : 'Print'}</button>
-              <button type="button" onClick={() => { setShowZReportPrint(false); setLastZReport(null) }} className="px-4 py-2 border border-slate-300 rounded-lg">{lang === 'ar' ? 'إغلاق' : 'Close'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PosShiftReportModals
+        tenantId={tenantId}
+        branchId={branchId}
+        currentShift={currentShift}
+        settings={settings as Record<string, unknown> | undefined}
+        amountDecimals={amountDecimals}
+        locale={locale}
+        lang={lang}
+        isRtl={isRtl}
+        companyName={currentTenant?.name}
+        currentUserName={user?.name}
+        cancelLabel={t.cancel ?? (lang === 'ar' ? 'إلغاء' : 'Cancel')}
+        showXReport={showXReport}
+        onCloseXReport={() => setShowXReport(false)}
+        xReportData={xReportData}
+        showCloseShift={showCloseShift}
+        onCloseCloseShift={() => setShowCloseShift(false)}
+        closingCash={closingCash}
+        onClosingCashChange={setClosingCash}
+        onConfirmCloseShift={() => closeShiftMut.mutate(parseFloat(closingCash) || 0)}
+        closeShiftPending={closeShiftMut.isPending}
+        showZReportPrint={showZReportPrint}
+        onCloseZReport={() => { setShowZReportPrint(false); setLastZReport(null) }}
+        lastZReport={lastZReport}
+        lastShiftInfo={lastShiftInfo}
+        onToast={(message, type) => setToast({ message, type })}
+      />
     </div>
   )
 }

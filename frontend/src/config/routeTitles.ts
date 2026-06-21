@@ -137,6 +137,7 @@ export const ROUTE_TITLE_RULES: RouteTitleRule[] = [
   { path: '/audit-log', titleKey: 'nav.auditLog' },
   { path: '/settings/accounting', titleKey: 'nav.settingsAccounting' },
   { path: '/settings/pos', titleKey: 'nav.settingsPOS' },
+  { path: '/settings/restaurant-pos', titleKey: 'nav.settingsRestaurantPOS' },
   { path: '/settings/manufacturing', titleKey: 'nav.settingsManufacturing' },
   { path: '/settings/general', titleKey: 'nav.settingsGeneral' },
   { path: '/settings/messages', titleKey: 'nav.settingsMessages' },

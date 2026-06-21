@@ -14,6 +14,7 @@ export interface RestaurantSplitPaymentFormProps {
   selectedMethodId: number | null
   currentAmount: number
   fmt: (n: number) => string
+  allowPartial?: boolean
   onSelectMethod: (id: number) => void
   onCurrentAmountChange: (n: number) => void
   onAddLine: () => void
@@ -38,6 +39,7 @@ export function RestaurantSplitPaymentForm({
   selectedMethodId,
   currentAmount,
   fmt,
+  allowPartial = false,
   onSelectMethod,
   onCurrentAmountChange,
   onAddLine,
@@ -190,7 +192,13 @@ export function RestaurantSplitPaymentForm({
             : (ar ? 'المتبقي للسداد' : 'Amount still due')}
         </div>
         {!isComplete && (
-          <p className="text-xs text-slate-500 mt-1">{ar ? 'أضف دفعة أو أكثر لإكمال إجمالي الفاتورة.' : 'Add one or more lines to cover the invoice total.'}</p>
+          <p className="text-xs text-slate-500 mt-1">
+            {allowPartial
+              ? (ar
+                  ? 'يمكن إتمام الدفع جزئياً؛ المتبقي يُسجَّل على حساب العميل (يتطلب اختيار عميل).'
+                  : 'You may pay partially; the remainder posts to the customer account (customer required).')
+              : (ar ? 'أضف دفعة أو أكثر لإكمال إجمالي الفاتورة.' : 'Add one or more lines to cover the invoice total.')}
+          </p>
         )}
         <div className="text-xl font-bold tabular-nums mt-1" dir="ltr">
           {isComplete ? fmt(change) : fmt(remaining)}

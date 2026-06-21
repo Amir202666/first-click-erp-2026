@@ -76,6 +76,7 @@ import {
   Printer,
   Database,
   LogIn,
+  Utensils,
 } from 'lucide-react'
 import NotificationBell from '../notifications/NotificationBell'
 import ThemePicker from '../ThemePicker'
@@ -379,10 +380,11 @@ const navEntries: NavEntry[] = [
   {
     labelKey: 'nav.settings',
     icon: Settings,
-    basePaths: ['/settings/accounting', '/settings/pos', '/settings/manufacturing', '/settings/general', '/settings/installments', '/settings/messages', '/settings/api', '/settings/integrations', '/settings/print-templates'],
+    basePaths: ['/settings/accounting', '/settings/pos', '/settings/restaurant-pos', '/settings/manufacturing', '/settings/general', '/settings/installments', '/settings/messages', '/settings/api', '/settings/integrations', '/settings/print-templates'],
     children: [
       { path: '/settings/accounting', labelKey: 'nav.settingsAccounting', icon: Landmark },
       { path: '/settings/pos', labelKey: 'nav.settingsPOS', icon: ShoppingCart },
+      { path: '/settings/restaurant-pos', labelKey: 'nav.settingsRestaurantPOS', icon: Utensils },
       { path: '/settings/manufacturing', labelKey: 'nav.settingsManufacturing', icon: Factory },
       { path: '/settings/general', labelKey: 'nav.settingsGeneral', icon: Building2 },
       { path: '/settings/installments', labelKey: 'nav.settingsInstallments', icon: CalendarClock },
@@ -1113,7 +1115,7 @@ export default function Layout({ children }: LayoutProps) {
           className={`flex-1 w-full max-w-full min-w-0 min-h-0 ${isPosPage ? 'flex flex-col overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`}
           style={isPosPage ? undefined : { background: 'var(--fc-page-bg)' }}
         >
-          <div className={`app-main-container min-w-0 ${isPosPage ? 'flex-1 flex flex-col min-h-0' : ''} ${isRestaurantListPage ? 'py-5' : ''}`}>
+          <div className={`app-main-container min-w-0 ${isPosPage ? 'flex-1 flex flex-col min-h-0 !px-0' : ''} ${isRestaurantListPage ? 'py-5' : ''}`}>
           {user && !currentTenant && tenants.length > 0 && (
             <div className="mx-4 mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm flex items-center gap-2">
               <Building2 size={18} className="shrink-0" />
@@ -1126,7 +1128,7 @@ export default function Layout({ children }: LayoutProps) {
             fallbackMessage={(t as any).msg?.errorOccurred ?? (lang === 'ar' ? 'حدث خطأ غير متوقع. يرجى العودة والمحاولة مرة أخرى.' : 'An unexpected error occurred. Please go back and try again.')}
             isRtl={isRtl}
           >
-            <div className="fc-route-outlet">{children}</div>
+            <div className={`fc-route-outlet${isPosPage ? ' flex-1 flex flex-col min-h-0 overflow-hidden' : ''}`}>{children}</div>
           </ErrorBoundary>
           </div>
         </main>

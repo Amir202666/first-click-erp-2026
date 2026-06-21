@@ -772,22 +772,13 @@ class InvoiceController extends Controller
     }
 
     /**
-     * حذف الفاتورة حذفاً نهائياً. لا يُسمح بالحذف إذا وُجدت سندات قبض/صرف مرتبطة بالفاتورة؛
-     * يجب حذف السندات أولاً. إن لم توجد سندات، يُحذف قيد اليومية والفاتورة.
+     * حذف الفاتورة حذفاً نهائياً مع سندات القبض/الصرف المرتبطة وحركات المخزون.
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
         $invoice = Invoice::withoutGlobalScopes()->where('tenant_id', $request->tenant_id)->findOrFail($id);
         if (($err = $this->rejectIfInvoiceInPostedShift($invoice, true)) !== null) {
             return $err;
-        }
-
-        $linkedPayments = $invoice->payments()->get(['id', 'number']);
-        if ($linkedPayments->isNotEmpty()) {
-            $numbers = $linkedPayments->pluck('number')->implode('، ');
-            $message = __('لا يمكن حذف الفاتورة لوجود سند(ات) قبض/صرف مرتبط(ة) بها. أرقام السندات: :numbers. يرجى حذف السندات أولاً.', ['numbers' => $numbers]);
-
-            return response()->json(['message' => $message], 422);
         }
 
         $tenantId = (int) $invoice->tenant_id;
@@ -824,7 +815,7 @@ class InvoiceController extends Controller
             $uid ? (int) $uid : null,
         );
 
-        return response()->json(['message' => __('تم حذف الفاتورة وقيد اليومية المرتبط بها نهائياً.')]);
+        return response()->json(['message' => __('تم حذف الفاتورة وسندات القبض/الصرف المرتبطة بها وحركات المخزون نهائياً.')]);
     }
 
     public function cancel(Request $request, int $id): JsonResponse

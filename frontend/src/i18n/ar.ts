@@ -175,6 +175,7 @@ const ar = {
     settingsAccounting: 'إعدادات النظام المحاسبي',
     settingsAccountingTabFiscalClose: 'إقفال السنة المالية',
     settingsPOS: 'إعدادات نقطة البيع',
+    settingsRestaurantPOS: 'إعدادات نقطة بيع المطعم',
     settingsManufacturing: 'إعدادات التصنيع',
     settingsGeneral: 'إعدادات عامة',
     settingsInstallments: 'إعدادات الأقساط',

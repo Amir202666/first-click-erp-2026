@@ -289,16 +289,14 @@ class InvoiceService
         });
     }
 
-    /** حذف الفاتورة مع حذف القيد المحاسبي والحركات المخزنية المولّدة منها */
+    /** حذف الفاتورة مع حذف القيد المحاسبي وسندات القبض/الصرف والحركات المخزنية المولّدة منها */
     public function forceDeleteInvoice(Invoice $invoice): void
     {
         DB::transaction(function () use ($invoice) {
             $this->removeLinkedInstallmentSchedulesForInvoice($invoice);
-
-            if ($invoice->journal_entry_id || $invoice->manufacturing_journal_entry_id) {
-                $this->deleteJournalEntryForInvoice($invoice);
-            }
+            $this->deleteJournalEntryAndRelatedVouchersForInvoice($invoice);
             $this->reverseInventoryMovements($invoice);
+            InvoiceManufacturingFrozenBatch::where('invoice_id', $invoice->id)->delete();
             $invoice->lines()->delete();
             $invoice->delete();
         });
@@ -540,10 +538,7 @@ class InvoiceService
 
     private function reverseInventoryMovements(Invoice $invoice): void
     {
-        InventoryMovement::where('tenant_id', $invoice->tenant_id)
-            ->where('reference_type', Invoice::class)
-            ->where('reference_id', $invoice->id)
-            ->delete();
+        app(InvoiceInventoryMovementService::class)->deleteForInvoice($invoice);
     }
 
     private function buildSalesJournalLines(Invoice $invoice, int $tenantId): array

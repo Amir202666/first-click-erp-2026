@@ -406,7 +406,18 @@ class JournalEntryController extends Controller
         if ($entry->reference_type && str_ends_with($entry->reference_type, 'Invoice') && $entry->reference_id) {
             $invoice = Invoice::where('tenant_id', $request->tenant_id)->where('id', $entry->reference_id)->first();
             if ($invoice) {
-                $invoice->update(['journal_entry_id' => null]);
+                app(\App\Services\InvoiceInventoryMovementService::class)->deleteForInvoice($invoice);
+
+                $updates = [];
+                if ((int) ($invoice->journal_entry_id ?? 0) === (int) $entry->id) {
+                    $updates['journal_entry_id'] = null;
+                }
+                if ((int) ($invoice->manufacturing_journal_entry_id ?? 0) === (int) $entry->id) {
+                    $updates['manufacturing_journal_entry_id'] = null;
+                }
+                if ($updates !== []) {
+                    $invoice->update($updates);
+                }
                 \App\Services\InvoiceStatusResolver::applyToModel($invoice->fresh());
             }
         }

@@ -11,6 +11,7 @@ class RestaurantOrderLine extends Model
         'restaurant_order_id',
         'item_id',
         'description',
+        'kitchen_note',
         'quantity',
         'unit_price',
         'discount_percent',

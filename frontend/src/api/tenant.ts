@@ -1896,7 +1896,8 @@ export interface RestaurantOrder {
   tax_amount: number
   total: number
   table?: { id: number; name: string }
-  lines?: Array<{ id: number; item_id: number; quantity: number; unit_price: number; description?: string; item?: { id: number; name: string; name_en?: string } }>
+  customer?: { id: number; name: string; phone?: string | null }
+  lines?: Array<{ id: number; item_id: number; quantity: number; unit_price: number; description?: string; kitchen_note?: string | null; item?: { id: number; name: string; name_en?: string } }>
 }
 
 export const fetchRestaurantOpenOrders = (tenantId: number, params?: { branch_id?: number }) =>
@@ -1923,6 +1924,8 @@ export const checkoutRestaurantOrder = (
     delivery_driver_id?: number | null
     redeem_points?: number
     loyalty_program_id?: number
+    customer_id?: number | null
+    credit_sale?: boolean
   },
 ) =>
   api.post<{ message: string; invoice: Invoice }>(`/restaurant/pos/orders/${orderId}/checkout`, { ...data, tenant_id: tenantId }, tenantHeaders(tenantId)).then(r => r.data)

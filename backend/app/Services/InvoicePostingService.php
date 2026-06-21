@@ -1158,6 +1158,8 @@ class InvoicePostingService
      */
     private function createSalesInventoryMovements(Invoice $invoice, int $tenantId, string $valuationMethod = 'average'): void
     {
+        app(InvoiceInventoryMovementService::class)->deleteForInvoice($invoice);
+
         $warehouseId = $invoice->warehouse_id;
         $allowNegativeSale = (bool) $this->tenantSettings->get($tenantId, 'allow_negative_sale', true);
         $autoMfgOnSale = $this->manufacturingAutoOnSale($tenantId);

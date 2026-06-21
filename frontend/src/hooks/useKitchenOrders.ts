@@ -8,6 +8,7 @@ import {
   type KitchenOrder,
   type OrderStatus,
 } from '../api/kitchen'
+import { broadcastKitchenOrderDelivered } from '../utils/restaurantKitchenSync'
 
 const SOUND_KEY = 'kds_sound_enabled'
 
@@ -115,8 +116,12 @@ export function useKitchenOrders() {
   const statusMut = useMutation({
     mutationFn: ({ orderId, status }: { orderId: number; status: OrderStatus | 'delivered' }) =>
       updateOrderStatus(tenantId, orderId, status),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['kitchen-orders', tenantId] })
+      if (vars.status === 'delivered') {
+        broadcastKitchenOrderDelivered(tenantId)
+        queryClient.invalidateQueries({ queryKey: ['restaurantOpenOrders', tenantId] })
+      }
     },
   })
 
