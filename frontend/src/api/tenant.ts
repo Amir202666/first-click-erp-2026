@@ -132,10 +132,17 @@ export const convertPhpSerializedTemplate = (tenantId: number, content: string) 
 export const createAccount = (tenantId: number, data: Partial<Account>) =>
   api.post<Account>('/accounts', data, tenantHeaders(tenantId)).then(r => r.data)
 
-export const fetchNextAccountCode = (tenantId: number, parentId?: number | null) =>
+export const fetchNextAccountCode = (
+  tenantId: number,
+  parentId?: number | null,
+  excludeAccountId?: number | null,
+) =>
   api.get<{ code: string }>('/accounts/next-code', {
     ...tenantHeaders(tenantId),
-    params: parentId ? { parent_id: parentId } : {},
+    params: {
+      ...(parentId ? { parent_id: parentId } : {}),
+      ...(excludeAccountId ? { exclude_account_id: excludeAccountId } : {}),
+    },
   }).then(r => r.data)
 
 export const updateAccount = (tenantId: number, id: number, data: Partial<Account>) =>

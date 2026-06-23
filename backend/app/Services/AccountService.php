@@ -78,19 +78,25 @@ class AccountService
             throw new \InvalidArgumentException('لا يمكن نقل الحساب لهذا الموقع');
         }
 
+        if ($account->parent_id === $newParent->id) {
+            return $account->fresh();
+        }
+
         return DB::transaction(function () use ($account, $newParent) {
             $oldParentId = $account->parent_id;
-            $oldPath = $account->path ?? $account->code;
-            $newPath = ($newParent->path ?? $newParent->code).'/'.$account->code;
+            $newCode = $this->generateCode($account->tenant_id, $newParent, $account->id);
+            $newPath = ($newParent->path ?? $newParent->code).'/'.$newCode;
+            $newLevel = $newParent->level + 1;
 
             $account->update([
                 'parent_id' => $newParent->id,
-                'level' => $newParent->level + 1,
+                'code' => $newCode,
+                'level' => $newLevel,
                 'path' => $newPath,
                 'type' => $newParent->type,
             ]);
 
-            $this->updateChildrenPaths($account->tenant_id, $oldPath, $newPath, $newParent->level + 1, $newParent->type);
+            $this->recodeDirectChildren($account->fresh(), $newCode, $newPath, $newLevel);
 
             if ($newParent->is_postable) {
                 $newParent->update([
@@ -125,16 +131,17 @@ class AccountService
 
             return DB::transaction(function () use ($account) {
                 $oldParentId = $account->parent_id;
-                $oldPath = $account->path ?? $account->code;
-                $newPath = $account->code;
+                $newCode = $this->generateCode($account->tenant_id, null, $account->id);
+                $newPath = $newCode;
 
                 $account->update([
                     'parent_id' => null,
+                    'code' => $newCode,
                     'level' => 1,
                     'path' => $newPath,
                 ]);
 
-                $this->updateChildrenPaths($account->tenant_id, $oldPath, $newPath, 1, $account->type);
+                $this->recodeDirectChildren($account->fresh(), $newCode, $newPath, 1);
 
                 if ($oldParentId && ! Account::where('tenant_id', $account->tenant_id)->where('parent_id', $oldParentId)->exists()) {
                     Account::where('id', $oldParentId)->update([
@@ -151,11 +158,12 @@ class AccountService
         return $this->moveAccount($account, $newParent);
     }
 
-    public function generateCode(int $tenantId, ?Account $parent): string
+    public function generateCode(int $tenantId, ?Account $parent, ?int $excludeAccountId = null): string
     {
         if (! $parent) {
             $last = Account::where('tenant_id', $tenantId)
                 ->whereNull('parent_id')
+                ->when($excludeAccountId, fn ($q) => $q->where('id', '!=', $excludeAccountId))
                 ->orderByRaw('LENGTH(code) DESC')
                 ->orderByDesc('code')
                 ->value('code');
@@ -166,6 +174,7 @@ class AccountService
         $parentCode = $parent->code;
         $lastChild = Account::where('tenant_id', $tenantId)
             ->where('parent_id', $parent->id)
+            ->when($excludeAccountId, fn ($q) => $q->where('id', '!=', $excludeAccountId))
             ->orderByRaw('LENGTH(code) DESC')
             ->orderByDesc('code')
             ->value('code');
@@ -288,35 +297,18 @@ class AccountService
             'level' => $level,
         ]);
 
+        $this->recodeDirectChildren($account->fresh(), $newCode, $newPath, $level);
+    }
+
+    private function recodeDirectChildren(Account $account, string $parentCode, string $parentPath, int $parentLevel): void
+    {
         $children = $account->children()->orderBy('sort_order')->orderBy('code')->get();
         $i = 1;
         foreach ($children as $child) {
-            $childCode = $newCode.$i;
-            $this->reCodeBranch($child, $childCode, $newPath, $level + 1);
+            $childCode = $parentCode.$i;
+            $this->reCodeBranch($child, $childCode, $parentPath, $parentLevel + 1);
             $i++;
         }
-    }
-
-    private function updateChildrenPaths(
-        int $tenantId,
-        string $oldPath,
-        string $newPath,
-        int $baseLevel,
-        string $type
-    ): void {
-        Account::where('tenant_id', $tenantId)
-            ->where('path', 'like', $oldPath.'/%')
-            ->orderBy('level')
-            ->each(function (Account $child) use ($oldPath, $newPath, $baseLevel, $type) {
-                $suffix = substr((string) $child->path, strlen($oldPath));
-                $newChildPath = $newPath.$suffix;
-                $depth = substr_count(trim($suffix, '/'), '/') + 1;
-                $child->update([
-                    'path' => $newChildPath,
-                    'level' => $baseLevel + $depth,
-                    'type' => $type,
-                ]);
-            });
     }
 
     private function buildTreeBranch(array $byParent, string|int $parentKey): array

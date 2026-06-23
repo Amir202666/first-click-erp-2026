@@ -69,12 +69,14 @@ class AccountController extends Controller
     {
         $tenantId = (int) $request->tenant_id;
         $parentId = $request->query('parent_id');
+        $excludeId = $request->query('exclude_account_id');
         $parent = $parentId
             ? Account::where('tenant_id', $tenantId)->findOrFail($parentId)
             : null;
+        $excludeAccountId = $excludeId ? (int) $excludeId : null;
 
         return response()->json([
-            'code' => $this->accountService->generateCode($tenantId, $parent),
+            'code' => $this->accountService->generateCode($tenantId, $parent, $excludeAccountId),
         ]);
     }
 

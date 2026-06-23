@@ -7,7 +7,8 @@ import { fetchAccountTree, createAccount, updateAccount, moveAccount, fetchAccou
 import type { Account } from '../../types'
 import type { Branch, CostCenter, Currency } from '../../types'
 import type { TenantUserItem } from '../../types'
-import { ChevronDown, ChevronLeft, Plus, X, Search, Pencil, Trash2, Upload, FileText, FileSpreadsheet, Folder, File, LayoutGrid, CheckCircle, XCircle } from 'lucide-react'
+import { ChevronDown, ChevronLeft, Plus, X, Search, Pencil, Trash2, Upload, FileText, FileSpreadsheet, LayoutGrid, CheckCircle, XCircle } from 'lucide-react'
+import { AccountTypeIcon, accountTypeBadgeClass, getAccountTypeVisual } from './accountChartStyles'
 import Toast, { type ToastType } from '../../components/ui/Toast'
 import { asArray } from '../../utils/asArray'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -17,17 +18,6 @@ import TablePageSkeleton from '../../components/ui/TablePageSkeleton'
 import ChartOfAccountsImportWizard from './ChartOfAccountsImportWizard'
 import { buildAccountStatementSheetUrl } from './AccountStatement'
 import { getReportPeriodRange } from '../../utils/date'
-
-const accountTypeColors: Record<string, string> = {
-  asset: 'bg-blue-50 text-blue-700 border border-blue-100',
-  liability: 'bg-rose-50 text-rose-700 border border-rose-100',
-  equity: 'bg-violet-50 text-violet-700 border border-violet-100',
-  revenue: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-  cogs: 'bg-orange-50 text-orange-700 border border-orange-100',
-  expense: 'bg-amber-50 text-amber-700 border border-amber-100',
-}
-/** إيراد مقابل (مردودات، خصم مسموح به): طبيعته مدين */
-const contraRevenueBadge = 'bg-amber-100 text-amber-800 border border-amber-200'
 
 interface FlatAccount {
   id: number
@@ -233,14 +223,31 @@ export default function AccountList() {
   }, [flatAccounts, parentSearch, invalidParentIds])
 
   useEffect(() => {
-    if (!showModal || editing) return
+    if (!showModal) return
+
+    const originalParentId = editing?.parent_id ?? null
+    const nextParentId = form.parent_id ?? null
+
+    if (editing && nextParentId === originalParentId) {
+      setForm((prev) => (prev.code === editing.code ? prev : { ...prev, code: editing.code }))
+      return
+    }
+
+    let cancelled = false
     async function loadCode() {
       try {
-        const res = await fetchNextAccountCode(tenantId, form.parent_id)
-        setForm(prev => ({ ...prev, code: res.code }))
+        const res = await fetchNextAccountCode(
+          tenantId,
+          form.parent_id,
+          editing?.id ?? null,
+        )
+        if (!cancelled) {
+          setForm((prev) => ({ ...prev, code: res.code }))
+        }
       } catch { /* ignore */ }
     }
     loadCode()
+    return () => { cancelled = true }
   }, [showModal, form.parent_id, tenantId, editing])
 
   /** إذا وصلت العملات بعد فتح المودال وما زال الحقل فارغاً، املأ العملة الافتراضية */
@@ -668,17 +675,24 @@ export default function AccountList() {
                   sortedFilteredFlatAccounts.map((acc) => (
                     <tr key={acc.id} className="hover:bg-slate-50">
                       {visibleColumns.code && <td className="px-4 py-3.5 font-mono text-xs text-slate-600">{acc.code}</td>}
-                      {visibleColumns.name && <td className="px-4 py-3.5 font-normal text-slate-900">{getDisplayName(acc)}</td>}
+                      {visibleColumns.name && (
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <AccountTypeIcon type={acc.type} hasChildren={false} size="sm" />
+                            <span className="font-normal text-slate-900">{getDisplayName(acc)}</span>
+                          </div>
+                        </td>
+                      )}
                       {visibleColumns.type && (
                         <td className="px-4 py-3.5">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${accountTypeColors[acc.type] ?? ''}`}>
+                          <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-medium ${accountTypeBadgeClass(acc.type)}`}>
                             {accountTypeLabels[acc.type] ?? acc.type}
                           </span>
                         </td>
                       )}
                       {visibleColumns.status && (
                         <td className="px-4 py-3.5">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${(acc.is_active ?? true) ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                          <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-medium ${(acc.is_active ?? true) ? 'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200/70' : 'bg-red-50 text-red-800 ring-1 ring-inset ring-red-200/70'}`}>
                             {(acc.is_active ?? true) ? (t.accounts?.active ?? 'نشط') : (t.accounts?.inactive ?? 'غير نشط')}
                           </span>
                         </td>
@@ -857,7 +871,7 @@ export default function AccountList() {
                                 >
                                   <span className="font-mono text-xs text-slate-500 shrink-0">{acc.code}</span>
                                   <span className="text-slate-800">{getDisplayName(acc)}</span>
-                                  <span className={`${isRtl ? 'mr-auto' : 'ml-auto'} rounded px-2 py-0.5 text-xs font-medium ${accountTypeColors[acc.type] ?? ''}`}>
+                                  <span className={`${isRtl ? 'mr-auto' : 'ml-auto'} rounded-md px-2 py-0.5 text-xs font-medium ${accountTypeBadgeClass(acc.type)}`}>
                                     {accountTypeLabels[acc.type] ?? acc.type}
                                   </span>
                                 </button>
@@ -1070,22 +1084,30 @@ function AccountRow({
   const isExpanded = expanded.has(account.id)
   const isMainAccount = (account.level ?? 1) <= 1
   const indentPx = level * 20 + 16
+  const typeVisual = getAccountTypeVisual(account.type)
+  const isContraRevenue = account.type === 'revenue' && account.normal_balance === 'debit'
 
   return (
     <>
-      <tr className={`transition-colors ${isMainAccount ? 'bg-slate-50/80 hover:bg-slate-100' : 'hover:bg-slate-50'}`}>
-        <td className="px-4 py-3.5 w-12">
+      <tr className={`transition-colors ${isMainAccount ? 'bg-slate-50/60 hover:bg-slate-100/80' : 'hover:bg-slate-50/90'}`}>
+        <td className="px-3 py-3.5 w-11">
           {hasChildren ? (
             <button
+              type="button"
               onClick={() => onToggle(account.id)}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 text-sm font-semibold shadow-sm"
+              className={`inline-flex items-center justify-center w-7 h-7 rounded-lg bg-white text-slate-500 ring-1 ring-slate-200/80 shadow-sm transition-all duration-200 ${typeVisual.expandBtn}`}
               title={isExpanded ? (t.accounts.collapse ?? 'طي الحساب') : (t.accounts.expand ?? 'توسيع الحساب')}
               aria-label={isExpanded ? (t.accounts.collapse ?? 'طي الحساب') : (t.accounts.expand ?? 'توسيع الحساب')}
+              aria-expanded={isExpanded}
             >
-              {isExpanded ? '−' : '+'}
+              <ChevronDown
+                size={15}
+                strokeWidth={2.25}
+                className={`transition-transform duration-200 ${isExpanded ? '' : (isRtl ? 'rotate-90' : '-rotate-90')}`}
+              />
             </button>
           ) : (
-            <span className="w-4 inline-block" />
+            <span className="inline-block w-7" aria-hidden />
           )}
         </td>
         {visibleColumns.code && <td className="px-4 py-3.5 font-mono text-xs text-slate-600">{account.code}</td>}
@@ -1094,13 +1116,13 @@ function AccountRow({
             className="px-4 py-3.5"
             style={{ [isRtl ? 'paddingRight' : 'paddingLeft']: `${indentPx}px` } as React.CSSProperties}
           >
-            <div className="flex items-center gap-2 text-slate-900">
-              {hasChildren ? (
-                <Folder size={18} className="text-slate-500" />
-              ) : (
-                <File size={16} className="text-slate-400" />
-              )}
-              <span className={isMainAccount ? 'font-semibold' : 'font-medium'}>
+            <div className="flex items-center gap-2.5 text-slate-900">
+              <AccountTypeIcon
+                type={account.type}
+                hasChildren={!!hasChildren}
+                size={isMainAccount ? 'lg' : 'md'}
+              />
+              <span className={isMainAccount ? 'font-semibold text-slate-900' : 'font-medium text-slate-800'}>
                 {getDisplayName(account)}
               </span>
             </div>
@@ -1108,8 +1130,8 @@ function AccountRow({
         )}
         {visibleColumns.type && (
           <td className="px-4 py-3.5">
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${account.type === 'revenue' && account.normal_balance === 'debit' ? contraRevenueBadge : (accountTypeColors[account.type] ?? '')}`}>
-              {account.type === 'revenue' && account.normal_balance === 'debit'
+            <span className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[11px] font-medium ${accountTypeBadgeClass(account.type, isContraRevenue)}`}>
+              {isContraRevenue
                 ? `${accountTypeLabels[account.type] ?? account.type} (${t.accounts.contraAccount})`
                 : (accountTypeLabels[account.type] ?? account.type)}
             </span>
@@ -1117,7 +1139,7 @@ function AccountRow({
         )}
         {visibleColumns.status && (
           <td className="px-4 py-3.5">
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${(account.is_active ?? true) ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+            <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-medium ${(account.is_active ?? true) ? 'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200/70' : 'bg-red-50 text-red-800 ring-1 ring-inset ring-red-200/70'}`}>
               {(account.is_active ?? true) ? (t.accounts?.active ?? 'نشط') : (t.accounts?.inactive ?? 'غير نشط')}
             </span>
           </td>
