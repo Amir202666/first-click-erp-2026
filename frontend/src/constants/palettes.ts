@@ -1,4 +1,4 @@
-/** Curated themes: 8 dark sidebar + 4 light/pastel sidebar */
+/** Curated themes for appearance settings */
 
 export interface ThemePalette {
   id: string
@@ -12,6 +12,10 @@ export interface ThemePalette {
   sidebarRegularItem: string
   sidebarDivider: string
   isLightSidebar: boolean
+  /** خلفية الصفحة الرئيسية (ثيمات محاسبية) */
+  pageBg?: string
+  /** accounting = ثيمات النظام المحاسبي الرسمية */
+  category?: 'accounting' | 'extra'
   /** Tailwind `--color-primary-*` */
   shades: Record<string, string>
 }
@@ -58,48 +62,6 @@ const violetShades: Record<string, string> = {
   '950': '#2e1065',
 }
 
-const roseShades: Record<string, string> = {
-  '50': '#fff1f2',
-  '100': '#ffe4e6',
-  '200': '#fecdd3',
-  '300': '#fda4af',
-  '400': '#fb7185',
-  '500': '#f43f5e',
-  '600': '#e11d48',
-  '700': '#be123c',
-  '800': '#9f1239',
-  '900': '#881337',
-  '950': '#4c0519',
-}
-
-const amberShades: Record<string, string> = {
-  '50': '#fffbeb',
-  '100': '#fef3c7',
-  '200': '#fde68a',
-  '300': '#fcd34d',
-  '400': '#fbbf24',
-  '500': '#f59e0b',
-  '600': '#d97706',
-  '700': '#b45309',
-  '800': '#92400e',
-  '900': '#78350f',
-  '950': '#451a03',
-}
-
-const cyanShades: Record<string, string> = {
-  '50': '#ecfeff',
-  '100': '#cffafe',
-  '200': '#a5f3fc',
-  '300': '#67e8f9',
-  '400': '#22d3ee',
-  '500': '#06b6d4',
-  '600': '#0891b2',
-  '700': '#0e7490',
-  '800': '#155e75',
-  '900': '#164e63',
-  '950': '#083344',
-}
-
 const tealShades: Record<string, string> = {
   '50': '#f0fdfa',
   '100': '#ccfbf1',
@@ -142,34 +104,82 @@ const peachShades: Record<string, string> = {
   '950': '#431407',
 }
 
-const blushShades: Record<string, string> = {
-  '50': '#fdf2f8',
-  '100': '#fce7f3',
-  '200': '#fbcfe8',
-  '300': '#f9a8d4',
-  '400': '#f472b6',
-  '500': '#ec4899',
-  '600': '#db2777',
-  '700': '#be185d',
-  '800': '#9d174d',
-  '900': '#831843',
-  '950': '#500724',
+const navyShades: Record<string, string> = {
+  '50': '#eaf3fb',
+  '100': '#eaf3fb',
+  '200': '#c5dff5',
+  '300': '#9ec9ef',
+  '400': '#5a9de3',
+  '500': '#2e7dd1',
+  '600': '#2e7dd1',
+  '700': '#1b4f8a',
+  '800': '#1b4f8a',
+  '900': '#0f2b4c',
+  '950': '#0f2b4c',
+}
+
+const accountingTealShades: Record<string, string> = {
+  '50': '#f0fdfa',
+  '100': '#ccfbf1',
+  '200': '#99f6e4',
+  '300': '#5eead4',
+  '400': '#2dd4bf',
+  '500': '#14b8a6',
+  '600': '#14b8a6',
+  '700': '#0f766e',
+  '800': '#0f766e',
+  '900': '#0d4f4f',
+  '950': '#0d4f4f',
 }
 
 export const THEMES: ThemePalette[] = [
   {
     id: 'first-click',
-    label: 'First Click ⭐',
-    accent: '#14b8a6',
-    accentDark: '#0d9488',
-    accentLight: '#ccfbf1',
-    sidebarBg: '#134e4a',
-    sidebarText: '#2dd4bf',
-    sidebarActiveItem: 'rgba(20,184,166,0.18)',
-    sidebarRegularItem: 'rgba(255,255,255,0.58)',
+    label: 'نيلي محاسبي ⭐',
+    accent: '#2e7dd1',
+    accentDark: '#1b4f8a',
+    accentLight: '#eaf3fb',
+    sidebarBg: '#0f2b4c',
+    sidebarText: '#ffffff',
+    sidebarActiveItem: 'rgba(46,125,209,0.22)',
+    sidebarRegularItem: 'rgba(255,255,255,0.72)',
     sidebarDivider: 'rgba(255,255,255,0.1)',
     isLightSidebar: false,
-    shades: tealShades,
+    pageBg: '#f5f7fa',
+    category: 'accounting',
+    shades: navyShades,
+  },
+  {
+    id: 'accounting-teal',
+    label: 'فيروزي ونعناع',
+    accent: '#14b8a6',
+    accentDark: '#0f766e',
+    accentLight: '#ccfbf1',
+    sidebarBg: '#0d4f4f',
+    sidebarText: '#99f6e4',
+    sidebarActiveItem: 'rgba(20,184,166,0.22)',
+    sidebarRegularItem: 'rgba(255,255,255,0.72)',
+    sidebarDivider: 'rgba(255,255,255,0.1)',
+    isLightSidebar: false,
+    pageBg: '#f0fdfa',
+    category: 'accounting',
+    shades: accountingTealShades,
+  },
+  {
+    id: 'accounting-indigo',
+    label: 'بنفسجي دافئ',
+    accent: '#6366f1',
+    accentDark: '#3730a3',
+    accentLight: '#e0e7ff',
+    sidebarBg: '#1e1b4b',
+    sidebarText: '#c7d2fe',
+    sidebarActiveItem: 'rgba(99,102,241,0.22)',
+    sidebarRegularItem: 'rgba(255,255,255,0.72)',
+    sidebarDivider: 'rgba(255,255,255,0.1)',
+    isLightSidebar: false,
+    pageBg: '#f8f7f4',
+    category: 'accounting',
+    shades: indigoShades,
   },
   {
     id: 'emerald',
@@ -183,6 +193,7 @@ export const THEMES: ThemePalette[] = [
     sidebarRegularItem: 'rgba(255,255,255,0.55)',
     sidebarDivider: 'rgba(255,255,255,0.08)',
     isLightSidebar: false,
+    category: 'extra',
     shades: emeraldShades,
   },
   {
@@ -197,6 +208,7 @@ export const THEMES: ThemePalette[] = [
     sidebarRegularItem: 'rgba(255,255,255,0.55)',
     sidebarDivider: 'rgba(255,255,255,0.08)',
     isLightSidebar: false,
+    category: 'extra',
     shades: skyShades,
   },
   {
@@ -211,49 +223,8 @@ export const THEMES: ThemePalette[] = [
     sidebarRegularItem: 'rgba(255,255,255,0.55)',
     sidebarDivider: 'rgba(255,255,255,0.08)',
     isLightSidebar: false,
+    category: 'extra',
     shades: violetShades,
-  },
-  {
-    id: 'rose',
-    label: 'Rose',
-    accent: '#f43f5e',
-    accentDark: '#e11d48',
-    accentLight: '#ffe4e6',
-    sidebarBg: '#1c0a12',
-    sidebarText: '#fb7185',
-    sidebarActiveItem: 'rgba(244,63,94,0.15)',
-    sidebarRegularItem: 'rgba(255,255,255,0.55)',
-    sidebarDivider: 'rgba(255,255,255,0.08)',
-    isLightSidebar: false,
-    shades: roseShades,
-  },
-  {
-    id: 'amber',
-    label: 'Amber',
-    accent: '#f59e0b',
-    accentDark: '#d97706',
-    accentLight: '#fef3c7',
-    sidebarBg: '#1c1207',
-    sidebarText: '#fbbf24',
-    sidebarActiveItem: 'rgba(245,158,11,0.15)',
-    sidebarRegularItem: 'rgba(255,255,255,0.55)',
-    sidebarDivider: 'rgba(255,255,255,0.08)',
-    isLightSidebar: false,
-    shades: amberShades,
-  },
-  {
-    id: 'cyan',
-    label: 'Cyan',
-    accent: '#06b6d4',
-    accentDark: '#0891b2',
-    accentLight: '#cffafe',
-    sidebarBg: '#0c1a2e',
-    sidebarText: '#22d3ee',
-    sidebarActiveItem: 'rgba(6,182,212,0.15)',
-    sidebarRegularItem: 'rgba(255,255,255,0.55)',
-    sidebarDivider: 'rgba(255,255,255,0.08)',
-    isLightSidebar: false,
-    shades: cyanShades,
   },
   {
     id: 'teal',
@@ -267,6 +238,7 @@ export const THEMES: ThemePalette[] = [
     sidebarRegularItem: 'rgba(255,255,255,0.55)',
     sidebarDivider: 'rgba(255,255,255,0.08)',
     isLightSidebar: false,
+    category: 'extra',
     shades: tealShades,
   },
   {
@@ -281,6 +253,7 @@ export const THEMES: ThemePalette[] = [
     sidebarRegularItem: 'rgba(255,255,255,0.55)',
     sidebarDivider: 'rgba(255,255,255,0.08)',
     isLightSidebar: false,
+    category: 'extra',
     shades: indigoShades,
   },
   {
@@ -295,6 +268,7 @@ export const THEMES: ThemePalette[] = [
     sidebarRegularItem: '#374151',
     sidebarDivider: 'rgba(0,0,0,0.08)',
     isLightSidebar: true,
+    category: 'extra',
     shades: emeraldShades,
   },
   {
@@ -309,6 +283,7 @@ export const THEMES: ThemePalette[] = [
     sidebarRegularItem: '#374151',
     sidebarDivider: 'rgba(0,0,0,0.08)',
     isLightSidebar: true,
+    category: 'extra',
     shades: violetShades,
   },
   {
@@ -323,32 +298,28 @@ export const THEMES: ThemePalette[] = [
     sidebarRegularItem: '#374151',
     sidebarDivider: 'rgba(0,0,0,0.08)',
     isLightSidebar: true,
+    category: 'extra',
     shades: peachShades,
-  },
-  {
-    id: 'blush',
-    label: 'Blush',
-    accent: '#f472b6',
-    accentDark: '#ec4899',
-    accentLight: '#fce7f3',
-    sidebarBg: '#fdf2f8',
-    sidebarText: '#9d174d',
-    sidebarActiveItem: 'rgba(244,114,182,0.12)',
-    sidebarRegularItem: '#374151',
-    sidebarDivider: 'rgba(0,0,0,0.08)',
-    isLightSidebar: true,
-    shades: blushShades,
   },
 ]
 
 export const DEFAULT_THEME_ID = 'first-click'
+
+/** ثيمات أُزيلت من القائمة — تُحوَّل تلقائياً لأقرب بديل */
+export const RETIRED_THEME_IDS: Record<string, string> = {
+  rose: 'violet',
+  amber: 'peach',
+  cyan: 'sky',
+  blush: 'lavender',
+}
 
 export const THEMES_BY_ID: Record<string, ThemePalette> = Object.fromEntries(
   THEMES.map((t) => [t.id, t]),
 )
 
 export function resolveTheme(id: string): ThemePalette {
-  return THEMES_BY_ID[id] ?? THEMES[0]
+  const resolved = RETIRED_THEME_IDS[id] ?? id
+  return THEMES_BY_ID[resolved] ?? THEMES[0]
 }
 
 /** Legacy `firstclick_theme` palette keys → new theme ids */
@@ -356,10 +327,10 @@ export const LEGACY_FIRSTCLICK_PALETTE: Record<string, string> = {
   emerald: 'emerald',
   blue: 'sky',
   violet: 'violet',
-  rose: 'rose',
-  amber: 'amber',
-  cyan: 'cyan',
-  teal: 'first-click',
+  rose: 'violet',
+  amber: 'peach',
+  cyan: 'sky',
+  teal: 'accounting-teal',
   'first-click': 'first-click',
 }
 
@@ -369,9 +340,9 @@ export const LEGACY_APP_THEME_ID: Record<string, string> = {
   white: 'lavender',
   blue: 'sky',
   emerald: 'emerald',
-  teal: 'first-click',
+  teal: 'accounting-teal',
   'first-click': 'first-click',
-  cyan: 'cyan',
+  cyan: 'sky',
   sky: 'sky',
   mint: 'mint',
   'light-sky': 'sky',
@@ -379,8 +350,8 @@ export const LEGACY_APP_THEME_ID: Record<string, string> = {
   'steel-blue': 'sky',
   'ocean-teal': 'first-click',
   mauve: 'lavender',
-  'warm-brown': 'amber',
-  coral: 'rose',
+  'warm-brown': 'peach',
+  coral: 'violet',
   silver: 'lavender',
   'medium-gray': 'lavender',
   'deep-blue-royal': 'indigo',
@@ -389,6 +360,6 @@ export const LEGACY_APP_THEME_ID: Record<string, string> = {
   'md-appbar-blue': 'sky',
   'md-indigo-night': 'indigo',
   'md-deep-purple': 'violet',
-  'md-teal-sea': 'teal',
-  'md-cyan-bright': 'cyan',
+  'md-teal-sea': 'accounting-teal',
+  'md-cyan-bright': 'sky',
 }

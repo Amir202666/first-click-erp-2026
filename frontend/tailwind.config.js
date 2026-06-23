@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config}
- *  لغة تصميم موحدة: Primary, Success, Danger, Neutral — Cairo بوزن 400 (بدون عريض) — 8px radius
+ *  Accounting color system — semantic tokens from theme.css
  */
 export default {
   darkMode: 'class',
@@ -33,8 +33,11 @@ export default {
         'app-4': '32px',
       },
       colors: {
-        /** جميع الدرجات مربوطة بمتغيرات يحدّثها ThemeContext حتى تعمل كل سمات الألوان */
         primary: {
+          DEFAULT: 'var(--color-primary)',
+          darkest: 'var(--color-primary-darkest)',
+          dark: 'var(--color-primary-dark)',
+          light: 'var(--color-primary-light)',
           50: 'var(--color-primary-50)',
           100: 'var(--color-primary-100)',
           200: 'var(--color-primary-200)',
@@ -48,15 +51,27 @@ export default {
           950: 'var(--color-primary-950)',
         },
         success: {
+          DEFAULT: 'var(--color-success)',
+          bg: 'var(--color-success-bg)',
           500: 'var(--color-success-500)',
           600: 'var(--color-success-600)',
         },
         danger: {
-          50: 'var(--color-danger-50, #fef2f2)',
+          DEFAULT: 'var(--color-danger)',
+          bg: 'var(--color-danger-bg)',
+          50: 'var(--color-danger-50, var(--color-danger-bg))',
           500: 'var(--color-danger-500)',
           600: 'var(--color-danger-600)',
         },
+        warning: {
+          DEFAULT: 'var(--color-warning)',
+          bg: 'var(--color-warning-bg)',
+          500: 'var(--color-warning-500)',
+          600: 'var(--color-warning-600)',
+        },
         neutral: {
+          DEFAULT: 'var(--color-neutral)',
+          bg: 'var(--color-neutral-bg)',
           50: 'var(--color-neutral-50)',
           100: 'var(--color-neutral-100)',
           200: 'var(--color-neutral-200)',
@@ -65,20 +80,25 @@ export default {
           700: 'var(--color-neutral-700)',
           900: 'var(--color-neutral-900)',
         },
-        /** مرجع سمة Enhanced Green (يمكن استخدامها صراحةً في المكوّنات) */
-        brand: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
+        page: {
+          DEFAULT: 'var(--color-bg-page)',
+          surface: 'var(--color-bg-surface)',
         },
         sidebar: {
           DEFAULT: 'var(--color-sidebar-bg)',
-          active: '#0f2d4a',
+        },
+        teal: {
+          DEFAULT: 'var(--color-teal)',
+          dark: 'var(--color-teal-dark)',
+          darkest: 'var(--color-teal-darkest)',
+          light: 'var(--color-teal-light)',
+          bg: 'var(--color-teal-bg)',
+        },
+        indigo: {
+          DEFAULT: 'var(--color-indigo)',
+          dark: 'var(--color-indigo-dark)',
+          darkest: 'var(--color-indigo-darkest)',
+          light: 'var(--color-indigo-light)',
         },
       },
     },

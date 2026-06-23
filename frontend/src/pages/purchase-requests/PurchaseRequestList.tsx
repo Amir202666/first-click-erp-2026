@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -39,6 +39,7 @@ export default function PurchaseRequestList() {
   const { t, lang, isRtl } = useLanguage()
   const tenantId = currentTenant?.id ?? 0
   const navigate = useNavigate()
+  const location = useLocation()
   const locale = lang === 'ar' ? 'ar-u-nu-latn' : 'en-US'
   const defaultRange = getDefaultDateRange()
   const [dateFrom, setDateFrom] = useState(defaultRange.dateFrom ?? '')
@@ -76,10 +77,13 @@ export default function PurchaseRequestList() {
   if (vendorId) params.vendor_id = vendorId
   if (numberFilter.trim()) params.number = numberFilter.trim()
 
-  const { data, isLoading } = useQuery<PaginatedResponse<PurchaseRequest>>({
+  const queryClient = useQueryClient()
+  const { data, isLoading, refetch } = useQuery<PaginatedResponse<PurchaseRequest>>({
     queryKey: ['purchase-requests', tenantId, params],
     queryFn: () => fetchPurchaseRequests(tenantId, Object.keys(params).length ? params : undefined),
     enabled: !!tenantId,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   })
 
   const { data: branchesData } = useQuery({
@@ -128,7 +132,14 @@ export default function PurchaseRequestList() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [])
 
-  const queryClient = useQueryClient()
+  useEffect(() => {
+    const refreshAt = (location.state as { refreshAt?: number } | null)?.refreshAt
+    if (!refreshAt) return
+    void queryClient.invalidateQueries({ queryKey: ['purchase-requests', tenantId] })
+    void refetch()
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.state, location.pathname, queryClient, tenantId, refetch, navigate])
+
   const closeActionsMenu = useCallback(() => {
     setActionsOpenId(null)
     setActionsAnchor(null)
@@ -251,19 +262,19 @@ export default function PurchaseRequestList() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-lg font-bold text-slate-900 shrink-0">{t.nav?.purchaseRequests ?? 'طلبات الشراء'}</h1>
+      <div className="bg-white rounded-xl border border-slate-200 px-3 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-base font-bold text-slate-900 shrink-0">{t.nav?.purchaseRequests ?? 'طلبات الشراء'}</h1>
 
           {/* فلتر الفترة في منتصف الشريط */}
           <div className="flex-1 flex justify-center min-w-0">
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-slate-600 shrink-0">{labelPeriod}</span>
                 <select
                   value={periodPreset}
                   onChange={(e) => applyPeriodPreset((e.target.value as ReportPeriodKey | 'custom') || 'all')}
-                  className="border border-slate-300 rounded-lg px-3 py-2 text-sm min-w-[140px] max-w-[200px] box-border bg-white shrink-0"
+                  className="border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm min-w-[140px] max-w-[200px] box-border bg-white shrink-0 h-9"
                   title={labelPeriod}
                 >
                   {periodOptions.map((opt) => (
@@ -304,7 +315,7 @@ export default function PurchaseRequestList() {
           <div className="relative flex items-center gap-1.5 no-print shrink-0" ref={columnsMenuRef}>
               <Link
                 to="/purchase-requests/create"
-                className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg px-3 py-2 text-sm font-medium shrink-0"
+                className="flex items-center gap-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg px-3 py-1.5 text-sm font-medium shrink-0 h-9"
               >
                 <Plus size={16} />
                 {lang === 'ar' ? 'إضافة' : 'Add'}
@@ -312,7 +323,7 @@ export default function PurchaseRequestList() {
               <button
                 type="button"
                 onClick={() => setShowColumnsMenu((v) => !v)}
-                className="inline-flex h-[35px] w-[35px] items-center justify-center rounded-md bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
                 title={lang === 'ar' ? 'تخصيص الأعمدة' : 'Customize columns'}
               >
                 <Columns3 size={16} />
@@ -348,7 +359,7 @@ export default function PurchaseRequestList() {
               <button
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex h-[35px] w-[35px] items-center justify-center rounded-md bg-[#F0F2F5] border border-[#D9DCE0] text-[#344054] hover:bg-[#E4E7EB]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#F0F2F5] border border-[#D9DCE0] text-[#344054] hover:bg-[#E4E7EB]"
                 title={t.accounts?.print ?? t.payments?.printReport ?? 'طباعة'}
               >
                 <Printer size={16} />
@@ -356,7 +367,7 @@ export default function PurchaseRequestList() {
               <button
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex h-[35px] w-[35px] items-center justify-center rounded-md bg-[#344054] text-white hover:bg-[#2d3846]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[#344054] text-white hover:bg-[#2d3846]"
                 title={t.accounts?.exportPdf ?? t.payments?.exportPdf ?? 'تصدير PDF'}
               >
                 <FileText size={16} />
@@ -364,7 +375,7 @@ export default function PurchaseRequestList() {
               <button
                 type="button"
                 onClick={exportExcel}
-                className="inline-flex h-[35px] w-[35px] items-center justify-center rounded-md bg-emerald-600 text-white hover:bg-emerald-500"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600 text-white hover:bg-emerald-500"
                 title={t.accounts?.exportExcel ?? t.payments?.exportExcel ?? 'تصدير Excel'}
               >
                 <FileSpreadsheet size={16} />

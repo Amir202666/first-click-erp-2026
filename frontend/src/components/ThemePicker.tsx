@@ -1,7 +1,73 @@
 import { useEffect, useState } from 'react'
 import { useTheme } from '../contexts/ThemeContext'
-import { THEMES } from '../constants/palettes'
+import { THEMES, type ThemePalette } from '../constants/palettes'
 import type { ThemeMode } from '../types/theme'
+
+const ACCOUNTING_THEMES = THEMES.filter((t) => t.category === 'accounting')
+const EXTRA_THEMES = THEMES.filter((t) => t.category !== 'accounting')
+
+function ThemeSwatch({
+  t,
+  localId,
+  bd,
+  cardBg,
+  text,
+  onSelect,
+}: {
+  t: ThemePalette
+  localId: string
+  bd: string
+  cardBg: string
+  text: string
+  onSelect: (id: string) => void
+}) {
+  return (
+    <button
+      key={t.id}
+      type="button"
+      onClick={() => onSelect(t.id)}
+      className="relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all text-center"
+      style={{
+        borderColor: localId === t.id ? t.accent : bd,
+        background: localId === t.id ? `${t.accent}12` : cardBg,
+        boxShadow: localId === t.id ? `0 0 0 2px ${t.accent}30` : 'none',
+      }}
+    >
+      {localId === t.id && (
+        <div
+          className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-white"
+          style={{ background: t.accent, fontSize: '8px' }}
+        >
+          ✓
+        </div>
+      )}
+      <div
+        className="w-7 h-7 rounded-full border-2 border-white/80 mb-1"
+        style={{
+          background: `linear-gradient(135deg, ${t.accent} 50%, ${t.sidebarBg} 50%)`,
+          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+        }}
+      />
+      <span className="text-[9px] font-semibold leading-tight px-0.5" style={{ color: text }}>
+        {t.label}
+      </span>
+      <div className="flex gap-0.5 mt-1">
+        <div
+          className="w-3 h-2 rounded-sm"
+          style={{ background: t.sidebarBg, border: `1px solid ${bd}` }}
+          title="الشريط الجانبي"
+        />
+        {t.pageBg && (
+          <div
+            className="w-3 h-2 rounded-sm"
+            style={{ background: t.pageBg, border: `1px solid ${bd}` }}
+            title="خلفية الصفحة"
+          />
+        )}
+      </div>
+    </button>
+  )
+}
 
 function ThemePicker({ onClose }: { onClose?: () => void }) {
   const { config, setTheme, setMode, isDark } = useTheme()
@@ -106,52 +172,49 @@ function ThemePicker({ onClose }: { onClose?: () => void }) {
 
         <div className="flex justify-between items-center mb-2 gap-2">
           <p className="text-[10px] font-bold uppercase tracking-wider shrink-0" style={{ color: muted }}>
-            الثيم
+            ثيمات محاسبية
+          </p>
+          <span className="text-[9px] shrink-0" style={{ color: muted }}>
+            {ACCOUNTING_THEMES.length} ثيمات
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5 mb-4">
+          {ACCOUNTING_THEMES.map((t) => (
+            <ThemeSwatch
+              key={t.id}
+              t={t}
+              localId={localId}
+              bd={bd}
+              cardBg={cardBg}
+              text={text}
+              onSelect={handleSelect}
+            />
+          ))}
+        </div>
+
+        <div className="flex justify-between items-center mb-2 gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider shrink-0" style={{ color: muted }}>
+            ثيمات إضافية
           </p>
           <div className="flex gap-2 text-[9px] shrink-0" style={{ color: muted }}>
-            <span>داكن ({THEMES.filter((t) => !t.isLightSidebar).length})</span>
+            <span>داكن ({EXTRA_THEMES.filter((t) => !t.isLightSidebar).length})</span>
             <span>·</span>
-            <span>فاتح ({THEMES.filter((t) => t.isLightSidebar).length})</span>
+            <span>فاتح ({EXTRA_THEMES.filter((t) => t.isLightSidebar).length})</span>
           </div>
         </div>
 
         <div className="grid grid-cols-4 gap-1.5 mb-4">
-          {THEMES.map((t) => (
-            <button
+          {EXTRA_THEMES.map((t) => (
+            <ThemeSwatch
               key={t.id}
-              type="button"
-              onClick={() => handleSelect(t.id)}
-              className="relative flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all text-center"
-              style={{
-                borderColor: localId === t.id ? t.accent : bd,
-                background: localId === t.id ? `${t.accent}12` : cardBg,
-                boxShadow: localId === t.id ? `0 0 0 2px ${t.accent}30` : 'none',
-              }}
-            >
-              {localId === t.id && (
-                <div
-                  className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-white"
-                  style={{ background: t.accent, fontSize: '8px' }}
-                >
-                  ✓
-                </div>
-              )}
-              <div
-                className="w-7 h-7 rounded-full border-2 border-white/80 mb-1"
-                style={{
-                  background: t.accent,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                }}
-              />
-              <span className="text-[9px] font-semibold leading-tight px-0.5" style={{ color: text }}>
-                {t.label}
-              </span>
-              <div
-                className="w-3 h-2 rounded-sm mt-1"
-                style={{ background: t.sidebarBg, border: `1px solid ${bd}` }}
-                title={t.isLightSidebar ? 'شريط جانبي: فاتح' : 'شريط جانبي: داكن'}
-              />
-            </button>
+              t={t}
+              localId={localId}
+              bd={bd}
+              cardBg={cardBg}
+              text={text}
+              onSelect={handleSelect}
+            />
           ))}
         </div>
 

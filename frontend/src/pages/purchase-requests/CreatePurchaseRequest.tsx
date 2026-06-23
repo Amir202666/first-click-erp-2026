@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../contexts/AuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -44,7 +44,6 @@ export default function CreatePurchaseRequest() {
   const { currentTenant, meData } = useAuth()
   const { t, lang, isRtl } = useLanguage()
   const tenantId = currentTenant?.id ?? 0
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [vendorId, setVendorId] = useState<number | null>(null)
@@ -174,8 +173,8 @@ export default function CreatePurchaseRequest() {
 
   const createMut = useMutation({
     mutationFn: (data: Record<string, unknown>) => createPurchaseRequest(tenantId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['purchase-requests'] })
       resetForm()
       setShowSaveConfirm(false)
     },
@@ -293,7 +292,7 @@ export default function CreatePurchaseRequest() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">{t.add} {lang === 'ar' ? 'طلب شراء' : 'Purchase Request'}</h1>
-        <Link to="/purchase-requests" className="text-slate-600 hover:text-slate-900 text-sm">{t.back}</Link>
+        <Link to="/purchase-requests" state={{ refreshAt: Date.now() }} className="text-slate-600 hover:text-slate-900 text-sm">{t.back}</Link>
       </div>
 
       <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
@@ -499,7 +498,7 @@ export default function CreatePurchaseRequest() {
       )}
 
       <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-4 mt-6">
-        <Link to="/purchase-requests" className="order-2 sm:order-1 rounded-lg px-4 py-2.5 text-sm border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors text-center sm:inline-block">{t.cancel}</Link>
+        <Link to="/purchase-requests" state={{ refreshAt: Date.now() }} className="order-2 sm:order-1 rounded-lg px-4 py-2.5 text-sm border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors text-center sm:inline-block">{t.cancel}</Link>
         <button
           type="button"
           onClick={() => setShowSaveConfirm(true)}

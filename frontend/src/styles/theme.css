@@ -1,33 +1,182 @@
-/* First Click theme tokens — overridden at runtime by ThemeContext */
+/* ═══ Accounting Software — Semantic Color System ═══ */
+
 :root {
-  --fc-accent: #14b8a6;
-  --fc-accent-dark: #0d9488;
-  --fc-accent-light: #ccfbf1;
-  --fc-sidebar-bg: #134e4a;
-  --fc-sidebar-text: #2dd4bf;
-  --fc-sidebar-active-bg: rgba(16, 185, 129, 0.15);
-  --fc-sidebar-regular-text: rgba(255, 255, 255, 0.55);
-  --fc-sidebar-divider: rgba(255, 255, 255, 0.08);
-  --fc-page-bg: #ffffff;
-  --fc-card-bg: #ffffff;
-  --fc-topbar-bg: #ffffff;
-  --fc-topbar-text: var(--fc-accent);
-  --fc-topbar-border: color-mix(in srgb, var(--fc-accent) 18%, #e5e7eb);
-  --fc-topbar-hover: color-mix(in srgb, var(--fc-accent) 10%, transparent);
+  /* === PALETTE 1: Navy & Slate (Primary — Default Light Theme) === */
+  --color-primary-darkest: #0f2b4c;
+  --color-primary-dark: #1b4f8a;
+  --color-primary: #2e7dd1;
+  --color-primary-light: #eaf3fb;
+  --color-bg-page: #f5f7fa;
+  --color-bg-surface: #ffffff;
+
+  /* === PALETTE 2: Teal & Mint (Secondary / Accent Theme) === */
+  --color-teal-darkest: #0d4f4f;
+  --color-teal-dark: #0f766e;
+  --color-teal: #14b8a6;
+  --color-teal-light: #ccfbf1;
+  --color-teal-bg: #f0fdfa;
+
+  /* === PALETTE 3: Dark Pro (Dark Mode Theme) === */
+  --color-dark-base: #0f1117;
+  --color-dark-surface: #1a1d27;
+  --color-dark-elevated: #252836;
+  --color-dark-accent: #3b82f6;
+  --color-dark-accent-soft: #60a5fa;
+  --color-dark-text: #cbd5e1;
+
+  /* === PALETTE 4: Indigo & Warm Gray (RTL / Arabic Theme) === */
+  --color-indigo-darkest: #1e1b4b;
+  --color-indigo-dark: #3730a3;
+  --color-indigo: #6366f1;
+  --color-indigo-light: #e0e7ff;
+  --color-warm-bg: #f8f7f4;
+
+  /* === STATUS COLORS — Same across all palettes === */
+  --color-success: #16a34a;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-neutral: #6b7280;
+
+  /* === STATUS BACKGROUNDS === */
+  --color-success-bg: #f0fdf4;
+  --color-danger-bg: #fef2f2;
+  --color-warning-bg: #fffbeb;
+  --color-neutral-bg: #f9fafb;
+
+  /* === Tailwind primary scale (Navy default) === */
+  --color-primary-50: #eaf3fb;
+  --color-primary-100: #eaf3fb;
+  --color-primary-200: #c5dff5;
+  --color-primary-300: #9ec9ef;
+  --color-primary-400: #5a9de3;
+  --color-primary-500: #2e7dd1;
+  --color-primary-600: #2e7dd1;
+  --color-primary-700: #1b4f8a;
+  --color-primary-800: #1b4f8a;
+  --color-primary-900: #0f2b4c;
+  --color-primary-950: #0f2b4c;
+
+  /* Legacy status scale aliases */
+  --color-success-500: var(--color-success);
+  --color-success-600: var(--color-success);
+  --color-danger-50: var(--color-danger-bg);
+  --color-danger-500: var(--color-danger);
+  --color-danger-600: var(--color-danger);
+  --color-warning-500: var(--color-warning);
+  --color-warning-600: var(--color-warning);
+
+  /* Neutral scale */
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-500: #6b7280;
+  --color-neutral-700: #374151;
+  --color-neutral-900: #111827;
+
+  /* App shell tokens */
+  --fc-accent: var(--color-primary);
+  --fc-accent-dark: var(--color-primary-dark);
+  --fc-accent-light: var(--color-primary-light);
+  --fc-sidebar-bg: var(--color-primary-darkest);
+  --fc-sidebar-text: #ffffff;
+  --fc-sidebar-active-bg: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  --fc-sidebar-regular-text: rgba(255, 255, 255, 0.72);
+  --fc-sidebar-divider: rgba(255, 255, 255, 0.1);
+  --fc-page-bg: var(--color-bg-page);
+  --fc-card-bg: var(--color-bg-surface);
+  --fc-topbar-bg: var(--color-bg-surface);
+  --fc-topbar-text: var(--color-primary);
+  --fc-topbar-border: var(--color-neutral-200);
+  --fc-topbar-hover: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  --fc-topbar-input-bg: var(--color-bg-surface);
+  --fc-topbar-input-text: var(--color-neutral-900);
   --fc-border: #e5e7eb;
-  --fc-text: #1f2937;
-  --fc-text-muted: #6b7280;
-  --fc-input-bg: #ffffff;
-  --fc-table-row-hover: #ffffff;
-  /* Legacy aliases used in older CSS */
-  --color-accent: #14b8a6;
-  --color-accent-dark: #0d9488;
-  --color-accent-light: #ccfbf1;
-  --color-sidebar-bg: #134e4a;
-  --color-page-bg: #ffffff;
-  --color-card-bg: #ffffff;
+  --fc-text: var(--color-neutral-900);
+  --fc-text-muted: var(--color-neutral);
+  --fc-input-bg: var(--color-bg-surface);
+  --fc-table-row-hover: var(--color-neutral-bg);
+
+  --color-accent: var(--color-primary);
+  --color-accent-dark: var(--color-primary-dark);
+  --color-accent-light: var(--color-primary-light);
+  --color-sidebar-bg: var(--color-primary-darkest);
+  --color-page-bg: var(--color-bg-page);
+  --color-card-bg: var(--color-bg-surface);
   --color-border: #e5e7eb;
-  --color-text: #1f2937;
-  --color-text-muted: #6b7280;
-  --color-input-bg: #ffffff;
+  --color-text: var(--color-neutral-900);
+  --color-text-muted: var(--color-neutral);
+  --color-input-bg: var(--color-bg-surface);
+
+  --color-login-canvas: var(--color-primary-light);
+}
+
+/* Dark mode — Dark Pro palette */
+html.dark,
+.dark {
+  --color-bg-page: #0f1117;
+  --color-bg-surface: #1a1d27;
+  --color-primary: #60a5fa;
+  --color-primary-dark: #3b82f6;
+  --color-primary-darkest: #0f1117;
+  --color-primary-light: #1e293b;
+  --color-success: #4ade80;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-neutral: #94a3b8;
+  --color-success-bg: color-mix(in srgb, #16a34a 12%, #0f1117);
+  --color-danger-bg: color-mix(in srgb, #dc2626 12%, #0f1117);
+  --color-warning-bg: color-mix(in srgb, #d97706 12%, #0f1117);
+  --color-neutral-bg: #252836;
+
+  --color-primary-50: #1e293b;
+  --color-primary-100: #1e293b;
+  --color-primary-200: #334155;
+  --color-primary-300: #475569;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #60a5fa;
+  --color-primary-600: #3b82f6;
+  --color-primary-700: #3b82f6;
+  --color-primary-800: #2563eb;
+  --color-primary-900: #1d4ed8;
+  --color-primary-950: #1e3a8a;
+
+  --color-neutral-50: #252836;
+  --color-neutral-100: #1a1d27;
+  --color-neutral-200: #374151;
+  --color-neutral-300: #4b5563;
+  --color-neutral-500: #94a3b8;
+  --color-neutral-700: #cbd5e1;
+  --color-neutral-900: #f1f5f9;
+
+  --fc-page-bg: var(--color-dark-base);
+  --fc-card-bg: var(--color-dark-surface);
+  --fc-sidebar-bg: var(--color-dark-base);
+  --fc-border: #374151;
+  --fc-text: var(--color-dark-text);
+  --fc-text-muted: #94a3b8;
+  --fc-input-bg: var(--color-dark-elevated);
+  --fc-table-row-hover: var(--color-dark-elevated);
+  --fc-topbar-bg: var(--color-dark-surface);
+  --fc-topbar-input-bg: var(--color-dark-elevated);
+  --fc-topbar-input-text: var(--color-dark-text);
+
+  --color-page-bg: var(--color-dark-base);
+  --color-card-bg: var(--color-dark-surface);
+  --color-border: #374151;
+  --color-text: var(--color-dark-text);
+  --color-text-muted: #94a3b8;
+  --color-input-bg: var(--color-dark-elevated);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --color-bg-page: #0f1117;
+    --color-bg-surface: #1a1d27;
+    --color-primary: #60a5fa;
+    --color-primary-dark: #3b82f6;
+    --color-success: #4ade80;
+    --color-danger: #f87171;
+    --color-warning: #fbbf24;
+  }
 }

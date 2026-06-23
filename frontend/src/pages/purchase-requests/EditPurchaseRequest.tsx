@@ -312,7 +312,7 @@ export default function EditPurchaseRequest() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-900">{t.edit} {lang === 'ar' ? 'طلب شراء' : 'Purchase Request'} {pr?.number}</h1>
-        <Link to="/purchase-requests" className="text-slate-600 hover:text-slate-900 text-sm">{t.back}</Link>
+        <Link to="/purchase-requests" state={{ refreshAt: Date.now() }} className="text-slate-600 hover:text-slate-900 text-sm">{t.back}</Link>
       </div>
 
       <div className="bg-white rounded-lg border border-slate-200 p-4 space-y-4">
@@ -518,7 +518,7 @@ export default function EditPurchaseRequest() {
       )}
 
       <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-4 mt-6">
-        <Link to="/purchase-requests" className="order-2 sm:order-1 rounded-lg px-4 py-2.5 text-sm border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors text-center sm:inline-block">{t.cancel}</Link>
+        <Link to="/purchase-requests" state={{ refreshAt: Date.now() }} className="order-2 sm:order-1 rounded-lg px-4 py-2.5 text-sm border border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors text-center sm:inline-block">{t.cancel}</Link>
         <button
           type="button"
           onClick={() => setShowSaveConfirm(true)}

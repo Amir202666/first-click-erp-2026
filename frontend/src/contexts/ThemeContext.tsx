@@ -14,6 +14,7 @@ import {
   DEFAULT_THEME_ID,
   LEGACY_APP_THEME_ID,
   LEGACY_FIRSTCLICK_PALETTE,
+  RETIRED_THEME_IDS,
   THEMES,
   resolveTheme,
 } from '../constants/palettes'
@@ -23,18 +24,18 @@ const LEGACY_FIRSTCLICK_KEY = 'firstclick_theme'
 const LEGACY_APP_THEME_KEY = 'app-theme'
 
 const LIGHT_NEUTRAL: Record<string, string> = {
-  '50': '#fafafa',
-  '100': '#f4f4f5',
-  '200': '#e4e4e7',
-  '300': '#d4d4d8',
-  '500': '#71717a',
-  '700': '#3f3f46',
-  '900': '#18181b',
+  '50': '#f9fafb',
+  '100': '#f3f4f6',
+  '200': '#e5e7eb',
+  '300': '#d1d5db',
+  '500': '#6b7280',
+  '700': '#374151',
+  '900': '#111827',
 }
 
 const DARK_NEUTRAL: Record<string, string> = {
-  '50': '#1a1f2e',
-  '100': '#252d3d',
+  '50': '#252836',
+  '100': '#1a1d27',
   '200': '#374151',
   '300': '#4b5563',
   '500': '#94a3b8',
@@ -52,8 +53,11 @@ function readInitialConfig(): ThemeConfig {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const p = JSON.parse(raw) as Partial<ThemeConfig>
-      if (p.themeId && THEMES.some((t) => t.id === p.themeId)) {
-        return { themeId: p.themeId, mode: validMode(p.mode) }
+      if (p.themeId) {
+        const id = RETIRED_THEME_IDS[p.themeId] ?? p.themeId
+        if (THEMES.some((t) => t.id === id)) {
+          return { themeId: id, mode: validMode(p.mode) }
+        }
       }
     }
   } catch {
@@ -111,58 +115,66 @@ function applyCssTheme(theme: ThemePalette, isDark: boolean, config: ThemeConfig
   root.style.setProperty('--fc-sidebar-regular-text', theme.sidebarRegularItem)
   root.style.setProperty('--fc-sidebar-divider', theme.sidebarDivider)
 
-  root.style.setProperty('--fc-topbar-bg', isDark ? '#1e293b' : '#ffffff')
-  root.style.setProperty('--fc-topbar-text', theme.accent)
-  root.style.setProperty(
-    '--fc-topbar-border',
-    isDark
-      ? `color-mix(in srgb, ${theme.accent} 22%, #475569)`
-      : `color-mix(in srgb, ${theme.accent} 18%, #e5e7eb)`,
-  )
-  root.style.setProperty('--fc-topbar-hover', `color-mix(in srgb, ${theme.accent} 10%, transparent)`)
-  root.style.setProperty('--fc-topbar-input-bg', isDark ? '#0f172a' : '#ffffff')
-  root.style.setProperty('--fc-topbar-input-text', isDark ? '#f1f5f9' : '#1f2937')
-
-  for (const [shade, rgb] of Object.entries(theme.shades)) {
-    root.style.setProperty(`--color-primary-${shade}`, rgb)
-  }
-
   root.style.setProperty('--color-accent', theme.accent)
   root.style.setProperty('--color-accent-dark', theme.accentDark)
   root.style.setProperty('--color-accent-light', theme.accentLight)
   root.style.setProperty('--color-sidebar-bg', theme.sidebarBg)
 
-  const neutral = isDark ? DARK_NEUTRAL : LIGHT_NEUTRAL
-  for (const [k, v] of Object.entries(neutral)) {
-    root.style.setProperty(`--color-neutral-${k}`, v)
+  for (const [shade, rgb] of Object.entries(theme.shades)) {
+    root.style.setProperty(`--color-primary-${shade}`, rgb)
   }
+
+  root.style.setProperty('--color-primary', theme.accent)
+  root.style.setProperty('--color-primary-dark', theme.accentDark)
+  root.style.setProperty('--color-primary-light', theme.accentLight)
 
   if (isDark) {
     root.classList.add('dark')
-    root.style.setProperty('--fc-page-bg', '#0f172a')
-    root.style.setProperty('--fc-card-bg', '#1e293b')
-    root.style.setProperty('--fc-border', '#475569')
-    root.style.setProperty('--fc-text', '#f1f5f9')
-    root.style.setProperty('--fc-text-muted', '#94a3b8')
-    root.style.setProperty('--fc-input-bg', '#1e293b')
-    root.style.setProperty('--fc-table-row-hover', '#1e293b')
+    root.style.setProperty('--color-primary', '#60a5fa')
+    root.style.setProperty('--color-primary-dark', '#3b82f6')
+    root.style.setProperty('--color-bg-page', '#0f1117')
+    root.style.setProperty('--fc-page-bg', '#0f1117')
+    root.style.setProperty('--fc-topbar-bg', 'var(--color-dark-surface)')
+    root.style.setProperty('--fc-topbar-text', '#60a5fa')
+    root.style.setProperty('--fc-topbar-border', '#374151')
+    root.style.setProperty('--fc-topbar-hover', 'color-mix(in srgb, #60a5fa 12%, transparent)')
+    root.style.setProperty('--fc-topbar-input-bg', 'var(--color-dark-elevated)')
+    root.style.setProperty('--fc-topbar-input-text', 'var(--color-dark-text)')
   } else {
     root.classList.remove('dark')
-    root.style.setProperty('--fc-page-bg', '#ffffff')
-    root.style.setProperty('--fc-card-bg', '#ffffff')
+    const pageBg = theme.pageBg ?? '#f5f7fa'
+    root.style.setProperty('--color-bg-page', pageBg)
+    root.style.setProperty('--color-bg-surface', '#ffffff')
+    root.style.setProperty('--fc-page-bg', pageBg)
+    root.style.setProperty('--fc-card-bg', 'var(--color-bg-surface)')
     root.style.setProperty('--fc-border', '#e5e7eb')
-    root.style.setProperty('--fc-text', '#1f2937')
-    root.style.setProperty('--fc-text-muted', '#6b7280')
-    root.style.setProperty('--fc-input-bg', '#ffffff')
-    root.style.setProperty('--fc-table-row-hover', '#ffffff')
+    root.style.setProperty('--fc-text', 'var(--color-neutral-900)')
+    root.style.setProperty('--fc-text-muted', 'var(--color-neutral)')
+    root.style.setProperty('--fc-input-bg', 'var(--color-bg-surface)')
+    root.style.setProperty('--fc-table-row-hover', 'var(--color-neutral-bg)')
+    root.style.setProperty('--fc-topbar-bg', 'var(--color-bg-surface)')
+    root.style.setProperty('--fc-topbar-text', theme.accent)
+    root.style.setProperty(
+      '--fc-topbar-border',
+      `color-mix(in srgb, ${theme.accent} 18%, #e5e7eb)`,
+    )
+    root.style.setProperty('--fc-topbar-hover', `color-mix(in srgb, ${theme.accent} 10%, transparent)`)
+    root.style.setProperty('--fc-topbar-input-bg', 'var(--color-bg-surface)')
+    root.style.setProperty('--fc-topbar-input-text', 'var(--color-neutral-900)')
+    root.style.setProperty('--color-page-bg', 'var(--color-bg-page)')
+    root.style.setProperty('--color-card-bg', 'var(--color-bg-surface)')
+    root.style.setProperty('--color-border', '#e5e7eb')
+    root.style.setProperty('--color-text', 'var(--color-neutral-900)')
+    root.style.setProperty('--color-text-muted', 'var(--color-neutral)')
+    root.style.setProperty('--color-input-bg', 'var(--color-bg-surface)')
   }
 
-  root.style.setProperty('--color-page-bg', isDark ? '#0f172a' : '#ffffff')
-  root.style.setProperty('--color-card-bg', isDark ? '#1e293b' : '#ffffff')
-  root.style.setProperty('--color-border', isDark ? '#475569' : '#e5e7eb')
-  root.style.setProperty('--color-text', isDark ? '#f1f5f9' : '#1f2937')
-  root.style.setProperty('--color-text-muted', isDark ? '#94a3b8' : '#6b7280')
-  root.style.setProperty('--color-input-bg', isDark ? '#1e293b' : '#ffffff')
+  const neutral = isDark ? DARK_NEUTRAL : LIGHT_NEUTRAL
+  if (isDark) {
+    for (const [k, v] of Object.entries(neutral)) {
+      root.style.setProperty(`--color-neutral-${k}`, v)
+    }
+  }
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config))

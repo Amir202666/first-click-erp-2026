@@ -655,7 +655,7 @@ export default function Layout({ children }: LayoutProps) {
   const closeSidebar = () => setSidebarOpen(false)
 
   const headerBtnClass =
-    'fc-topbar-btn text-sm font-medium min-h-[44px] lg:min-h-0 border transition-colors'
+    'fc-topbar-btn text-sm font-medium min-h-0 border transition-colors'
   const headerIconBtnClass = 'fc-topbar-icon-btn transition-colors rounded-md'
 
   const navHoverClass = lightSidebarChrome ? 'hover:bg-black/[0.06]' : 'hover:bg-white/10'
@@ -877,7 +877,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Top Bar — ارتفاع ثابت */}
         <header
           dir={isRtl ? 'rtl' : 'ltr'}
-          className="no-print shrink-0 z-30 flex items-center justify-between gap-2 px-2 lg:px-2.5 h-11 lg:h-10 shadow-sm w-full"
+          className="no-print shrink-0 z-30 flex items-center justify-between gap-2 px-2 lg:px-2.5 h-10 lg:h-9 shadow-sm w-full"
           style={{
             background: 'var(--fc-topbar-bg)',
             borderBottom: '1px solid var(--fc-topbar-border)',
@@ -887,7 +887,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <button
               onClick={() => setSidebarCollapsed((c) => !c)}
-              className={`hidden lg:flex h-11 w-11 lg:h-[26px] lg:w-[26px] items-center justify-center rounded-md transition-colors shrink-0 ${headerIconBtnClass}`}
+              className={`hidden lg:flex h-10 w-10 lg:h-[26px] lg:w-[26px] items-center justify-center rounded-md transition-colors shrink-0 ${headerIconBtnClass}`}
               aria-label={sidebarCollapsed ? label('expandSidebar') : label('collapseSidebar')}
               title={sidebarCollapsed ? label('expandSidebar') : label('collapseSidebar')}
             >
@@ -907,7 +907,7 @@ export default function Layout({ children }: LayoutProps) {
                 onFocus={() => setNavSearchFocused(true)}
                 onBlur={() => setTimeout(() => setNavSearchFocused(false), 150)}
                 placeholder={t.searchPagesPlaceholder}
-                className={`fc-topbar-search w-full rounded-md h-11 lg:h-[26px] text-sm font-medium border transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`}
+                className={`fc-topbar-search w-full rounded-md h-10 lg:h-[26px] text-sm font-medium border transition-colors ${isRtl ? 'pr-8 pl-2' : 'pl-8 pr-2'}`}
                 dir={isRtl ? 'rtl' : 'ltr'}
               />
               {navSearchFocused && navSearch.trim() && navSearchResults.length > 0 && (
@@ -932,7 +932,7 @@ export default function Layout({ children }: LayoutProps) {
             {isPosPage ? (
               <Link
                 to="/"
-                className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
+                className={`flex items-center gap-1.5 h-10 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
                 title={lang === 'ar' ? 'الصفحة الرئيسية' : 'Home'}
               >
                 <ArrowLeft size={15} className={isRtl ? 'rotate-180' : ''} />
@@ -943,7 +943,7 @@ export default function Layout({ children }: LayoutProps) {
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(true)}
-                  className={`lg:hidden inline-flex items-center justify-center h-11 w-11 rounded-md transition-colors ${headerIconBtnClass}`}
+                  className={`lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-md transition-colors ${headerIconBtnClass}`}
                   aria-label="Menu"
                 >
                   <Menu size={18} />
@@ -952,7 +952,7 @@ export default function Layout({ children }: LayoutProps) {
                 {/* نقطة البيع POS - يخفى عند الدخول لشاشة نقطة البيع */}
                 <Link
                   to="/invoices/pos"
-                  className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
+                  className={`flex items-center gap-1.5 h-10 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
                   title={label('nav.posInvoices')}
                 >
                   <ShoppingCart size={15} />
@@ -970,7 +970,7 @@ export default function Layout({ children }: LayoutProps) {
                 ref={colorPickerBtnRef}
                 type="button"
                 onClick={() => setColorPickerOpen(!colorPickerOpen)}
-                className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
+                className={`flex items-center gap-1.5 h-10 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
                 title={t.themeColor}
               >
                 <Palette size={15} />
@@ -1000,7 +1000,7 @@ export default function Layout({ children }: LayoutProps) {
             {/* Language Toggle */}
             <button
               onClick={toggleLang}
-              className={`flex items-center gap-1.5 h-11 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
+              className={`flex items-center gap-1.5 h-10 px-3 rounded-md transition-colors border lg:h-[26px] lg:px-2.5 ${headerBtnClass}`}
               title={t.switchLanguage}
             >
               <Globe size={15} />
@@ -1011,7 +1011,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="fc-topbar-btn flex items-center gap-1.5 h-11 px-3 rounded-md text-sm font-medium transition-colors border lg:h-[26px] lg:px-2.5"
+                className="fc-topbar-btn flex items-center gap-1.5 h-10 px-3 rounded-md text-sm font-medium transition-colors border lg:h-[26px] lg:px-2.5"
               >
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
