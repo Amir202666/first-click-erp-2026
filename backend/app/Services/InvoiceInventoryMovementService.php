@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Invoice;
-use App\Models\InvoiceManufacturingFrozenBatch;
+use App\Models\InvoiceManufacturingFrozenComponent;
 use App\Models\InventoryMovement;
 
 /**
@@ -25,8 +25,8 @@ class InvoiceInventoryMovementService
             ->where('reference_id', $invoiceId)
             ->delete();
 
-        $frozenMovementIds = InvoiceManufacturingFrozenBatch::query()
-            ->where('invoice_id', $invoiceId)
+        $frozenMovementIds = InvoiceManufacturingFrozenComponent::query()
+            ->whereHas('batch', fn ($q) => $q->where('invoice_id', $invoiceId))
             ->whereNotNull('inventory_movement_out_id')
             ->pluck('inventory_movement_out_id');
 
