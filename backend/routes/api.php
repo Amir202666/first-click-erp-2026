@@ -663,6 +663,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/sales-rep-sales', [ReportController::class, 'salesRepSalesReport']);
             Route::get('/sales-reps-monthly-productivity', [ReportController::class, 'salesRepsMonthlyProductivity']);
             Route::get('/invoice-profits', [ReportController::class, 'invoiceProfits']);
+            Route::get('/item-profits', [ReportController::class, 'itemProfits']);
             Route::get('/branch-sales-annual', [ReportController::class, 'branchSalesAnnual']);
             Route::get('/cost-center-sales-annual', [ReportController::class, 'costCenterSalesAnnual']);
         });

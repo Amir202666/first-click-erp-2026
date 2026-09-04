@@ -144,6 +144,7 @@ const en: Translations = {
     quotations: 'Quotations',
     itemSalesReport: 'Item Sales Report',
     bestSelling: 'Best Selling',
+    itemProfitsReport: 'Item Profits',
     invoiceProfitsReport: 'Invoice Profit Report',
     branchSalesAnnualReport: 'Branch Sales Report',
     costCenterSalesReport: 'Cost Center Sales',

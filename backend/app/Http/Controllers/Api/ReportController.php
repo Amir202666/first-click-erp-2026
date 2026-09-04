@@ -573,6 +573,221 @@ class ReportController extends Controller
     }
 
     /**
+     * أرباح الأصناف: إيرادات/تكلفة/ربح/هامش لكل صنف من فواتير المبيعات المرحّلة.
+     * التكلفة من حركات المخزون المرتبطة بالفاتورة؛ الخصم من أسطر الفاتورة.
+     */
+    public function itemProfits(Request $request): JsonResponse
+    {
+        try {
+            if (! CheckPermission::userHasPermission($request, 'invoices.view_profit')) {
+                return response()->json(['message' => 'ليس لديك صلاحية لعرض أرباح الأصناف'], 403);
+            }
+
+            $tenantId = (int) $request->tenant_id;
+            if ($tenantId < 1) {
+                return response()->json(['message' => 'يرجى تحديد المستأجر (X-Tenant-ID).'], 422);
+            }
+
+            $request->merge([
+                'branch_id' => $request->filled('branch_id') && $request->branch_id !== '' ? $request->branch_id : null,
+                'warehouse_id' => $request->filled('warehouse_id') && $request->warehouse_id !== '' ? $request->warehouse_id : null,
+                'category_id' => $request->filled('category_id') && $request->category_id !== '' ? $request->category_id : null,
+                'search' => $request->filled('search') && trim((string) $request->search) !== '' ? trim((string) $request->search) : null,
+            ]);
+
+            $validated = $request->validate([
+                'from_date' => 'required|date',
+                'to_date' => 'required|date|after_or_equal:from_date',
+                'branch_id' => 'nullable|integer|exists:branches,id',
+                'warehouse_id' => 'nullable|integer|exists:warehouses,id',
+                'category_id' => 'nullable|integer|exists:item_categories,id',
+                'search' => 'nullable|string|max:200',
+            ]);
+
+            $fromDate = $this->parseReportDateOnly($validated['from_date']);
+            $toDate = $this->parseReportDateOnly($validated['to_date']);
+
+            $invoiceQuery = Invoice::query()
+                ->where('tenant_id', $tenantId)
+                ->where('type', 'sales')
+                ->where('is_return', false)
+                ->whereNotNull('journal_entry_id')
+                ->whereDate('date', '>=', $fromDate)
+                ->whereDate('date', '<=', $toDate)
+                ->where(function ($w) {
+                    if (Schema::hasColumn('invoices', 'document_status')) {
+                        $w->whereNull('document_status')
+                            ->orWhere('document_status', '!=', 'cancelled');
+                    } else {
+                        $w->whereNotIn('status', ['cancelled', 'draft']);
+                    }
+                });
+
+            if (! empty($validated['branch_id'])) {
+                $invoiceQuery->where('branch_id', $validated['branch_id']);
+            }
+            if (! empty($validated['warehouse_id']) && Schema::hasColumn('invoices', 'warehouse_id')) {
+                $invoiceQuery->where('warehouse_id', $validated['warehouse_id']);
+            }
+
+            $invoiceIds = $invoiceQuery->pluck('id');
+            if ($invoiceIds->isEmpty()) {
+                return response()->json([
+                    'rows' => [],
+                    'totals' => [
+                        'quantity' => 0,
+                        'revenue' => 0,
+                        'cost' => 0,
+                        'profit' => 0,
+                        'margin' => 0,
+                        'discount' => 0,
+                    ],
+                    'performance' => [
+                        'excellent' => 0,
+                        'good' => 0,
+                        'acceptable' => 0,
+                        'weak' => 0,
+                        'loss' => 0,
+                    ],
+                ]);
+            }
+
+            $linesQuery = DB::table('invoice_lines')
+                ->join('items', function ($j) use ($tenantId) {
+                    $j->on('items.id', '=', 'invoice_lines.item_id')
+                        ->where('items.tenant_id', $tenantId);
+                })
+                ->leftJoin('item_categories', 'item_categories.id', '=', 'items.category_id')
+                ->whereIn('invoice_lines.invoice_id', $invoiceIds->all())
+                ->whereNotNull('invoice_lines.item_id');
+
+            if (! empty($validated['category_id'])) {
+                $linesQuery->where('items.category_id', $validated['category_id']);
+            }
+            if (! empty($validated['search'])) {
+                $term = '%'.$validated['search'].'%';
+                $linesQuery->where(function ($w) use ($term) {
+                    $w->where('items.name', 'like', $term)
+                        ->orWhere('items.code', 'like', $term);
+                });
+            }
+
+            $salesRows = (clone $linesQuery)
+                ->select([
+                    'invoice_lines.item_id',
+                    'items.code as item_code',
+                    'items.name as item_name',
+                    'items.category_id',
+                    'item_categories.name as category_name',
+                    DB::raw('SUM(invoice_lines.quantity) as quantity'),
+                    DB::raw('SUM(invoice_lines.total) as revenue'),
+                    DB::raw('SUM(COALESCE(invoice_lines.discount_amount, 0)) as discount'),
+                ])
+                ->groupBy(
+                    'invoice_lines.item_id',
+                    'items.code',
+                    'items.name',
+                    'items.category_id',
+                    'item_categories.name'
+                )
+                ->get()
+                ->keyBy('item_id');
+
+            $costByItem = InventoryMovement::query()
+                ->where('tenant_id', $tenantId)
+                ->where('reference_type', Invoice::class)
+                ->whereIn('reference_id', $invoiceIds->all())
+                ->whereIn('item_id', $salesRows->keys()->all() ?: [0])
+                ->selectRaw('item_id, SUM(ABS(total_cost)) as cost')
+                ->groupBy('item_id')
+                ->pluck('cost', 'item_id');
+
+            $rows = [];
+            $totalsQty = 0.0;
+            $totalsRevenue = 0.0;
+            $totalsCost = 0.0;
+            $totalsDiscount = 0.0;
+            $performance = [
+                'excellent' => 0,
+                'good' => 0,
+                'acceptable' => 0,
+                'weak' => 0,
+                'loss' => 0,
+            ];
+
+            foreach ($salesRows as $itemId => $row) {
+                $qty = (float) ($row->quantity ?? 0);
+                $revenue = (float) ($row->revenue ?? 0);
+                $discount = (float) ($row->discount ?? 0);
+                $cost = (float) ($costByItem[$itemId] ?? 0);
+                $profit = $revenue - $cost;
+                $margin = $revenue > 0.00001 ? ($profit / $revenue) * 100 : 0.0;
+
+                if ($margin < 0) {
+                    $perf = 'loss';
+                } elseif ($margin >= 30) {
+                    $perf = 'excellent';
+                } elseif ($margin >= 15) {
+                    $perf = 'good';
+                } elseif ($margin >= 5) {
+                    $perf = 'acceptable';
+                } else {
+                    $perf = 'weak';
+                }
+                $performance[$perf]++;
+
+                $totalsQty += $qty;
+                $totalsRevenue += $revenue;
+                $totalsCost += $cost;
+                $totalsDiscount += $discount;
+
+                $rows[] = [
+                    'item_id' => (int) $itemId,
+                    'item_code' => (string) ($row->item_code ?? ''),
+                    'item_name' => (string) ($row->item_name ?? ''),
+                    'category_id' => $row->category_id !== null ? (int) $row->category_id : null,
+                    'category_name' => $row->category_name !== null ? (string) $row->category_name : null,
+                    'quantity' => round($qty, 4),
+                    'revenue' => round($revenue, 4),
+                    'cost' => round($cost, 4),
+                    'profit' => round($profit, 4),
+                    'margin' => round($margin, 2),
+                    'discount' => round($discount, 4),
+                    'avg_sale_price' => $qty > 0.00001 ? round($revenue / $qty, 4) : 0.0,
+                    'avg_cost' => $qty > 0.00001 ? round($cost / $qty, 4) : 0.0,
+                    'performance' => $perf,
+                ];
+            }
+
+            usort($rows, fn ($a, $b) => $b['profit'] <=> $a['profit']);
+
+            $totalsProfit = $totalsRevenue - $totalsCost;
+
+            return response()->json([
+                'rows' => $rows,
+                'totals' => [
+                    'quantity' => round($totalsQty, 4),
+                    'revenue' => round($totalsRevenue, 4),
+                    'cost' => round($totalsCost, 4),
+                    'profit' => round($totalsProfit, 4),
+                    'margin' => $totalsRevenue > 0.00001 ? round(($totalsProfit / $totalsRevenue) * 100, 2) : 0.0,
+                    'discount' => round($totalsDiscount, 4),
+                ],
+                'performance' => $performance,
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            \Log::error('itemProfits report error: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            return response()->json([
+                'message' => 'حدث خطأ في توليد تقرير أرباح الأصناف.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * تقرير المبيعات السنوي للفروع: صفوف = فروع، أعمدة = 12 شهراً مالياً.
      * يشمل فواتير المبيعات المرحّلة (journal_entry_id) من كل القنوات ما لم يُقيّد sales_channel.
      */
