@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "penpot": {
+      "url": "https://design.penpot.app/mcp/stream?userToken=eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.ZRL48U92VMj6HWlZN61agd7Q4pqUKryntZ3_7M-hO4sBiXvHnHKwjQ.UWZWNwIjldlK2xu4.KCjB-P2wuroLTGJdtBy7vbMcTJSJzdoRNq3_3mK0EDnvpjY4JAgbjK0S4_OF-qsHUllNWcKlrefBzAjpI9x1an5bO5kRkrBNhaSNV7RgYDSCD6hjV4kIVQisSvzce40a56zg2fVWeTgIVRoHKal6y2nuA4fujkVKHC5NYlPSVP8pUq1mmwKGRshaqeUugjU0oexLdfJHxUPO.Hq9AOoI_NB1OIXOiH0mk3w",
+      "type": "http"
+    }
+  }
+}
