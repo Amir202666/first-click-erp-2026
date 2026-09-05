@@ -255,6 +255,7 @@ const navEntries: NavEntry[] = [
       '/reports/item-sales',
       '/reports/best-selling',
       '/reports/invoice-profits',
+      '/reports/item-profits',
       '/reports/branch-sales-annual',
       '/reports/cost-center-sales-annual',
     ],
@@ -264,6 +265,7 @@ const navEntries: NavEntry[] = [
       { path: '/invoices/quotations', labelKey: 'nav.quotations', icon: ClipboardList },
       { path: '/reports/item-sales', labelKey: 'nav.itemSalesReport', icon: BarChart3 },
       { path: '/reports/best-selling', labelKey: 'nav.bestSelling', icon: TrendingUp },
+      { path: '/reports/item-profits', labelKey: 'nav.itemProfitsReport', icon: BarChart3 },
       { path: '/reports/invoice-profits', labelKey: 'nav.invoiceProfitsReport', icon: BarChart3 },
       { path: '/reports/branch-sales-annual', labelKey: 'nav.branchSalesAnnualReport', icon: BarChart3 },
       { path: '/reports/cost-center-sales-annual', labelKey: 'nav.costCenterSalesReport', icon: BarChart3 },
@@ -781,7 +783,7 @@ export default function Layout({ children }: LayoutProps) {
                   if (child.path.startsWith('/hr/payroll')) return can('hr.payroll.view')
                   return can('hr.view')
                 }
-                if (child.path === '/reports/invoice-profits') return can('invoices.view_profit')
+                if (child.path === '/reports/invoice-profits' || child.path === '/reports/item-profits') return can('invoices.view_profit')
                 return true
               })
               if (visibleChildren.length === 0) return null

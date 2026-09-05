@@ -79,6 +79,7 @@ import PaymentsReport from './pages/reports/PaymentsReport'
 import TaxDeclarationReport from './pages/reports/TaxDeclarationReport'
 import ItemSalesReport from './pages/reports/ItemSalesReport'
 import InvoiceProfitsReport from './pages/reports/InvoiceProfitsReport'
+import ItemProfitsReport from './pages/reports/ItemProfitsReport'
 import BranchAnnualSalesReport from './pages/reports/BranchAnnualSalesReport'
 import CostCenterAnnualSalesReport from './pages/reports/CostCenterAnnualSalesReport'
 import BestSellingReport from './pages/reports/BestSellingReport'
@@ -358,6 +359,7 @@ function App() {
                     <Route path="/reports/tax-declaration" element={<TaxDeclarationReport />} />
                     <Route path="/reports/item-sales" element={<ItemSalesReport />} />
                     <Route path="/reports/invoice-profits" element={<InvoiceProfitsReport />} />
+                    <Route path="/reports/item-profits" element={<ItemProfitsReport />} />
                     <Route path="/reports/branch-sales-annual" element={<BranchAnnualSalesReport />} />
                     <Route path="/reports/cost-center-sales-annual" element={<CostCenterAnnualSalesReport />} />
                     <Route path="/reports/best-selling" element={<BestSellingReport />} />

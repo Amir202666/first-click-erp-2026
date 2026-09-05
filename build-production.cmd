@@ -7,6 +7,10 @@ echo ========================================
 echo  Production build (frontend -> backend\public)
 echo ========================================
 echo.
+echo  IMPORTANT: Laragon/XAMPP serves backend\public.
+echo  Without this rebuild, new themes/layouts stay invisible
+echo  while invoices/vouchers API still work (old JS/CSS).
+echo.
 
 echo [1/2] Building frontend (vite only)...
 pushd frontend

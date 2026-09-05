@@ -92,6 +92,7 @@ export const ROUTE_TITLE_RULES: RouteTitleRule[] = [
   { path: '/reports/best-selling', titleKey: 'nav.bestSelling' },
   { path: '/reports/item-sales', titleKey: 'nav.itemSalesReport' },
   { path: '/reports/invoice-profits', titleKey: 'nav.invoiceProfitsReport' },
+  { path: '/reports/item-profits', titleKey: 'nav.itemProfitsReport' },
   { path: '/reports/trial-balance', titleKey: 'reports.trialBalance' },
   { path: '/reports/balance-sheet', titleKey: 'reports.balanceSheet' },
   { path: '/reports/income-statement', titleKey: 'reports.incomeStatement' },

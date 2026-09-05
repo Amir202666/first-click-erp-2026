@@ -11,8 +11,8 @@
       (function () {
         try {
           var shellV = localStorage.getItem('fc_shell_version');
-          if (shellV !== '17') {
-            localStorage.setItem('fc_shell_version', '17');
+          if (shellV !== '19') {
+            localStorage.setItem('fc_shell_version', '19');
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(function (regs) {
                 regs.forEach(function (r) { r.unregister(); });
@@ -23,6 +23,7 @@
                 keys.forEach(function (k) { caches.delete(k); });
               });
             }
+            try { sessionStorage.clear(); } catch (e2) { /* ignore */ }
           }
         } catch (e) { /* ignore */ }
         try {
@@ -122,11 +123,11 @@
         min-height: 0;
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-CIk3FBkJ.js"></script>
+    <script type="module" crossorigin src="/assets/index-CQUG0IQX.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/query-kvIyjVY9.js">
     <link rel="modulepreload" crossorigin href="/assets/router-BqzgL9q3.js">
-    <link rel="modulepreload" crossorigin href="/assets/ui-DdrKDBJd.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-CAndwUOB.css">
+    <link rel="modulepreload" crossorigin href="/assets/ui-DtGIg9J8.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CudpJxaf.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="root"></div>

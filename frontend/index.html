@@ -11,8 +11,8 @@
       (function () {
         try {
           var shellV = localStorage.getItem('fc_shell_version');
-          if (shellV !== '17') {
-            localStorage.setItem('fc_shell_version', '17');
+          if (shellV !== '19') {
+            localStorage.setItem('fc_shell_version', '19');
             if ('serviceWorker' in navigator) {
               navigator.serviceWorker.getRegistrations().then(function (regs) {
                 regs.forEach(function (r) { r.unregister(); });
@@ -23,6 +23,7 @@
                 keys.forEach(function (k) { caches.delete(k); });
               });
             }
+            try { sessionStorage.clear(); } catch (e2) { /* ignore */ }
           }
         } catch (e) { /* ignore */ }
         try {

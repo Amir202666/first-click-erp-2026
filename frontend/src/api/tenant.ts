@@ -1664,6 +1664,41 @@ export interface InvoiceProfitsResponse {
 export const fetchInvoiceProfits = (tenantId: number, params: Record<string, string>) =>
   api.get<InvoiceProfitsResponse>('/reports/invoice-profits', { ...tenantHeaders(tenantId), params }).then(r => r.data)
 
+export type ItemProfitPerformance = 'excellent' | 'good' | 'acceptable' | 'weak' | 'loss'
+
+export interface ItemProfitRow {
+  item_id: number
+  item_code: string
+  item_name: string
+  category_id: number | null
+  category_name: string | null
+  quantity: number
+  revenue: number
+  cost: number
+  profit: number
+  margin: number
+  discount: number
+  avg_sale_price: number
+  avg_cost: number
+  performance: ItemProfitPerformance
+}
+
+export interface ItemProfitsResponse {
+  rows: ItemProfitRow[]
+  totals: {
+    quantity: number
+    revenue: number
+    cost: number
+    profit: number
+    margin: number
+    discount: number
+  }
+  performance: Record<ItemProfitPerformance, number>
+}
+
+export const fetchItemProfits = (tenantId: number, params: Record<string, string>) =>
+  api.get<ItemProfitsResponse>('/reports/item-profits', { ...tenantHeaders(tenantId), params }).then((r) => r.data)
+
 export interface BranchSalesAnnualMonthMeta {
   month_index: number
   year: number

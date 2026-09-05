@@ -142,6 +142,7 @@ const ar = {
     quotations: 'عروض الأسعار',
     itemSalesReport: 'تقرير مبيعات الأصناف',
     bestSelling: 'الأكثر مبيعاً',
+    itemProfitsReport: 'أرباح الأصناف',
     invoiceProfitsReport: 'تقرير أرباح الفواتير',
     branchSalesAnnualReport: 'تقرير مبيعات الفروع',
     costCenterSalesReport: 'مبيعات مراكز التكلفة',
